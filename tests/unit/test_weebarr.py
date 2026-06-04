@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from src.main import create_app
-from src.weebarr.services import candidate_score, normalize_title
+from src.weebarr.services import WeebarrService, candidate_score, normalize_title
 from src.weebarr.settings import Settings
 
 
@@ -32,3 +32,23 @@ def test_title_normalization_and_candidate_score():
 
     assert normalize_title("Witch Hat Atelier!!") == "witch hat atelier"
     assert candidate_score(["Witch Hat Atelier"], candidate, 2026) >= 100
+
+
+def test_shape_anime_includes_audio_origin_fallback():
+    service = WeebarrService(Settings(audio_lookup_enabled=False))
+    shaped = service._shape_anime(
+        {
+            "id": 1,
+            "idMal": 2,
+            "countryOfOrigin": "JP",
+            "title": {"romaji": "Example Anime"},
+            "coverImage": {},
+            "studios": {"nodes": []},
+        },
+        rank=1,
+    )
+
+    assert shaped["countryOfOrigin"] == "JP"
+    assert (
+        service._source_audio(shaped["countryOfOrigin"])["fallbackLabel"] == "JA only"
+    )

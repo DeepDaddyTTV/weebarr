@@ -37,6 +37,9 @@ class Settings:
     seerr_request_user_id: int | None = None
     seerr_request_seasons: str = "all"
     request_timeout_seconds: float = 20.0
+    audio_lookup_enabled: bool = True
+    audio_cache_ttl_seconds: int = 86400
+    audio_lookup_timeout_seconds: float = 6.0
 
     @property
     def seerr_configured(self) -> bool:
@@ -64,4 +67,10 @@ class Settings:
             seerr_request_user_id=_optional_int(os.getenv("SEERR_REQUEST_USER_ID")),
             seerr_request_seasons=os.getenv("SEERR_REQUEST_SEASONS", "all"),
             request_timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "20")),
+            audio_lookup_enabled=os.getenv("AUDIO_LOOKUP_ENABLED", "true").lower()
+            not in ("0", "false", "no", "off"),
+            audio_cache_ttl_seconds=int(os.getenv("AUDIO_CACHE_TTL_SECONDS", "86400")),
+            audio_lookup_timeout_seconds=float(
+                os.getenv("AUDIO_LOOKUP_TIMEOUT_SECONDS", "6")
+            ),
         )

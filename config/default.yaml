@@ -9,6 +9,9 @@ weebarr:
   port: 8888
   anilist_cache_ttl_seconds: 21600
   seerr_cache_ttl_seconds: 900
+  audio_lookup_enabled: true
+  audio_cache_ttl_seconds: 86400
+  audio_lookup_timeout_seconds: 6
   ui:
     theme: "deep-zone"
 

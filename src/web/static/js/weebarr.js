@@ -5,7 +5,12 @@ const state = {
   selected: null,
   query: "",
   filter: "all",
+  audioFilter: "all",
   sort: "popularity",
+  page: 1,
+  pageSize: 12,
+  theme: "dark",
+  filterOpen: false,
 };
 
 const els = {
@@ -16,12 +21,19 @@ const els = {
   nextSeason: document.querySelector("#nextSeasonBtn"),
   refresh: document.querySelector("#refreshBtn"),
   filterButton: document.querySelector("#filterBtn"),
+  filterMenu: document.querySelector("#filterMenu"),
   search: document.querySelector("#searchInput"),
   filter: document.querySelector("#statusFilter"),
   sort: document.querySelector("#sortSelect"),
   sections: document.querySelector("#animeSections"),
   spotlight: document.querySelector("#spotlight"),
   toast: document.querySelector("#toast"),
+  themeButtons: document.querySelectorAll("[data-theme-choice]"),
+  manageConnection: document.querySelector("#manageConnectionBtn"),
+  connectionModal: document.querySelector("#connectionModal"),
+  connectionSummary: document.querySelector("#connectionSummary"),
+  connectionStatus: document.querySelector("#connectionStatus"),
+  connectionRequestSeasons: document.querySelector("#connectionRequestSeasons"),
   stats: {
     total: document.querySelector("#statTotal"),
     requestable: document.querySelector("#statRequestable"),
@@ -31,6 +43,8 @@ const els = {
 };
 
 const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"];
+const themeStorageKey = "weebarr-theme";
+const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
 
 function toast(message) {
   els.toast.textContent = message;
@@ -85,6 +99,27 @@ function titleCaseSeason(season) {
   return `${season[0]}${season.slice(1).toLowerCase()}`;
 }
 
+function resetPage() {
+  state.page = 1;
+}
+
+function resolvedTheme(choice) {
+  if (choice === "system") {
+    return prefersLight.matches ? "light" : "dark";
+  }
+  return choice;
+}
+
+function applyTheme(choice = localStorage.getItem(themeStorageKey) || "dark") {
+  state.theme = choice;
+  document.body.dataset.theme = resolvedTheme(choice);
+  document.body.dataset.themeChoice = choice;
+  localStorage.setItem(themeStorageKey, choice);
+  els.themeButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.themeChoice === choice);
+  });
+}
+
 function updateSeasonControls() {
   els.season.value = state.season;
   els.year.value = state.year;
@@ -107,8 +142,41 @@ function shiftSeason(delta) {
   }
   state.season = seasonOrder[nextIndex];
   state.year = year;
+  resetPage();
   updateSeasonControls();
   loadSeason();
+}
+
+function audioState(item) {
+  return item.audio || {
+    state: "unknown",
+    label: "Audio ?",
+    englishDub: null,
+    sourceLanguage: null,
+    confidence: "missing",
+  };
+}
+
+function audioTooltip(item) {
+  const audio = audioState(item);
+  if (audio.state === "en_dubbed") {
+    return "English dub detected from MAL voice actor data.";
+  }
+  if (audio.englishDub === false) {
+    return "No English voice actors were found in MAL character data.";
+  }
+  return "Dub status could not be confirmed. Showing source-language fallback.";
+}
+
+function audioFilterMatches(item) {
+  const audio = audioState(item);
+  if (state.audioFilter === "all") return true;
+  if (state.audioFilter === "en_dubbed") return audio.englishDub === true;
+  if (state.audioFilter === "source_only") {
+    return audio.englishDub === false || ["ja_only", "ch_only"].includes(audio.state);
+  }
+  if (state.audioFilter === "unknown") return audio.englishDub === null;
+  return audio.sourceLanguage === state.audioFilter;
 }
 
 function visibleItems() {
@@ -116,11 +184,14 @@ function visibleItems() {
   let items = [...state.items];
   if (query) {
     items = items.filter((item) => {
+      const audio = audioState(item);
       const haystack = [
         item.title,
         item.romajiTitle,
         item.englishTitle,
         item.nativeTitle,
+        audio.label,
+        audio.sourceLanguage,
         ...(item.genres || []),
         ...(item.studios || []),
       ].join(" ").toLowerCase();
@@ -129,18 +200,24 @@ function visibleItems() {
   }
   if (state.filter !== "all") {
     items = items.filter((item) => {
+      const seerr = item.seerr || {};
       if (state.filter === "requestable") {
-        return item.seerr.state === "requestable" || item.seerr.state === "partial";
+        return seerr.state === "requestable" || seerr.state === "partial";
       }
-      return item.seerr.state === state.filter;
+      return seerr.state === state.filter;
     });
   }
+  items = items.filter(audioFilterMatches);
   if (state.sort === "score") {
     items.sort((a, b) => (b.averageScore || 0) - (a.averageScore || 0));
   } else if (state.sort === "airing") {
     items.sort((a, b) => {
-      const left = a.nextAiring?.airingAt ? new Date(a.nextAiring.airingAt).getTime() : Number.MAX_SAFE_INTEGER;
-      const right = b.nextAiring?.airingAt ? new Date(b.nextAiring.airingAt).getTime() : Number.MAX_SAFE_INTEGER;
+      const left = a.nextAiring?.airingAt
+        ? new Date(a.nextAiring.airingAt).getTime()
+        : Number.MAX_SAFE_INTEGER;
+      const right = b.nextAiring?.airingAt
+        ? new Date(b.nextAiring.airingAt).getTime()
+        : Number.MAX_SAFE_INTEGER;
       return left - right;
     });
   } else {
@@ -170,6 +247,7 @@ function statusLabel(item) {
 
 function cardTemplate(item) {
   const seerr = item.seerr || {};
+  const audio = audioState(item);
   const disabled = !seerr.requestable;
   const buttonText = seerr.state === "partial" ? "Request Missing" : "Request in Seerr";
   const isSelected = state.selected && String(state.selected.id) === String(item.id);
@@ -186,6 +264,7 @@ function cardTemplate(item) {
         <div class="score-row">
           <span>★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
           <span>♨ ${formatNumber(item.popularity)}</span>
+          <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
         </div>
         <div class="next-line"><strong>Next Episode</strong>${formatAiring(item.nextAiring)}</div>
         <div class="card-foot">
@@ -199,27 +278,47 @@ function cardTemplate(item) {
   `;
 }
 
-function renderPager(items) {
+function pagerPages(totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+  const pages = new Set([1, totalPages, state.page - 1, state.page, state.page + 1]);
+  return [...pages]
+    .filter((page) => page >= 1 && page <= totalPages)
+    .sort((left, right) => left - right)
+    .reduce((acc, page, index, allPages) => {
+      if (index > 0 && page - allPages[index - 1] > 1) acc.push("ellipsis");
+      acc.push(page);
+      return acc;
+    }, []);
+}
+
+function renderPager(visibleCount) {
+  const totalPages = Math.max(1, Math.ceil(visibleCount / state.pageSize));
+  const first = visibleCount ? (state.page - 1) * state.pageSize + 1 : 0;
+  const last = Math.min(state.page * state.pageSize, visibleCount);
+  const totalSuffix = visibleCount === state.items.length ? "" : ` of ${state.items.length} total`;
   return `
-    <div class="pager">
-      <button type="button" aria-label="Previous page">‹</button>
-      <button class="active" type="button">1</button>
-      <button type="button">2</button>
-      <button type="button">3</button>
-      <button type="button">4</button>
-      <button type="button">5</button>
-      <span>…</span>
-      <button type="button">24</button>
-      <button type="button" aria-label="Next page">›</button>
-      <small>Showing 1-${Math.min(items.length, 12)} of ${state.items.length}</small>
+    <div class="pager" aria-label="Pagination">
+      <button type="button" data-page="${Math.max(1, state.page - 1)}" aria-label="Previous page" ${state.page === 1 ? "disabled" : ""}>‹</button>
+      ${pagerPages(totalPages).map((page) => {
+        if (page === "ellipsis") return "<span>…</span>";
+        return `<button class="${page === state.page ? "active" : ""}" type="button" data-page="${page}" aria-current="${page === state.page ? "page" : "false"}">${page}</button>`;
+      }).join("")}
+      <button type="button" data-page="${Math.min(totalPages, state.page + 1)}" aria-label="Next page" ${state.page === totalPages ? "disabled" : ""}>›</button>
+      <small>Showing ${first}-${last} of ${visibleCount}${totalSuffix}</small>
     </div>
   `;
 }
 
 function renderSections() {
-  const items = visibleItems().slice(0, 12);
+  const allItems = visibleItems();
+  const totalPages = Math.max(1, Math.ceil(allItems.length / state.pageSize));
+  if (state.page > totalPages) state.page = totalPages;
+  const start = (state.page - 1) * state.pageSize;
+  const items = allItems.slice(start, start + state.pageSize);
   if (!items.length) {
-    els.sections.innerHTML = `<div class="empty-state">No anime match the current filters.</div>`;
+    els.sections.innerHTML = `<div class="empty-state">No anime match the current filters.</div>${renderPager(0)}`;
     return;
   }
   const groups = new Map();
@@ -238,15 +337,23 @@ function renderSections() {
         ${bucketItems.map(cardTemplate).join("")}
       </div>
     </section>
-  `).join("")}${renderPager(items)}`;
+  `).join("")}${renderPager(allItems.length)}`;
 }
 
 function renderSpotlight(item) {
   state.selected = item;
   if (!item) {
+    els.spotlight.innerHTML = `
+      <div class="spotlight-empty">
+        <span class="orb"></span>
+        <h2>Select an anime</h2>
+        <p>Pick a seasonal card to see mapping status, audio signal, next airing data, and the Seerr request action.</p>
+      </div>
+    `;
     return;
   }
   const seerr = item.seerr || {};
+  const audio = audioState(item);
   const disabled = !seerr.requestable;
   els.spotlight.innerHTML = `
     <button class="spotlight-close" type="button" aria-label="Close details">×</button>
@@ -258,11 +365,13 @@ function renderSpotlight(item) {
     <div class="score-row spotlight-score">
       <span>★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
       <span>♨ ${formatNumber(item.popularity)}</span>
+      <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
       <a href="${item.siteUrl}" target="_blank" rel="noreferrer">View on AniList ↗</a>
     </div>
     <div class="genre-row">${(item.genres || []).slice(0, 3).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
     <div class="detail-list">
       <div><span>Next Episode</span><strong>${formatAiring(item.nextAiring)}</strong></div>
+      <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audio.state)}">${escapeHtml(audio.label)}</span></strong></div>
       <div><span>Overview</span><strong>${plainDescription(item.description)}</strong></div>
       <div><span>Start Date</span><strong>${formatDate(item.startDate)}</strong></div>
       <div><span>Seerr Match</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
@@ -274,19 +383,27 @@ function renderSpotlight(item) {
   `;
 }
 
+function setFilterOpen(open) {
+  state.filterOpen = open;
+  els.filterMenu.hidden = !open;
+  els.filterButton.setAttribute("aria-expanded", String(open));
+}
+
 async function loadSeason() {
-  els.sections.innerHTML = `<div class="loading">Loading ${state.season.toLowerCase()} ${state.year} anime from AniList and matching Seerr...</div>`;
+  els.sections.innerHTML = `<div class="loading">Loading ${state.season.toLowerCase()} ${state.year} anime from AniList, Jikan, and Seerr...</div>`;
   try {
     const url = `/api/seasonal?season=${encodeURIComponent(state.season)}&year=${encodeURIComponent(state.year)}&perPage=48`;
     const response = await fetch(url);
     if (!response.ok) throw new Error(await response.text());
     const data = await response.json();
     state.items = data.items || [];
-    renderSpotlight(state.items[0]);
+    resetPage();
+    renderSpotlight(state.items[0] || null);
     renderStats(data.stats || {});
     renderSections();
   } catch (error) {
     els.sections.innerHTML = `<div class="empty-state">Failed to load seasonal anime. ${escapeHtml(error.message)}</div>`;
+    renderSpotlight(null);
   }
 }
 
@@ -318,9 +435,32 @@ async function requestItem(id) {
   }
 }
 
+async function openConnectionModal() {
+  els.connectionModal.hidden = false;
+  document.body.classList.add("modal-open");
+  try {
+    const response = await fetch("/api/config");
+    if (!response.ok) throw new Error(await response.text());
+    const config = await response.json();
+    els.connectionStatus.textContent = config.seerrConfigured ? "Configured" : "Missing";
+    els.connectionRequestSeasons.textContent = config.requestSeasons || "all";
+    els.connectionSummary.textContent = config.seerrConfigured
+      ? "Weebarr can read request status and submit matched anime requests to Seerr. API keys are configured only through Docker environment variables."
+      : "Weebarr is running, but Seerr request integration needs SEERR_BASE_URL and SEERR_API_KEY in the container environment.";
+  } catch (error) {
+    els.connectionSummary.textContent = `Could not read connection settings. ${error.message}`;
+  }
+}
+
+function closeConnectionModal() {
+  els.connectionModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
 els.refresh.addEventListener("click", () => {
   state.season = els.season.value;
   state.year = Number(els.year.value);
+  resetPage();
   updateSeasonControls();
   loadSeason();
 });
@@ -328,37 +468,84 @@ els.refresh.addEventListener("click", () => {
 els.prevSeason.addEventListener("click", () => shiftSeason(-1));
 els.nextSeason.addEventListener("click", () => shiftSeason(1));
 
+els.season.addEventListener("change", (event) => {
+  state.season = event.target.value;
+  resetPage();
+  updateSeasonControls();
+  loadSeason();
+});
+
 els.filterSeason.addEventListener("change", (event) => {
   state.season = event.target.value;
+  resetPage();
   updateSeasonControls();
   loadSeason();
 });
 
 els.year.addEventListener("change", () => {
   state.year = Number(els.year.value);
+  resetPage();
   updateSeasonControls();
+  loadSeason();
 });
 
 els.search.addEventListener("input", (event) => {
   state.query = event.target.value;
+  resetPage();
   renderSections();
 });
 
 els.filter.addEventListener("change", (event) => {
   state.filter = event.target.value;
+  resetPage();
   renderSections();
 });
 
 els.sort.addEventListener("change", (event) => {
   state.sort = event.target.value;
+  resetPage();
   renderSections();
 });
 
-els.filterButton.addEventListener("click", () => {
-  toast("Use Search, Status, Sort by, and Season to filter this season.");
+els.filterButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setFilterOpen(!state.filterOpen);
+});
+
+els.filterMenu.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-quick-filter]");
+  if (!button) return;
+  const quickFilter = button.dataset.quickFilter;
+  if (quickFilter === "clear") {
+    state.filter = "all";
+    state.audioFilter = "all";
+    state.query = "";
+    els.filter.value = "all";
+    els.search.value = "";
+  } else if (quickFilter === "requestable" || quickFilter === "missing_mapping") {
+    state.filter = quickFilter;
+    els.filter.value = quickFilter;
+  } else {
+    state.audioFilter = quickFilter;
+  }
+  resetPage();
+  setFilterOpen(false);
+  renderSections();
+});
+
+document.addEventListener("click", (event) => {
+  if (state.filterOpen && !event.target.closest(".filter-actions")) {
+    setFilterOpen(false);
+  }
 });
 
 els.sections.addEventListener("click", (event) => {
+  const pagerButton = event.target.closest("[data-page]");
+  if (pagerButton) {
+    state.page = Number(pagerButton.dataset.page);
+    renderSections();
+    return;
+  }
   const requestButton = event.target.closest("[data-request]");
   if (requestButton) {
     requestItem(requestButton.dataset.request);
@@ -374,7 +561,7 @@ els.sections.addEventListener("click", (event) => {
 
 els.spotlight.addEventListener("click", (event) => {
   if (event.target.closest(".spotlight-close")) {
-    renderSpotlight(state.items[0]);
+    renderSpotlight(state.items[0] || null);
     renderSections();
     return;
   }
@@ -384,5 +571,27 @@ els.spotlight.addEventListener("click", (event) => {
   }
 });
 
+els.themeButtons.forEach((button) => {
+  button.addEventListener("click", () => applyTheme(button.dataset.themeChoice));
+});
+
+prefersLight.addEventListener("change", () => {
+  if (state.theme === "system") applyTheme("system");
+});
+
+els.manageConnection.addEventListener("click", openConnectionModal);
+
+els.connectionModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-modal]")) closeConnectionModal();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    setFilterOpen(false);
+    if (!els.connectionModal.hidden) closeConnectionModal();
+  }
+});
+
+applyTheme();
 updateSeasonControls();
 loadSeason();

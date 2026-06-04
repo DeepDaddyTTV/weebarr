@@ -23,6 +23,7 @@ Weebarr helps self-hosted anime libraries stay ahead of each release season. It 
 - **Popularity-first triage**: Group shows into Headliners, Strong Signal, and Deep Cuts using AniList popularity.
 - **Seerr-native requests**: Request matched TV anime through Seerr so your existing Sonarr anime profile, root folder, and approval flow stay in control.
 - **Status-aware cards**: See whether a title is requestable, already requested, available, partially available, or missing a Seerr/TMDB match.
+- **Audio signal badges**: Shows a best-effort English dub/source-language badge using AniList origin data and cached MAL voice-actor data from Jikan.
 - **Self-hosted friendly**: Runs as a small FastAPI container with static frontend assets and environment-based configuration.
 
 ## Quick Start
@@ -62,6 +63,9 @@ Weebarr is configured with environment variables so it works cleanly in Docker C
 | `SEERR_REQUEST_USER_ID` | API key user | Optional Seerr user ID to request as. |
 | `ANILIST_CACHE_TTL_SECONDS` | `21600` | AniList seasonal cache TTL. |
 | `SEERR_CACHE_TTL_SECONDS` | `900` | Seerr search/settings cache TTL. |
+| `AUDIO_LOOKUP_ENABLED` | `true` | Enables cached Jikan lookups for English voice-actor/dub detection. |
+| `AUDIO_CACHE_TTL_SECONDS` | `86400` | Audio lookup cache TTL. |
+| `AUDIO_LOOKUP_TIMEOUT_SECONDS` | `6` | Per-title timeout for Jikan audio metadata lookups. |
 | `WEEBARR_PORT` | `8888` | Container listen port. |
 
 ## Local Development
@@ -83,6 +87,7 @@ pytest tests/unit
 
 - AniList powers seasonal metadata and popularity sorting.
 - Seerr powers TV matching, request status, and request creation.
+- Jikan/MAL voice-actor data powers the best-effort `EN Dub` badge. If no English voice actors are found, Weebarr falls back to origin labels like `JA only` or `CH only`.
 - If Weebarr cannot confidently match a title through Seerr search, it will show the title as missing mapping instead of creating a risky request.
 
 ## License

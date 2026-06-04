@@ -4,13 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Weebarr - Seasonal Anime</title>
+    <link rel="icon" href="/static/img/weebarr-mark.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/img/weebarr-mark.png" />
     <link rel="stylesheet" href="/static/css/weebarr.css" />
   </head>
-  <body>
+  <body data-theme="dark">
     <div class="app-shell">
       <aside class="sidebar" aria-label="Weebarr navigation">
         <a class="brand" href="/seasonal" aria-label="Weebarr home">
-          <span class="brand-mark" aria-hidden="true">W</span>
+          <span class="brand-mark" aria-hidden="true">
+            <img src="/static/img/weebarr-mark.svg" alt="" />
+          </span>
           <span>
             <strong>Weebarr</strong>
             <small>v{{ version }}</small>
@@ -26,9 +30,9 @@
 
         <div class="theme-card" aria-label="Theme controls">
           <p>Theme</p>
-          <button type="button" class="active"><span aria-hidden="true">☼</span>Dark<i></i></button>
-          <button type="button"><span aria-hidden="true">▱</span>System<i></i></button>
-          <button type="button"><span aria-hidden="true">☾</span>Light<i></i></button>
+          <button type="button" class="active" data-theme-choice="dark"><span aria-hidden="true">☼</span>Dark<i></i></button>
+          <button type="button" data-theme-choice="system"><span aria-hidden="true">▱</span>System<i></i></button>
+          <button type="button" data-theme-choice="light"><span aria-hidden="true">☾</span>Light<i></i></button>
         </div>
         <div class="connection-card">
           <div class="connection-head">
@@ -37,8 +41,8 @@
           </div>
           <hr />
           <span class="connection-label">Seerr</span>
-          <span class="connection-host">weebarr-seerr.local</span>
-          <button type="button">Manage Connection</button>
+          <span class="connection-host">{{ "Environment configured" if seerr_configured else "Set SEERR_BASE_URL and SEERR_API_KEY" }}</span>
+          <button id="manageConnectionBtn" type="button">Manage Connection</button>
         </div>
       </aside>
 
@@ -129,7 +133,16 @@
               {% endfor %}
             </select>
           </label>
-          <button id="filterBtn" class="filter-btn" type="button"><span aria-hidden="true">▽</span>Filters</button>
+          <div class="filter-actions">
+            <button id="filterBtn" class="filter-btn" type="button" aria-expanded="false" aria-controls="filterMenu"><span aria-hidden="true">▽</span>Filters</button>
+            <div id="filterMenu" class="filter-menu" role="menu" hidden>
+              <button type="button" data-quick-filter="requestable">Requestable only</button>
+              <button type="button" data-quick-filter="en_dubbed">English dubbed</button>
+              <button type="button" data-quick-filter="source_only">JA/CH only</button>
+              <button type="button" data-quick-filter="missing_mapping">Missing mapping</button>
+              <button type="button" data-quick-filter="clear">Clear filters</button>
+            </div>
+          </div>
         </section>
 
         <div class="content-grid">
@@ -146,6 +159,34 @@
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="connectionModal" class="connection-modal" role="dialog" aria-modal="true" aria-labelledby="connectionModalTitle" hidden>
+      <div class="modal-backdrop" data-close-modal></div>
+      <section class="modal-panel">
+        <button class="modal-close" type="button" aria-label="Close connection settings" data-close-modal>×</button>
+        <span class="modal-eyebrow">Connection</span>
+        <h2 id="connectionModalTitle">Seerr Integration</h2>
+        <p id="connectionSummary">Loading connection status...</p>
+        <dl class="connection-details">
+          <div>
+            <dt>Status</dt>
+            <dd id="connectionStatus">{{ "Configured" if seerr_configured else "Missing" }}</dd>
+          </div>
+          <div>
+            <dt>Request Seasons</dt>
+            <dd id="connectionRequestSeasons">all</dd>
+          </div>
+          <div>
+            <dt>Configuration</dt>
+            <dd>Docker environment variables</dd>
+          </div>
+        </dl>
+        <div class="env-list" aria-label="Required environment variables">
+          <code>SEERR_BASE_URL</code>
+          <code>SEERR_API_KEY</code>
+          <code>SEERR_REQUEST_SEASONS</code>
+        </div>
+      </section>
+    </div>
     <script>
       window.WEEBARR_DEFAULT_SEASON = "{{ default_season }}";
       window.WEEBARR_DEFAULT_YEAR = {{ default_year }};

@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from src.weebarr.settings import Settings
 
 ANILIST_URL = "https://graphql.anilist.co"
+JIKAN_CHARACTERS_URL = "https://api.jikan.moe/v4/anime/{mal_id}/characters"
 SEASONS = ("WINTER", "SPRING", "SUMMER", "FALL")
 MEDIA_STATUS = {
     1: "Unknown",
@@ -25,6 +26,13 @@ MEDIA_STATUS = {
     5: "Available",
     6: "Blocklisted",
     7: "Deleted",
+}
+SOURCE_AUDIO = {
+    "JP": {"language": "ja", "label": "JA", "state": "ja_only"},
+    "CN": {"language": "zh", "label": "CH", "state": "ch_only"},
+    "TW": {"language": "zh", "label": "CH", "state": "ch_only"},
+    "HK": {"language": "zh", "label": "CH", "state": "ch_only"},
+    "KR": {"language": "ko", "label": "KO", "state": "ko_only"},
 }
 
 ANILIST_QUERY = """
@@ -43,6 +51,7 @@ query SeasonalAnime($season: MediaSeason!, $year: Int!, $page: Int!, $perPage: I
       averageScore
       meanScore
       favourites
+      countryOfOrigin
       season
       seasonYear
       title { romaji english native }
@@ -218,12 +227,23 @@ class WeebarrService:
             return cast(dict[str, Any], cached)
 
         anime = await self._fetch_anilist(season, year, per_page)
-        semaphore = asyncio.Semaphore(8)
+        seerr_semaphore = asyncio.Semaphore(8)
+        audio_semaphore = asyncio.Semaphore(2)
 
         async def enrich(item: dict[str, Any]) -> dict[str, Any]:
-            async with semaphore:
-                item["seerr"] = await self._resolve_seerr(item)
-                return item
+            async def resolve_seerr() -> dict[str, Any]:
+                async with seerr_semaphore:
+                    return await self._resolve_seerr(item)
+
+            async def resolve_audio() -> dict[str, Any]:
+                async with audio_semaphore:
+                    return await self._resolve_audio(item)
+
+            item["seerr"], item["audio"] = await asyncio.gather(
+                resolve_seerr(),
+                resolve_audio(),
+            )
+            return item
 
         enriched = await asyncio.gather(*(enrich(item) for item in anime))
         stats = Counter(item["seerr"]["state"] for item in enriched)
@@ -289,6 +309,7 @@ class WeebarrService:
             "popularity": item.get("popularity") or 0,
             "averageScore": item.get("averageScore") or item.get("meanScore"),
             "favourites": item.get("favourites") or 0,
+            "countryOfOrigin": item.get("countryOfOrigin"),
             "season": item.get("season"),
             "seasonYear": item.get("seasonYear"),
             "startDate": _date_from_parts(item.get("startDate")),
@@ -314,6 +335,97 @@ class WeebarrService:
             return "Strong Signal"
         return "Deep Cuts"
 
+    def _source_audio(self, country: str | None) -> dict[str, Any]:
+        source = SOURCE_AUDIO.get(country or "")
+        if source:
+            return {
+                "sourceCountry": country,
+                "sourceLanguage": source["language"],
+                "sourceLabel": source["label"],
+                "fallbackState": source["state"],
+                "fallbackLabel": f"{source['label']} only",
+            }
+        return {
+            "sourceCountry": country,
+            "sourceLanguage": None,
+            "sourceLabel": "Sub",
+            "fallbackState": "unknown",
+            "fallbackLabel": "Audio ?",
+        }
+
+    async def _resolve_audio(self, anime: dict[str, Any]) -> dict[str, Any]:
+        source = self._source_audio(anime.get("countryOfOrigin"))
+        mal_id = anime.get("malId")
+
+        if not self.settings.audio_lookup_enabled or not mal_id:
+            return {
+                "state": source["fallbackState"],
+                "label": source["fallbackLabel"],
+                "englishDub": None,
+                "sourceCountry": source["sourceCountry"],
+                "sourceLanguage": source["sourceLanguage"],
+                "confidence": "source_origin",
+            }
+
+        cache_key = f"audio:jikan:{mal_id}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cast(dict[str, Any], cached)
+
+        result = {
+            "state": "unknown",
+            "label": "Audio ?",
+            "englishDub": None,
+            "sourceCountry": source["sourceCountry"],
+            "sourceLanguage": source["sourceLanguage"],
+            "confidence": "lookup_failed",
+        }
+
+        try:
+            async with httpx.AsyncClient(
+                timeout=self.settings.audio_lookup_timeout_seconds
+            ) as client:
+                response = await client.get(JIKAN_CHARACTERS_URL.format(mal_id=mal_id))
+            if response.status_code == 404:
+                result["confidence"] = "no_mal_character_data"
+                self.cache.set(cache_key, result, self.settings.audio_cache_ttl_seconds)
+                return result
+            response.raise_for_status()
+            characters = cast(list[dict[str, Any]], response.json().get("data", []))
+        except (httpx.HTTPError, ValueError):
+            self.cache.set(
+                cache_key, result, min(3600, self.settings.audio_cache_ttl_seconds)
+            )
+            return result
+
+        languages = {
+            actor.get("language")
+            for character in characters
+            for actor in character.get("voice_actors", [])
+            if actor.get("language")
+        }
+        has_english = any(language == "English" for language in languages)
+        if has_english:
+            result = {
+                "state": "en_dubbed",
+                "label": "EN Dub",
+                "englishDub": True,
+                "sourceCountry": source["sourceCountry"],
+                "sourceLanguage": source["sourceLanguage"],
+                "confidence": "jikan_voice_actors",
+            }
+        elif characters:
+            result = {
+                "state": source["fallbackState"],
+                "label": source["fallbackLabel"],
+                "englishDub": False,
+                "sourceCountry": source["sourceCountry"],
+                "sourceLanguage": source["sourceLanguage"],
+                "confidence": "jikan_no_english_voice_actors",
+            }
+        self.cache.set(cache_key, result, self.settings.audio_cache_ttl_seconds)
+        return result
+
     async def _resolve_seerr(self, anime: dict[str, Any]) -> dict[str, Any]:
         if not self.settings.seerr_configured:
             return {
@@ -322,13 +434,15 @@ class WeebarrService:
                 "requestable": False,
             }
 
-        titles = [
+        raw_titles = [
             anime.get("englishTitle"),
             anime.get("title"),
             anime.get("romajiTitle"),
             anime.get("nativeTitle"),
         ]
-        titles = [title for title in titles if title]
+        titles = [title for title in raw_titles if isinstance(title, str) and title]
+        raw_start_year = anime.get("startYear")
+        start_year = raw_start_year if isinstance(raw_start_year, int) else None
         best: dict[str, Any] | None = None
         best_score = 0
 
@@ -342,7 +456,7 @@ class WeebarrService:
                 media_type = candidate.get("mediaType") or candidate.get("media_type")
                 if media_type != "tv":
                     continue
-                score = candidate_score(titles, candidate, anime.get("startYear"))
+                score = candidate_score(titles, candidate, start_year)
                 if score > best_score:
                     best = candidate
                     best_score = score
@@ -363,7 +477,8 @@ class WeebarrService:
             for req in media_info.get("requests", [])
             if req.get("status") not in (3, 5)
         ]
-        status_code = media_info.get("status")
+        raw_status_code = media_info.get("status")
+        status_code = raw_status_code if isinstance(raw_status_code, int) else None
         state = "requestable"
         label = "Requestable"
         requestable = True
@@ -375,7 +490,7 @@ class WeebarrService:
         elif requests or status_code in (2, 3):
             state, label, requestable = (
                 "requested",
-                MEDIA_STATUS.get(status_code, "Requested"),
+                MEDIA_STATUS.get(status_code or 0, "Requested"),
                 False,
             )
         elif status_code == 4:
