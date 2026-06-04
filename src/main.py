@@ -64,8 +64,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def seasonal_page(request: Request) -> HTMLResponse:
         season, year = service.current_season()
         return templates.TemplateResponse(
-            "index.html",
-            {
+            name="index.html",
+            context={
                 "request": request,
                 "version": __version__,
                 "default_season": season,
