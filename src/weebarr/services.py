@@ -7,6 +7,7 @@ import html
 import re
 import time
 from collections import Counter
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any, cast
 
@@ -191,13 +192,29 @@ class TTLCache:
     def set(self, key: str, value: Any, ttl: int) -> None:
         self._store[key] = (time.time() + ttl, value)
 
+    def clear(self) -> None:
+        self._store.clear()
+
 
 class WeebarrService:
     """Coordinates AniList seasonal data and Seerr request state."""
 
-    def __init__(self, settings: Settings):
-        self.settings = settings
+    def __init__(
+        self,
+        settings: Settings | Callable[[], Settings],
+    ):
+        if callable(settings):
+            self._settings_provider = settings
+        else:
+            self._settings_provider = lambda: settings
         self.cache = TTLCache()
+
+    @property
+    def settings(self) -> Settings:
+        return self._settings_provider()
+
+    def clear_cache(self) -> None:
+        self.cache.clear()
 
     def current_season(self) -> tuple[str, int]:
         now = datetime.now()
@@ -228,7 +245,10 @@ class WeebarrService:
 
         anime = await self._fetch_anilist(season, year, per_page)
         seerr_semaphore = asyncio.Semaphore(8)
-        audio_semaphore = asyncio.Semaphore(2)
+        # Jikan is rate-limited, but serializing dub lookups makes cold loads feel stuck.
+        # A moderate fan-out keeps the first render responsive while still falling back
+        # quickly when Jikan returns 429s.
+        audio_semaphore = asyncio.Semaphore(6)
 
         async def enrich(item: dict[str, Any]) -> dict[str, Any]:
             async def resolve_seerr() -> dict[str, Any]:
@@ -531,6 +551,25 @@ class WeebarrService:
         self.cache.set(cache_key, results, self.settings.seerr_cache_ttl_seconds)
         return results
 
+    async def _sonarr_servers(
+        self,
+        base_url: str,
+        api_key: str,
+    ) -> list[dict[str, Any]]:
+        async with httpx.AsyncClient(
+            timeout=self.settings.request_timeout_seconds
+        ) as client:
+            response = await client.get(
+                f"{base_url.rstrip('/')}/api/v1/settings/sonarr",
+                headers={"X-Api-Key": api_key},
+            )
+            response.raise_for_status()
+            return cast(list[dict[str, Any]], response.json())
+
+    @staticmethod
+    def _select_default_server(servers: list[dict[str, Any]]) -> dict[str, Any]:
+        return next((item for item in servers if item.get("isDefault")), servers[0])
+
     async def _sonarr_defaults(self) -> dict[str, Any]:
         cache_key = "seerr-sonarr-defaults"
         cached = self.cache.get(cache_key)
@@ -538,20 +577,13 @@ class WeebarrService:
             return cast(dict[str, Any], cached)
 
         defaults: dict[str, Any] = {}
-        async with httpx.AsyncClient(
-            timeout=self.settings.request_timeout_seconds
-        ) as client:
-            response = await client.get(
-                f"{self.settings.seerr_base_url}/api/v1/settings/sonarr",
-                headers={"X-Api-Key": self.settings.seerr_api_key},
-            )
-            response.raise_for_status()
-            servers = cast(list[dict[str, Any]], response.json())
+        servers = await self._sonarr_servers(
+            self.settings.seerr_base_url,
+            self.settings.seerr_api_key,
+        )
 
         if servers:
-            server = next(
-                (item for item in servers if item.get("isDefault")), servers[0]
-            )
+            server = self._select_default_server(servers)
             defaults = {
                 "serverId": server.get("id"),
                 "profileId": server.get("activeAnimeProfileId")
@@ -561,6 +593,39 @@ class WeebarrService:
             }
         self.cache.set(cache_key, defaults, self.settings.seerr_cache_ttl_seconds)
         return defaults
+
+    async def test_seerr_connection(
+        self,
+        base_url: str,
+        api_key: str,
+    ) -> dict[str, Any]:
+        try:
+            servers = await self._sonarr_servers(base_url, api_key)
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text.strip() or exc.response.reason_phrase
+            raise HTTPException(
+                status_code=exc.response.status_code, detail=detail
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+        defaults: dict[str, Any] = {}
+        if servers:
+            server = self._select_default_server(servers)
+            defaults = {
+                "serverId": server.get("id"),
+                "serverName": server.get("name"),
+                "profileId": server.get("activeAnimeProfileId")
+                or server.get("activeProfileId"),
+                "rootFolder": server.get("activeAnimeDirectory")
+                or server.get("activeDirectory"),
+            }
+
+        return {
+            "success": True,
+            "serverCount": len(servers),
+            "defaults": defaults,
+        }
 
     async def request_in_seerr(
         self,

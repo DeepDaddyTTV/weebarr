@@ -1,10 +1,11 @@
 const state = {
+  view: window.WEEBARR_PAGE || "seasonal",
   season: window.WEEBARR_DEFAULT_SEASON || "SPRING",
   year: window.WEEBARR_DEFAULT_YEAR || new Date().getFullYear(),
   items: [],
-  selected: null,
+  selectedId: null,
   query: "",
-  filter: "all",
+  filter: window.WEEBARR_INITIAL_FILTER || "all",
   audioFilter: "all",
   sort: "popularity",
   page: 1,
@@ -29,11 +30,6 @@ const els = {
   spotlight: document.querySelector("#spotlight"),
   toast: document.querySelector("#toast"),
   themeButtons: document.querySelectorAll("[data-theme-choice]"),
-  manageConnection: document.querySelector("#manageConnectionBtn"),
-  connectionModal: document.querySelector("#connectionModal"),
-  connectionSummary: document.querySelector("#connectionSummary"),
-  connectionStatus: document.querySelector("#connectionStatus"),
-  connectionRequestSeasons: document.querySelector("#connectionRequestSeasons"),
   stats: {
     total: document.querySelector("#statTotal"),
     requestable: document.querySelector("#statRequestable"),
@@ -42,15 +38,33 @@ const els = {
   },
 };
 
+const compactDetailsMedia = window.matchMedia("(max-width: 900px)");
+const forceCompactPreview = new URLSearchParams(window.location.search).get("compactPreview") === "1";
 const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"];
 const themeStorageKey = "weebarr-theme";
 const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
+
+els.filter.value = state.filter;
 
 function toast(message) {
   els.toast.textContent = message;
   els.toast.classList.add("show");
   window.clearTimeout(toast.timer);
   toast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 3600);
+}
+
+async function readError(response) {
+  const text = await response.text();
+  try {
+    const payload = JSON.parse(text);
+    return payload.detail || text;
+  } catch {
+    return text;
+  }
+}
+
+function isCompactDetails() {
+  return forceCompactPreview || compactDetailsMedia.matches;
 }
 
 function formatNumber(value) {
@@ -103,6 +117,18 @@ function resetPage() {
   state.page = 1;
 }
 
+function totalPagesForCount(visibleCount) {
+  return Math.max(1, Math.ceil(visibleCount / state.pageSize));
+}
+
+function sanitizePage(value, visibleCount = state.items.length) {
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 1;
+  }
+  return Math.min(parsed, totalPagesForCount(visibleCount));
+}
+
 function resolvedTheme(choice) {
   if (choice === "system") {
     return prefersLight.matches ? "light" : "dark";
@@ -142,6 +168,7 @@ function shiftSeason(delta) {
   }
   state.season = seasonOrder[nextIndex];
   state.year = year;
+  state.selectedId = null;
   resetPage();
   updateSeasonControls();
   loadSeason();
@@ -194,7 +221,9 @@ function visibleItems() {
         audio.sourceLanguage,
         ...(item.genres || []),
         ...(item.studios || []),
-      ].join(" ").toLowerCase();
+      ]
+        .join(" ")
+        .toLowerCase();
       return haystack.includes(query);
     });
   }
@@ -226,6 +255,31 @@ function visibleItems() {
   return items;
 }
 
+function currentSelectedItem(items = state.items) {
+  if (!state.selectedId) return null;
+  return items.find((item) => String(item.id) === String(state.selectedId)) || null;
+}
+
+function syncSelectedItem(items) {
+  if (!items.length) {
+    state.selectedId = null;
+    return null;
+  }
+  const selected = currentSelectedItem(items);
+  if (isCompactDetails()) {
+    if (selected && items.some((item) => String(item.id) === String(selected.id))) {
+      return selected;
+    }
+    state.selectedId = null;
+    return null;
+  }
+  if (selected && items.some((item) => String(item.id) === String(selected.id))) {
+    return selected;
+  }
+  state.selectedId = String(items[0].id);
+  return items[0];
+}
+
 function renderStats(stats) {
   const soonCutoff = Date.now() + 7 * 24 * 60 * 60 * 1000;
   const airingSoon = state.items.filter((item) => {
@@ -241,39 +295,76 @@ function renderStats(stats) {
 
 function statusLabel(item) {
   const seerr = item.seerr || {};
-  if (seerr.state === "partial") return "Not Requested";
+  if (seerr.state === "partial") return "Request Missing";
   return seerr.label || "Unknown";
+}
+
+function actionButtonTemplate(item, inline = false) {
+  const seerr = item.seerr || {};
+  if (!seerr || seerr.state === "disabled") {
+    return `<a class="${inline ? "request-btn" : "anilist-btn"}" href="/settings#connections">Configure Seerr</a>`;
+  }
+  if (!seerr.requestable) {
+    return `<a class="anilist-btn" href="${item.siteUrl}" target="_blank" rel="noreferrer">AniList ↗</a>`;
+  }
+  const buttonText = seerr.state === "partial" ? "Request Missing Seasons" : "Request in Seerr";
+  return `<button class="request-btn" type="button" data-request="${item.id}">${buttonText}<span aria-hidden="true">↗</span></button>`;
+}
+
+function inlineDetailTemplate(item) {
+  const seerr = item.seerr || {};
+  const audio = audioState(item);
+  return `
+    <div class="inline-detail">
+      <div class="genre-row">${(item.genres || []).slice(0, 3).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
+      <div class="inline-detail-grid">
+        <div><span>Next Episode</span><strong>${formatAiring(item.nextAiring)}</strong></div>
+        <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audio.state)}">${escapeHtml(audio.label)}</span></strong></div>
+        <div><span>Seerr Match</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
+        <div><span>Status</span><strong class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</strong></div>
+      </div>
+      <p class="inline-description">${plainDescription(item.description, 220)}</p>
+      <div class="inline-actions">
+        <a class="anilist-btn inline-link" href="${item.siteUrl}" target="_blank" rel="noreferrer">AniList ↗</a>
+        ${actionButtonTemplate(item, true)}
+      </div>
+    </div>
+  `;
 }
 
 function cardTemplate(item) {
   const seerr = item.seerr || {};
   const audio = audioState(item);
-  const disabled = !seerr.requestable;
-  const buttonText = seerr.state === "partial" ? "Request Missing" : "Request in Seerr";
-  const isSelected = state.selected && String(state.selected.id) === String(item.id);
+  const compact = isCompactDetails();
+  const isSelected = String(state.selectedId) === String(item.id);
+  const collapsedAction = compact ? "" : actionButtonTemplate(item);
+  const selectLabel = compact && isSelected ? `Collapse details for ${item.title}` : `Open details for ${item.title}`;
   return `
-    <article class="anime-card ${isSelected ? "selected" : ""}" data-id="${item.id}">
-      <div class="poster">
-        ${item.cover ? `<img src="${item.cover}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
-        <span class="rank">#${item.rank}</span>
-      </div>
-      <div class="card-body">
-        <h3>${escapeHtml(item.title)}</h3>
-        <p>${escapeHtml(item.romajiTitle || item.englishTitle || item.title)}</p>
-        <div class="meta">${(item.genres || []).slice(0, 3).map(escapeHtml).join(", ") || escapeHtml(item.format || "TV")}</div>
-        <div class="score-row">
-          <span>★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
-          <span>♨ ${formatNumber(item.popularity)}</span>
-          <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
+    <article class="anime-card ${isSelected ? "selected" : ""} ${compact && isSelected ? "inline-selected" : ""}" data-id="${item.id}" aria-expanded="${compact ? String(isSelected) : "false"}">
+      <button class="card-surface" type="button" data-select="${item.id}" onclick="window.weebarrToggleSelect && window.weebarrToggleSelect('${escapeHtml(item.id)}')" aria-label="${escapeHtml(selectLabel)}" aria-expanded="${compact ? String(isSelected) : "false"}">
+        <div class="poster">
+          ${item.cover ? `<img src="${item.cover}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
+          <span class="rank">#${item.rank}</span>
         </div>
-        <div class="next-line"><strong>Next Episode</strong>${formatAiring(item.nextAiring)}</div>
-        <div class="card-foot">
-          <span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span>
-          ${seerr.state === "requested" || seerr.state === "available" ? "<span class=\"checkmark\">⌄</span>" : ""}
+        <div class="card-body">
+          <h3>${escapeHtml(item.title)}</h3>
+          <p>${escapeHtml(item.romajiTitle || item.englishTitle || item.title)}</p>
+          <div class="meta">${(item.genres || []).slice(0, 3).map(escapeHtml).join(", ") || escapeHtml(item.format || "TV")}</div>
+          <div class="score-row">
+            <span>★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
+            <span>♨ ${formatNumber(item.popularity)}</span>
+            <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
+          </div>
+          <div class="next-line"><strong>Next Episode</strong>${formatAiring(item.nextAiring)}</div>
+          <div class="card-foot">
+            <span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span>
+            ${seerr.state === "requested" || seerr.state === "available" ? "<span class=\"checkmark\">⌄</span>" : ""}
+          </div>
         </div>
-      </div>
-      <div class="card-menu" aria-hidden="true">⋮</div>
-      ${disabled ? `<a class="anilist-btn" href="${item.siteUrl}" target="_blank" rel="noreferrer">AniList ↗</a>` : `<button class="request-btn" data-request="${item.id}">${buttonText}<span aria-hidden="true">↗</span></button>`}
+        <div class="card-menu" aria-hidden="true">⋮</div>
+      </button>
+      ${collapsedAction}
+      ${compact && isSelected ? inlineDetailTemplate(item) : ""}
     </article>
   `;
 }
@@ -294,27 +385,29 @@ function pagerPages(totalPages) {
 }
 
 function renderPager(visibleCount) {
-  const totalPages = Math.max(1, Math.ceil(visibleCount / state.pageSize));
+  state.page = sanitizePage(state.page, visibleCount);
+  const totalPages = totalPagesForCount(visibleCount);
   const first = visibleCount ? (state.page - 1) * state.pageSize + 1 : 0;
   const last = Math.min(state.page * state.pageSize, visibleCount);
   const totalSuffix = visibleCount === state.items.length ? "" : ` of ${state.items.length} total`;
   return `
     <div class="pager" aria-label="Pagination">
       <button type="button" data-page="${Math.max(1, state.page - 1)}" aria-label="Previous page" ${state.page === 1 ? "disabled" : ""}>‹</button>
-      ${pagerPages(totalPages).map((page) => {
-        if (page === "ellipsis") return "<span>…</span>";
-        return `<button class="${page === state.page ? "active" : ""}" type="button" data-page="${page}" aria-current="${page === state.page ? "page" : "false"}">${page}</button>`;
-      }).join("")}
+      ${pagerPages(totalPages)
+        .map((page) => {
+          if (page === "ellipsis") return "<span>…</span>";
+          return `<button class="${page === state.page ? "active" : ""}" type="button" data-page="${page}" aria-current="${page === state.page ? "page" : "false"}">${page}</button>`;
+        })
+        .join("")}
       <button type="button" data-page="${Math.min(totalPages, state.page + 1)}" aria-label="Next page" ${state.page === totalPages ? "disabled" : ""}>›</button>
       <small>Showing ${first}-${last} of ${visibleCount}${totalSuffix}</small>
     </div>
   `;
 }
 
-function renderSections() {
-  const allItems = visibleItems();
-  const totalPages = Math.max(1, Math.ceil(allItems.length / state.pageSize));
-  if (state.page > totalPages) state.page = totalPages;
+function renderSections(allItems) {
+  syncSelectedItem(allItems);
+  state.page = sanitizePage(state.page, allItems.length);
   const start = (state.page - 1) * state.pageSize;
   const items = allItems.slice(start, start + state.pageSize);
   if (!items.length) {
@@ -327,7 +420,9 @@ function renderSections() {
     if (!groups.has(bucket)) groups.set(bucket, []);
     groups.get(bucket).push(item);
   }
-  els.sections.innerHTML = `${[...groups.entries()].map(([bucket, bucketItems]) => `
+  els.sections.innerHTML = `${[...groups.entries()]
+    .map(
+      ([bucket, bucketItems]) => `
     <section>
       <div class="bucket-heading">
         <h2>${escapeHtml(bucket)}</h2>
@@ -337,11 +432,18 @@ function renderSections() {
         ${bucketItems.map(cardTemplate).join("")}
       </div>
     </section>
-  `).join("")}${renderPager(allItems.length)}`;
+  `,
+    )
+    .join("")}${renderPager(allItems.length)}`;
 }
 
 function renderSpotlight(item) {
-  state.selected = item;
+  if (isCompactDetails()) {
+    els.spotlight.hidden = true;
+    return;
+  }
+
+  els.spotlight.hidden = false;
   if (!item) {
     els.spotlight.innerHTML = `
       <div class="spotlight-empty">
@@ -352,9 +454,9 @@ function renderSpotlight(item) {
     `;
     return;
   }
+
   const seerr = item.seerr || {};
   const audio = audioState(item);
-  const disabled = !seerr.requestable;
   els.spotlight.innerHTML = `
     <button class="spotlight-close" type="button" aria-label="Close details">×</button>
     <div class="spotlight-media" style="background-image: url('${item.banner || item.cover || ""}')">
@@ -377,10 +479,23 @@ function renderSpotlight(item) {
       <div><span>Seerr Match</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
       <div><span>Status</span><strong class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</strong></div>
     </div>
-    <button class="request-btn" data-request="${item.id}" ${disabled ? "disabled" : ""}>
-      ${seerr.state === "partial" ? "Request Missing Seasons" : "Request in Seerr"}<span aria-hidden="true">↗</span>
-    </button>
+    ${actionButtonTemplate(item, true)}
   `;
+}
+
+function renderAll() {
+  const filteredItems = visibleItems();
+  renderSections(filteredItems);
+  renderSpotlight(currentSelectedItem(filteredItems));
+}
+
+function toggleSelectedItem(clickedId) {
+  if (isCompactDetails() && state.selectedId === clickedId) {
+    state.selectedId = null;
+  } else {
+    state.selectedId = clickedId;
+  }
+  renderAll();
 }
 
 function setFilterOpen(open) {
@@ -397,10 +512,8 @@ async function loadSeason() {
     if (!response.ok) throw new Error(await response.text());
     const data = await response.json();
     state.items = data.items || [];
-    resetPage();
-    renderSpotlight(state.items[0] || null);
     renderStats(data.stats || {});
-    renderSections();
+    renderAll();
   } catch (error) {
     els.sections.innerHTML = `<div class="empty-state">Failed to load seasonal anime. ${escapeHtml(error.message)}</div>`;
     renderSpotlight(null);
@@ -409,7 +522,11 @@ async function loadSeason() {
 
 async function requestItem(id) {
   const item = state.items.find((anime) => String(anime.id) === String(id));
-  if (!item || !item.seerr?.tmdbId) return;
+  if (!item) return;
+  if (!item.seerr?.tmdbId) {
+    toast("This title does not have a usable Seerr mapping yet.");
+    return;
+  }
   try {
     toast(`Sending ${item.title} to Seerr...`);
     const response = await fetch("/api/request", {
@@ -419,47 +536,44 @@ async function requestItem(id) {
         mediaId: item.seerr.tmdbId,
         tvdbId: item.seerr.tvdbId,
         title: item.title,
-        seasons: "all",
       }),
     });
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) {
+      const detail = await readError(response);
+      throw new Error(detail);
+    }
     item.seerr.state = "requested";
     item.seerr.label = "Requested";
     item.seerr.requestable = false;
-    state.selected = item;
-    renderSections();
-    renderSpotlight(item);
+    state.selectedId = String(item.id);
+    renderAll();
     toast(`${item.title} was requested in Seerr.`);
   } catch (error) {
+    if (error.message === "Already requested in Seerr") {
+      item.seerr.state = "requested";
+      item.seerr.label = "Requested";
+      item.seerr.requestable = false;
+      renderAll();
+      toast(`${item.title} is already requested in Seerr.`);
+      return;
+    }
     toast(`Request failed: ${error.message}`);
   }
 }
 
-async function openConnectionModal() {
-  els.connectionModal.hidden = false;
-  document.body.classList.add("modal-open");
-  try {
-    const response = await fetch("/api/config");
-    if (!response.ok) throw new Error(await response.text());
-    const config = await response.json();
-    els.connectionStatus.textContent = config.seerrConfigured ? "Configured" : "Missing";
-    els.connectionRequestSeasons.textContent = config.requestSeasons || "all";
-    els.connectionSummary.textContent = config.seerrConfigured
-      ? "Weebarr can read request status and submit matched anime requests to Seerr. API keys are configured only through Docker environment variables."
-      : "Weebarr is running, but Seerr request integration needs SEERR_BASE_URL and SEERR_API_KEY in the container environment.";
-  } catch (error) {
-    els.connectionSummary.textContent = `Could not read connection settings. ${error.message}`;
-  }
-}
-
-function closeConnectionModal() {
-  els.connectionModal.hidden = true;
-  document.body.classList.remove("modal-open");
+function shouldIgnoreCardToggle(target) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      "a[href], button, input, select, textarea, summary, [role='button'], [contenteditable='true']",
+    ),
+  );
 }
 
 els.refresh.addEventListener("click", () => {
   state.season = els.season.value;
   state.year = Number(els.year.value);
+  state.selectedId = null;
   resetPage();
   updateSeasonControls();
   loadSeason();
@@ -470,6 +584,7 @@ els.nextSeason.addEventListener("click", () => shiftSeason(1));
 
 els.season.addEventListener("change", (event) => {
   state.season = event.target.value;
+  state.selectedId = null;
   resetPage();
   updateSeasonControls();
   loadSeason();
@@ -477,6 +592,7 @@ els.season.addEventListener("change", (event) => {
 
 els.filterSeason.addEventListener("change", (event) => {
   state.season = event.target.value;
+  state.selectedId = null;
   resetPage();
   updateSeasonControls();
   loadSeason();
@@ -484,6 +600,7 @@ els.filterSeason.addEventListener("change", (event) => {
 
 els.year.addEventListener("change", () => {
   state.year = Number(els.year.value);
+  state.selectedId = null;
   resetPage();
   updateSeasonControls();
   loadSeason();
@@ -492,19 +609,19 @@ els.year.addEventListener("change", () => {
 els.search.addEventListener("input", (event) => {
   state.query = event.target.value;
   resetPage();
-  renderSections();
+  renderAll();
 });
 
 els.filter.addEventListener("change", (event) => {
   state.filter = event.target.value;
   resetPage();
-  renderSections();
+  renderAll();
 });
 
 els.sort.addEventListener("change", (event) => {
   state.sort = event.target.value;
   resetPage();
-  renderSections();
+  renderAll();
 });
 
 els.filterButton.addEventListener("click", (event) => {
@@ -517,10 +634,10 @@ els.filterMenu.addEventListener("click", (event) => {
   if (!button) return;
   const quickFilter = button.dataset.quickFilter;
   if (quickFilter === "clear") {
-    state.filter = "all";
+    state.filter = state.view === "requests" ? "requestable" : "all";
     state.audioFilter = "all";
     state.query = "";
-    els.filter.value = "all";
+    els.filter.value = state.filter;
     els.search.value = "";
   } else if (quickFilter === "requestable" || quickFilter === "missing_mapping") {
     state.filter = quickFilter;
@@ -530,7 +647,7 @@ els.filterMenu.addEventListener("click", (event) => {
   }
   resetPage();
   setFilterOpen(false);
-  renderSections();
+  renderAll();
 });
 
 document.addEventListener("click", (event) => {
@@ -542,8 +659,8 @@ document.addEventListener("click", (event) => {
 els.sections.addEventListener("click", (event) => {
   const pagerButton = event.target.closest("[data-page]");
   if (pagerButton) {
-    state.page = Number(pagerButton.dataset.page);
-    renderSections();
+    state.page = sanitizePage(pagerButton.dataset.page, visibleItems().length);
+    renderAll();
     return;
   }
   const requestButton = event.target.closest("[data-request]");
@@ -551,18 +668,21 @@ els.sections.addEventListener("click", (event) => {
     requestItem(requestButton.dataset.request);
     return;
   }
-  const card = event.target.closest(".anime-card");
-  if (card) {
-    const item = state.items.find((anime) => String(anime.id) === card.dataset.id);
-    renderSpotlight(item);
-    renderSections();
+  const selectButton = event.target.closest("[data-select]");
+  if (selectButton) {
+    toggleSelectedItem(String(selectButton.dataset.select));
+    return;
   }
+  if (shouldIgnoreCardToggle(event.target)) return;
+  const card = event.target.closest(".anime-card");
+  if (!card) return;
+  toggleSelectedItem(String(card.dataset.id));
 });
 
 els.spotlight.addEventListener("click", (event) => {
   if (event.target.closest(".spotlight-close")) {
-    renderSpotlight(state.items[0] || null);
-    renderSections();
+    state.selectedId = null;
+    renderAll();
     return;
   }
   const requestButton = event.target.closest("[data-request]");
@@ -579,19 +699,18 @@ prefersLight.addEventListener("change", () => {
   if (state.theme === "system") applyTheme("system");
 });
 
-els.manageConnection.addEventListener("click", openConnectionModal);
-
-els.connectionModal.addEventListener("click", (event) => {
-  if (event.target.closest("[data-close-modal]")) closeConnectionModal();
+compactDetailsMedia.addEventListener("change", () => {
+  renderAll();
 });
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     setFilterOpen(false);
-    if (!els.connectionModal.hidden) closeConnectionModal();
   }
 });
 
+window.weebarrToggleSelect = toggleSelectedItem;
 applyTheme();
+document.body.classList.toggle("compact-preview", forceCompactPreview);
 updateSeasonControls();
 loadSeason();

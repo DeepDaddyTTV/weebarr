@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Weebarr - Settings</title>
+    <link rel="icon" href="/static/img/weebarr-mark.svg?v={{ asset_version }}" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/img/weebarr-mark.png?v={{ asset_version }}" />
+    <link rel="stylesheet" href="/static/css/weebarr.css?v={{ asset_version }}" />
+  </head>
+  <body data-theme="dark" data-page="settings">
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Weebarr navigation">
+        <a class="brand" href="/seasonal" aria-label="Weebarr home">
+          <span class="brand-mark" aria-hidden="true">
+            <img src="/static/img/weebarr-mark.svg" alt="" />
+          </span>
+          <span>
+            <strong>Weebarr</strong>
+            <small>v{{ version }}</small>
+          </span>
+        </a>
+        <nav class="nav-list">
+          <a class="nav-item muted" href="/seasonal"><span aria-hidden="true">▣</span>Seasonal</a>
+          <a class="nav-item muted" href="/requests"><span aria-hidden="true">☷</span>Requests</a>
+          <a class="nav-item active" href="/settings"><span aria-hidden="true">⚙</span>Settings</a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="theme-card" aria-label="Theme controls">
+          <p>Theme</p>
+          <button type="button" class="active" data-theme-choice="dark"><span aria-hidden="true">☼</span>Dark<i></i></button>
+          <button type="button" data-theme-choice="system"><span aria-hidden="true">▱</span>System<i></i></button>
+          <button type="button" data-theme-choice="light"><span aria-hidden="true">☾</span>Light<i></i></button>
+        </div>
+        <div class="connection-card">
+          <div class="connection-head">
+            <span class="pulse"></span>
+            <strong>{{ "Connected" if connection.configured else "Seerr missing" }}</strong>
+          </div>
+          <hr />
+          <span class="connection-label">Seerr</span>
+          <span class="connection-host">{{ connection.baseUrl if connection.baseUrl else "Save a base URL and API key below." }}</span>
+          <a class="connection-cta" href="#connections">Connection Settings</a>
+        </div>
+      </aside>
+
+      <main class="page-main settings-page">
+        <header class="page-header">
+          <div class="top-copy">
+            <h1>Settings</h1>
+            <p>Configure Seerr once, test it from the UI, and keep those values persisted in the mounted Weebarr config volume.</p>
+          </div>
+        </header>
+
+        <section class="settings-layout">
+          <section id="connections" class="settings-panel">
+            <div class="panel-heading">
+              <div>
+                <span class="panel-eyebrow">Connections</span>
+                <h2>Manage Seerr</h2>
+              </div>
+              <span id="settingsStatusPill" class="status-pill {{ 'connected' if connection.configured else 'missing' }}">
+                {{ "Configured" if connection.configured else "Missing" }}
+              </span>
+            </div>
+
+            <div id="settingsBanner" class="status-banner" hidden></div>
+
+            <form id="connectionForm" class="settings-form" novalidate>
+              <div class="form-grid">
+                <label>
+                  <span>Seerr Base URL</span>
+                  <input id="settingsBaseUrl" name="baseUrl" type="url" placeholder="http://seerr:5055" value="{{ connection.baseUrl or '' }}" />
+                  <small>Use the internal container URL Weebarr can actually reach.</small>
+                </label>
+
+                <label>
+                  <span>API Key</span>
+                  <input id="settingsApiKey" name="apiKey" type="password" placeholder="{{ 'Stored ' ~ connection.apiKeyPreview if connection.hasApiKey else 'Paste a Seerr API key' }}" />
+                  <small>Leave blank to keep the currently stored key.</small>
+                </label>
+
+                <label>
+                  <span>Request Seasons</span>
+                  <select id="settingsRequestSeasons" name="requestSeasons">
+                    <option value="all" {{ 'selected' if connection.requestSeasons == 'all' else '' }}>All seasons</option>
+                    <option value="first" {{ 'selected' if connection.requestSeasons == 'first' else '' }}>First season only</option>
+                    <option value="latest" {{ 'selected' if connection.requestSeasons == 'latest' else '' }}>Latest season only</option>
+                  </select>
+                  <small>What Weebarr sends to Seerr when you click Request.</small>
+                </label>
+
+                <label>
+                  <span>Sonarr Server ID</span>
+                  <input id="settingsSonarrServerId" name="sonarrServerId" type="number" min="1" placeholder="Use Seerr default" value="{{ connection.sonarrServerId or '' }}" />
+                  <small>Optional override. Leave blank to use Seerr’s default Sonarr server.</small>
+                </label>
+
+                <label>
+                  <span>Profile ID</span>
+                  <input id="settingsProfileId" name="profileId" type="number" min="1" placeholder="Use anime/default profile" value="{{ connection.profileId or '' }}" />
+                  <small>Optional quality profile override for requests.</small>
+                </label>
+
+                <label>
+                  <span>Root Folder</span>
+                  <input id="settingsRootFolder" name="rootFolder" type="text" placeholder="Use Seerr anime/default root" value="{{ connection.rootFolder or '' }}" />
+                  <small>Optional root folder override sent with request payloads.</small>
+                </label>
+
+                <label>
+                  <span>Language Profile ID</span>
+                  <input id="settingsLanguageProfileId" name="languageProfileId" type="number" min="1" placeholder="Optional" value="{{ connection.languageProfileId or '' }}" />
+                  <small>Only needed if your Sonarr setup depends on explicit language profiles.</small>
+                </label>
+
+                <label>
+                  <span>Request User ID</span>
+                  <input id="settingsRequestUserId" name="requestUserId" type="number" min="1" placeholder="Use API key owner" value="{{ connection.requestUserId or '' }}" />
+                  <small>Optional Seerr user override for created requests.</small>
+                </label>
+
+                <label class="full-width">
+                  <span>Tag IDs</span>
+                  <input id="settingsTags" name="tags" type="text" placeholder="12, 34, 56" value="{{ connection.tags | join(', ') if connection.tags else '' }}" />
+                  <small>Optional comma-separated Sonarr tag IDs to attach through Seerr.</small>
+                </label>
+
+                <label class="full-width">
+                  <span>Admin Token</span>
+                  <input id="settingsAdminToken" name="adminToken" type="password" placeholder="{{ 'Required for write actions' if connection.adminProtected else 'Optional unless you enable WEEBARR_ADMIN_TOKEN' }}" />
+                  <small id="settingsAdminHint">
+                    {% if connection.adminProtected %}
+                    This instance requires the configured admin token before test/save actions can succeed.
+                    {% else %}
+                    Write actions are currently unlocked. Set <code>WEEBARR_ADMIN_TOKEN</code> before exposing Settings publicly.
+                    {% endif %}
+                  </small>
+                </label>
+              </div>
+
+              <div class="settings-actions">
+                <button id="testConnectionBtn" class="secondary-btn" type="button">Test Connection</button>
+                <button id="saveConnectionBtn" class="refresh-btn" type="submit">Save Connection</button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="settings-side">
+            <section class="settings-panel settings-summary-card">
+              <div class="panel-heading compact">
+                <div>
+                  <span class="panel-eyebrow">Live Values</span>
+                  <h2>Current Connection</h2>
+                </div>
+              </div>
+              <div class="settings-pill-grid">
+                <div class="pill-card">
+                  <span>Base URL</span>
+                  <strong id="currentBaseUrl">{{ connection.baseUrl or "Not set" }}</strong>
+                </div>
+                <div class="pill-card">
+                  <span>API Key</span>
+                  <strong id="currentApiKey">{{ connection.apiKeyPreview or "Not set" }}</strong>
+                </div>
+                <div class="pill-card">
+                  <span>Request Seasons</span>
+                  <strong id="currentRequestSeasons">{{ connection.requestSeasons }}</strong>
+                </div>
+                <div class="pill-card">
+                  <span>Server/Profile</span>
+                  <strong id="currentProfileSummary">{{ connection.sonarrServerId or "Default" }} / {{ connection.profileId or "Default" }}</strong>
+                </div>
+                <div class="pill-card">
+                  <span>Root Folder</span>
+                  <strong id="currentRootFolder">{{ connection.rootFolder or "Default" }}</strong>
+                </div>
+                <div class="pill-card">
+                  <span>Tags</span>
+                  <strong id="currentTags">{{ connection.tags | join(', ') if connection.tags else "None" }}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-panel settings-summary-card">
+              <div class="panel-heading compact">
+                <div>
+                  <span class="panel-eyebrow">Validation</span>
+                  <h2>Connection Test</h2>
+                </div>
+              </div>
+              <div id="testResults" class="settings-note">
+                <p>Run a connection test to verify the URL and API key, then inspect the Sonarr defaults Seerr reports back.</p>
+                <div class="settings-pill-grid compact">
+                  <div class="pill-card">
+                    <span>Server Count</span>
+                    <strong id="testServerCount">--</strong>
+                  </div>
+                  <div class="pill-card">
+                    <span>Default Server</span>
+                    <strong id="testServerName">--</strong>
+                  </div>
+                  <div class="pill-card">
+                    <span>Detected Profile</span>
+                    <strong id="testProfileId">--</strong>
+                  </div>
+                  <div class="pill-card">
+                    <span>Detected Root</span>
+                    <strong id="testRootFolder">--</strong>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script>
+      window.WEEBARR_CONNECTION = {{ connection | tojson }};
+    </script>
+    <script src="/static/js/settings.js?v={{ asset_version }}"></script>
+  </body>
+</html>

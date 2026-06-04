@@ -1,9 +1,23 @@
-"""Runtime settings for Weebarr."""
+"""Runtime settings and persisted user overrides for Weebarr."""
 
 from __future__ import annotations
 
+import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from pathlib import Path
+from threading import RLock
+from typing import Any
+
+
+def _default_config_path() -> str:
+    config_dir = Path("/config")
+    if config_dir.exists() and os.access(config_dir, os.W_OK):
+        return str(config_dir / "weebarr.json")
+    return str((Path.cwd() / "config" / "weebarr.json").resolve())
+
+
+DEFAULT_CONFIG_PATH = _default_config_path()
 
 
 def _optional_int(value: str | None) -> int | None:
@@ -16,6 +30,29 @@ def _optional_csv_int(value: str | None) -> list[int] | None:
     if value is None or value.strip() == "":
         return None
     return [int(part.strip()) for part in value.split(",") if part.strip()]
+
+
+def _normalize_optional_str(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def _normalize_optional_int(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    return int(value)
+
+
+def _normalize_tags(value: Any) -> list[int] | None:
+    if value in (None, "", []):
+        return None
+    if isinstance(value, list):
+        return [int(part) for part in value if part not in (None, "")]
+    if isinstance(value, str):
+        return _optional_csv_int(value)
+    raise ValueError("tags must be a list or comma-separated string")
 
 
 @dataclass(frozen=True)
@@ -40,10 +77,27 @@ class Settings:
     audio_lookup_enabled: bool = True
     audio_cache_ttl_seconds: int = 86400
     audio_lookup_timeout_seconds: float = 6.0
+    admin_token: str = ""
+    config_path: str = DEFAULT_CONFIG_PATH
 
     @property
     def seerr_configured(self) -> bool:
         return bool(self.seerr_base_url and self.seerr_api_key)
+
+    @property
+    def admin_protected(self) -> bool:
+        return bool(self.admin_token)
+
+    @property
+    def api_key_preview(self) -> str:
+        if not self.seerr_api_key:
+            return ""
+        tail = (
+            self.seerr_api_key[-4:]
+            if len(self.seerr_api_key) > 4
+            else self.seerr_api_key
+        )
+        return f"••••{tail}"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -72,5 +126,119 @@ class Settings:
             audio_cache_ttl_seconds=int(os.getenv("AUDIO_CACHE_TTL_SECONDS", "86400")),
             audio_lookup_timeout_seconds=float(
                 os.getenv("AUDIO_LOOKUP_TIMEOUT_SECONDS", "6")
+            ),
+            admin_token=os.getenv("WEEBARR_ADMIN_TOKEN", ""),
+            config_path=os.getenv("WEEBARR_CONFIG_PATH", DEFAULT_CONFIG_PATH),
+        )
+
+
+class SettingsStore:
+    """Persist and expose live user-editable Weebarr settings."""
+
+    def __init__(self, base_settings: Settings):
+        self._base = base_settings
+        self._config_path = Path(base_settings.config_path)
+        self._lock = RLock()
+        self._current = self._base
+        self.reload()
+
+    def get(self) -> Settings:
+        with self._lock:
+            return self._current
+
+    def reload(self) -> Settings:
+        with self._lock:
+            self._current = self._build_settings(self._load_payload())
+            return self._current
+
+    def save_seerr(self, overrides: dict[str, Any]) -> Settings:
+        with self._lock:
+            payload = self._load_payload()
+            seerr = payload.setdefault("seerr", {})
+            for key, value in overrides.items():
+                if value is None:
+                    seerr.pop(key, None)
+                else:
+                    seerr[key] = value
+            self._write_payload(payload)
+            self._current = self._build_settings(payload)
+            return self._current
+
+    def connection_summary(self) -> dict[str, Any]:
+        current = self.get()
+        return {
+            "configured": current.seerr_configured,
+            "baseUrl": current.seerr_base_url,
+            "hasApiKey": bool(current.seerr_api_key),
+            "apiKeyPreview": current.api_key_preview,
+            "requestSeasons": current.seerr_request_seasons,
+            "sonarrServerId": current.seerr_sonarr_server_id,
+            "profileId": current.seerr_profile_id,
+            "rootFolder": current.seerr_root_folder,
+            "languageProfileId": current.seerr_language_profile_id,
+            "requestUserId": current.seerr_request_user_id,
+            "tags": current.seerr_tags or [],
+            "adminProtected": current.admin_protected,
+        }
+
+    def _load_payload(self) -> dict[str, Any]:
+        if not self._config_path.exists():
+            return {}
+        try:
+            payload = json.loads(self._config_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        return payload if isinstance(payload, dict) else {}
+
+    def _write_payload(self, payload: dict[str, Any]) -> None:
+        self._config_path.parent.mkdir(parents=True, exist_ok=True)
+        self._config_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+
+    def _build_settings(self, payload: dict[str, Any]) -> Settings:
+        seerr = (
+            payload.get("seerr", {}) if isinstance(payload.get("seerr"), dict) else {}
+        )
+        return replace(
+            self._base,
+            seerr_base_url=(
+                _normalize_optional_str(seerr.get("base_url"))
+                or self._base.seerr_base_url
+            ).rstrip("/"),
+            seerr_api_key=_normalize_optional_str(seerr.get("api_key"))
+            or self._base.seerr_api_key,
+            seerr_request_seasons=_normalize_optional_str(seerr.get("request_seasons"))
+            or self._base.seerr_request_seasons,
+            seerr_sonarr_server_id=(
+                _normalize_optional_int(seerr.get("sonarr_server_id"))
+                if "sonarr_server_id" in seerr
+                else self._base.seerr_sonarr_server_id
+            ),
+            seerr_profile_id=(
+                _normalize_optional_int(seerr.get("profile_id"))
+                if "profile_id" in seerr
+                else self._base.seerr_profile_id
+            ),
+            seerr_root_folder=(
+                _normalize_optional_str(seerr.get("root_folder"))
+                if "root_folder" in seerr
+                else self._base.seerr_root_folder
+            ),
+            seerr_language_profile_id=(
+                _normalize_optional_int(seerr.get("language_profile_id"))
+                if "language_profile_id" in seerr
+                else self._base.seerr_language_profile_id
+            ),
+            seerr_request_user_id=(
+                _normalize_optional_int(seerr.get("request_user_id"))
+                if "request_user_id" in seerr
+                else self._base.seerr_request_user_id
+            ),
+            seerr_tags=(
+                _normalize_tags(seerr.get("tags"))
+                if "tags" in seerr
+                else self._base.seerr_tags
             ),
         )

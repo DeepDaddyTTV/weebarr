@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Weebarr - {{ page_title }}</title>
+    <link rel="icon" href="/static/img/weebarr-mark.svg?v={{ asset_version }}" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/img/weebarr-mark.png?v={{ asset_version }}" />
+    <link rel="stylesheet" href="/static/css/weebarr.css?v={{ asset_version }}" />
+  </head>
+  <body data-theme="dark" data-page="{{ page_name }}">
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Weebarr navigation">
+        <a class="brand" href="/seasonal" aria-label="Weebarr home">
+          <span class="brand-mark" aria-hidden="true">
+            <img src="/static/img/weebarr-mark.svg" alt="" />
+          </span>
+          <span>
+            <strong>Weebarr</strong>
+            <small>v{{ version }}</small>
+          </span>
+        </a>
+        <nav class="nav-list">
+          <a class="nav-item {{ 'active' if page_name == 'seasonal' else '' }}" href="/seasonal"><span aria-hidden="true">▣</span>Seasonal</a>
+          <a class="nav-item {{ 'active' if page_name == 'requests' else 'muted' }}" href="/requests"><span aria-hidden="true">☷</span>Requests</a>
+          <a class="nav-item {{ 'active' if page_name == 'settings' else 'muted' }}" href="/settings"><span aria-hidden="true">⚙</span>Settings</a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="theme-card" aria-label="Theme controls">
+          <p>Theme</p>
+          <button type="button" class="active" data-theme-choice="dark"><span aria-hidden="true">☼</span>Dark<i></i></button>
+          <button type="button" data-theme-choice="system"><span aria-hidden="true">▱</span>System<i></i></button>
+          <button type="button" data-theme-choice="light"><span aria-hidden="true">☾</span>Light<i></i></button>
+        </div>
+        <div class="connection-card">
+          <div class="connection-head">
+            <span class="pulse"></span>
+            <strong>{{ "Connected" if seerr_configured else "Seerr missing" }}</strong>
+          </div>
+          <hr />
+          <span class="connection-label">Seerr</span>
+          <span class="connection-host">{{ seerr_base_url if seerr_base_url else "Add your Seerr base URL and API key in Settings." }}</span>
+          <a class="connection-cta" href="/settings#connections">Manage Connections</a>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="top-copy">
+            <h1>{{ page_title }}</h1>
+            <p>{{ page_subtitle }}</p>
+          </div>
+          <div class="top-actions">
+            <button id="prevSeasonBtn" class="icon-btn" type="button" aria-label="Previous season">‹</button>
+            <label class="season-pill">
+              <span aria-hidden="true">▣</span>
+              <select id="seasonSelect" aria-label="Season">
+                {% for season in ["WINTER", "SPRING", "SUMMER", "FALL"] %}
+                <option value="{{ season }}" {{ "selected" if season == default_season else "" }}>{{ season.title() }}</option>
+                {% endfor %}
+              </select>
+              <input id="yearInput" aria-label="Year" type="number" min="1970" max="2100" value="{{ default_year }}" />
+            </label>
+            <button id="nextSeasonBtn" class="icon-btn" type="button" aria-label="Next season">›</button>
+            <button id="refreshBtn" class="refresh-btn" type="button"><span aria-hidden="true">↻</span>Refresh</button>
+          </div>
+        </header>
+
+        <section class="stats-grid" aria-label="Season stats">
+          <article class="stat-card stat-cyan">
+            <span class="stat-icon" aria-hidden="true">▣</span>
+            <div>
+              <span>Anime This Season</span>
+              <strong id="statTotal">--</strong>
+              <small>Total shows</small>
+            </div>
+          </article>
+          <article class="stat-card stat-pink">
+            <span class="stat-icon" aria-hidden="true">☷</span>
+            <div>
+              <span>Requestable</span>
+              <strong id="statRequestable">--</strong>
+              <small>Actionable titles</small>
+            </div>
+          </article>
+          <article class="stat-card stat-purple">
+            <span class="stat-icon" aria-hidden="true">⌕</span>
+            <div>
+              <span>Already Requested</span>
+              <strong id="statRequested">--</strong>
+              <small>Tracked in Seerr</small>
+            </div>
+          </article>
+          <article class="stat-card stat-blue">
+            <span class="stat-icon" aria-hidden="true">◴</span>
+            <div>
+              <span>Airing Soon</span>
+              <strong id="statAiringSoon">--</strong>
+              <small>Next 7 days</small>
+            </div>
+          </article>
+        </section>
+
+        <section class="filter-panel">
+          <label class="search-wrap">
+            <span class="sr-only">Search</span>
+            <input id="searchInput" type="search" placeholder="Title, studio, genre..." />
+          </label>
+          <label>
+            <span>Status</span>
+            <select id="statusFilter">
+              <option value="all">All</option>
+              <option value="requestable">Requestable</option>
+              <option value="requested">Requested</option>
+              <option value="available">Available</option>
+              <option value="missing_mapping">Missing mapping</option>
+            </select>
+          </label>
+          <label>
+            <span>Sort by</span>
+            <select id="sortSelect">
+              <option value="popularity">Popularity</option>
+              <option value="score">Score</option>
+              <option value="airing">Next airing</option>
+            </select>
+          </label>
+          <label>
+            <span>Season</span>
+            <select id="filterSeasonSelect" aria-label="Season quick filter">
+              {% for season in ["WINTER", "SPRING", "SUMMER", "FALL"] %}
+              <option value="{{ season }}" {{ "selected" if season == default_season else "" }}>{{ season.title() }} {{ default_year }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <div class="filter-actions">
+            <button id="filterBtn" class="filter-btn" type="button" aria-expanded="false" aria-controls="filterMenu"><span aria-hidden="true">▽</span>Filters</button>
+            <div id="filterMenu" class="filter-menu" role="menu" hidden>
+              <button type="button" data-quick-filter="requestable">Requestable only</button>
+              <button type="button" data-quick-filter="en_dubbed">English dubbed</button>
+              <button type="button" data-quick-filter="source_only">JA/CH only</button>
+              <button type="button" data-quick-filter="missing_mapping">Missing mapping</button>
+              <button type="button" data-quick-filter="clear">Clear filters</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="content-grid">
+          <section id="animeSections" class="anime-sections" aria-live="polite"></section>
+          <aside id="spotlight" class="spotlight">
+            <div class="spotlight-empty">
+              <span class="orb"></span>
+              <h2>Select an anime</h2>
+              <p>Pick a seasonal card to see mapping status, next airing data, and the Seerr request action.</p>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script>
+      window.WEEBARR_DEFAULT_SEASON = "{{ default_season }}";
+      window.WEEBARR_DEFAULT_YEAR = {{ default_year }};
+      window.WEEBARR_PAGE = "{{ page_name }}";
+      window.WEEBARR_INITIAL_FILTER = "{{ initial_filter }}";
+    </script>
+    <script src="/static/js/weebarr.js?v={{ asset_version }}"></script>
+  </body>
+</html>
