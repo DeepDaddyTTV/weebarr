@@ -392,7 +392,7 @@ body[data-theme="light"] .connection-head {
   font-weight: 800;
 }
 
-.connection-card button {
+.connection-card button,
 .connection-cta {
   width: 100%;
   min-height: 36px;

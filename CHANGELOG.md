@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.2] - 2026-06-04
+
+### Fixed
+
+- Restored the main dashboard layout by fixing a broken CSS rule that stopped the browser from parsing large sections of the seasonal view styles.
+
 ## [0.1.1] - 2026-06-04
 
 ### Added
