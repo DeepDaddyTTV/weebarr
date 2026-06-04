@@ -1,46 +1,26 @@
-# Boxarr Default Configuration
-# Copy this file to config.yaml and modify as needed
+# Weebarr Default Configuration
+# Runtime configuration is currently environment-driven. This file is provided
+# as a public example for compose stacks and future settings UI support.
 
 version: 1
 
-# Radarr connection (REQUIRED)
-radarr:
-  url: "http://localhost:7878"  # Change to your Radarr URL
-  api_key: ""                    # Add your Radarr API key here
-  root_folder: "/movies"
-  quality_profile_default: "HD-1080p"
-  quality_profile_upgrade: "Ultra-HD"
-
-# Boxarr settings
-boxarr:
-  # Server configuration
+weebarr:
   host: "0.0.0.0"
   port: 8888
-  
-  # Scheduler configuration  
-  scheduler:
-    enabled: true
-    cron: "0 23 * * 2"  # Tuesday at 11 PM
-    
-  # Feature flags
-  features:
-    auto_add: true
-    quality_upgrade: true
-    notifications: false
-  
-  # UI configuration
+  anilist_cache_ttl_seconds: 21600
+  seerr_cache_ttl_seconds: 900
   ui:
-    theme: "purple"
-    cards_per_row:
-      mobile: 1
-      tablet: 3
-      desktop: 4
-      4k: 5
-      
-  # Data storage
-  data:
-    directory: "/config"
-    history_retention_days: 90
+    theme: "deep-zone"
 
-# Logging
+seerr:
+  base_url: "http://seerr:5055"
+  api_key: "change-me"
+  request_seasons: "all"
+  sonarr_server_id: null
+  profile_id: null
+  root_folder: null
+  language_profile_id: null
+  request_user_id: null
+  tags: []
+
 log_level: "INFO"

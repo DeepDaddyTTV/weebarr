@@ -1,181 +1,90 @@
-# Boxarr - Box Office Tracking for Radarr
+# Weebarr
 
 <div align="center">
-  <img src="src/web/static/boxar-logo.png" alt="Boxarr Logo" width="200"/>
-  
-  **Automatically track and add trending box office movies to your Radarr library**
-  
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+<img src="docs/weebarr-logo.svg" alt="Weebarr logo" width="420"/>
+
+**Seasonal anime discovery and Seerr request management**
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)](https://www.docker.com/)
-[![Wiki](https://img.shields.io/badge/wiki-documentation-blue)](https://github.com/iongpt/boxarr/wiki)
+[![GHCR](https://img.shields.io/badge/image-ghcr.io%2Fdeepdaddyttv%2Fweebarr-blue)](https://github.com/DeepDaddyTTV/weebarr/pkgs/container/weebarr)
+
 </div>
 
----
+Weebarr helps self-hosted anime libraries stay ahead of each release season. It pulls seasonal anime from AniList, ranks and groups shows by popularity, resolves titles against Seerr/TMDB, and lets you request TV anime directly into Seerr.
 
+![Weebarr dashboard concept](docs/weebarr-dashboard-concept.png)
 
-Boxarr monitors weekly box office charts and seamlessly integrates with Radarr to ensure your media library always has what people want to watch. No more manual searching for popular movies - Boxarr handles it automatically.
+## Why Weebarr?
 
-## 🎯 Why Boxarr?
+- **Seasonal discovery**: Browse current and upcoming anime seasons without manually hunting through multiple anime sites.
+- **Popularity-first triage**: Group shows into Headliners, Strong Signal, and Deep Cuts using AniList popularity.
+- **Seerr-native requests**: Request matched TV anime through Seerr so your existing Sonarr anime profile, root folder, and approval flow stay in control.
+- **Status-aware cards**: See whether a title is requestable, already requested, available, partially available, or missing a Seerr/TMDB match.
+- **Self-hosted friendly**: Runs as a small FastAPI container with static frontend assets and environment-based configuration.
 
-- **Stay Current** - Never miss trending movies that everyone's talking about
-- **Save Time** - No more manually searching for and adding popular films  
-- **Smart Automation** - Automatically add movies based on your preferences
-- **Family Friendly** - Keep your media server stocked with what people actually want to watch
-
-## 🤔 Why Not Seerr?
-
-Seerr is excellent for request-based libraries where users actively request content. Boxarr serves a different purpose:
-
-- **Automatic vs Request-Based**: Boxarr automatically adds mainstream hits without anyone having to request them
-- **Box Office Focus**: Tracks actual commercial success, not just user requests
-- **Zero User Interaction**: Works silently in the background, no user accounts or requests needed
-- **Complementary Tool**: Use both! Seerr for specific requests, Boxarr for mainstream coverage
-
-## 📋 Why Not Radarr Lists?
-
-While Radarr lists are useful, Boxarr offers unique advantages:
-
-- **Box Office = Mainstream Appeal**: Tracks movies with proven commercial success, ensuring broad appeal
-- **Unbiased Selection**: Based on actual revenue data, not curator preferences or ratings
-- **Weekly Updates**: Fresh data every week, not dependent on list maintainer updates  
-- **Duplicate Prevention**: Uses Radarr API to check existing movies before adding
-- **Historical Tracking**: Build a library of movies that were culturally significant at release
-
-Boxarr ensures your library includes the mainstream movies that dominated theaters - the films people are most likely to want to watch.
-
-## 📚 Documentation
-
-**[View the full documentation in our Wiki](https://github.com/iongpt/boxarr/wiki)** for detailed guides, configuration options, and troubleshooting.
-
-## ✨ Key Features
-
-- **📊 [Weekly Box Office Tracking](https://github.com/iongpt/boxarr/wiki/Box-Office-Tracking)** - Automatically fetches top 10 movies from Box Office Mojo
-- **🔄 [Radarr Integration](https://github.com/iongpt/boxarr/wiki/Configuration-Guide#radarr-connection)** - Seamlessly checks and adds movies to your library
-- **🗂️ [Genre‑Based Root Folders](https://github.com/iongpt/boxarr/wiki/Genre-Based-Root-Folders)** - Organize movies into folders by genre
-- **⚡ [Auto-Add Movies](https://github.com/iongpt/boxarr/wiki/Configuration-Guide#automation-settings)** - Automatically add trending movies with smart filters
-- **🔍 [Advanced Custom Filtering](https://github.com/iongpt/boxarr/wiki/Configuration-Guide#filter-settings)** - Fine-tune selections with genre, rating, and release year filters
-- **📅 [Scheduled Updates](https://github.com/iongpt/boxarr/wiki/Configuration-Guide#automation-settings)** - Runs weekly on your preferred schedule
-- **🎨 [Beautiful Web UI](https://github.com/iongpt/boxarr/wiki/Home#-visual-tour)** - Clean, responsive interface for all devices
-- **🚀 [Easy Setup](https://github.com/iongpt/boxarr/wiki/Initial-Setup)** - Simple web-based configuration wizard
-
-## 📋 Requirements
-
-- **Radarr** v3.0+ (required)
-- **Docker** (recommended) or Python 3.10+
-- Network access to Box Office Mojo
-
-## 🚀 Quick Start
-
-### Docker (Recommended)
-
-```bash
-docker run -d \
-  --name boxarr \
-  -p 8888:8888 \
-  -v /path/to/config:/config \
-  ghcr.io/iongpt/boxarr:latest
-```
-
-Visit `http://localhost:8888` and follow the setup wizard.
-
-### Docker Compose
+## Quick Start
 
 ```yaml
-version: '3.8'
-
 services:
-  boxarr:
-    image: ghcr.io/iongpt/boxarr:latest
-    container_name: boxarr
+  weebarr:
+    image: ghcr.io/deepdaddyttv/weebarr:latest
+    container_name: weebarr
+    environment:
+      TZ: America/New_York
+      SEERR_BASE_URL: http://seerr:5055
+      SEERR_API_KEY: your-seerr-api-key
     ports:
-      - 8888:8888
+      - "8898:8888"
     volumes:
       - ./config:/config
     restart: unless-stopped
-    environment:
-      - TZ=America/New_York  # Optional: Set your timezone
 ```
 
-**[View full installation guide →](https://github.com/iongpt/boxarr/wiki/Installation-Guide)**
+Open `http://localhost:8898`.
 
-## ⚙️ Initial Setup
+## Configuration
 
-1. Open your browser to `http://localhost:8888`
-2. Enter your Radarr URL and API key
-3. Configure quality profiles and preferences
-4. Save and start tracking!
+Weebarr is configured with environment variables so it works cleanly in Docker Compose, Portainer, Unraid, and similar self-hosted setups.
 
-**[View detailed setup guide →](https://github.com/iongpt/boxarr/wiki/Initial-Setup)**
+| Variable | Default | Description |
+| --- | --- | --- |
+| `SEERR_BASE_URL` | none | Internal Seerr URL, for example `http://seerr:5055`. |
+| `SEERR_API_KEY` | none | Seerr API key. Required for request/status integration. |
+| `SEERR_REQUEST_SEASONS` | `all` | Seasons sent to Seerr. `all` requests all requestable seasons. |
+| `SEERR_SONARR_SERVER_ID` | Seerr default | Optional Sonarr server override. |
+| `SEERR_PROFILE_ID` | Seerr anime/default profile | Optional Sonarr quality/profile override. |
+| `SEERR_ROOT_FOLDER` | Seerr anime/default root | Optional Sonarr root-folder override. |
+| `SEERR_LANGUAGE_PROFILE_ID` | none | Optional language profile override for older Sonarr setups. |
+| `SEERR_TAGS` | none | Optional comma-separated Seerr/Sonarr tag IDs. |
+| `SEERR_REQUEST_USER_ID` | API key user | Optional Seerr user ID to request as. |
+| `ANILIST_CACHE_TTL_SECONDS` | `21600` | AniList seasonal cache TTL. |
+| `SEERR_CACHE_TTL_SECONDS` | `900` | Seerr search/settings cache TTL. |
+| `WEEBARR_PORT` | `8888` | Container listen port. |
 
-## 📖 Configuration & Features
+## Local Development
 
-- **[Box Office Tracking](https://github.com/iongpt/boxarr/wiki/Box-Office-Tracking)** - How weekly tracking works
-- **[Configuration Guide](https://github.com/iongpt/boxarr/wiki/Configuration-Guide)** - All settings explained
-- **[Auto-Add Movies](https://github.com/iongpt/boxarr/wiki/Configuration-Guide#auto-add-movies)** - Automatic movie additions with filters
-- **[Genre-Based Root Folders](https://github.com/iongpt/boxarr/wiki/Genre-Based-Root-Folders)** - Smart content organization
-- **[API Reference](https://github.com/iongpt/boxarr/wiki/API-Reference)** - REST API documentation
-
-## 🔧 Advanced Configuration
-
-### Reverse Proxy Support
-
-Boxarr can run behind reverse proxies (nginx, Traefik, Caddy) with custom URL base support.
-
-```yaml
-environment:
-  - BOXARR_URL_BASE=boxarr  # Access at /boxarr/
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+SEERR_BASE_URL=http://localhost:5055 SEERR_API_KEY=change-me python -m src.main
 ```
 
-**[View reverse proxy setup guide →](https://github.com/iongpt/boxarr/wiki/Configuration-Guide#reverse-proxy-configuration)**
+Run tests:
 
-### API Access
+```bash
+pytest tests/unit
+```
 
-Boxarr provides a REST API for integration and automation.
+## Notes
 
-- **[Full API Reference →](https://github.com/iongpt/boxarr/wiki/API-Reference)**
-
-## 📸 Screenshots
-
-<table>
-  <tr>
-    <td align="center">
-      <img src="docs/dashboard.png" width="400"/>
-      <br><b>Dashboard View</b>
-    </td>
-    <td align="center">
-      <img src="docs/week-view.png" width="400"/>
-      <br><b>Weekly Box Office</b>
-    </td>
-  </tr>
-</table>
-
-## 🆘 Help & Support
-
-- **[Documentation Wiki](https://github.com/iongpt/boxarr/wiki)** - Full documentation
-- **[FAQ](https://github.com/iongpt/boxarr/wiki/FAQ)** - Frequently asked questions
-- **[Troubleshooting Guide](https://github.com/iongpt/boxarr/wiki/Troubleshooting)** - Common issues and solutions
-- **[GitHub Discussions](https://github.com/iongpt/boxarr/discussions)** - Community support
-- **[Report Issues](https://github.com/iongpt/boxarr/issues)** - Bug reports and feature requests
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](https://github.com/iongpt/boxarr/wiki/Contributing) for guidelines.
+- AniList powers seasonal metadata and popularity sorting.
+- Seerr powers TV matching, request status, and request creation.
+- If Weebarr cannot confidently match a title through Seerr search, it will show the title as missing mapping instead of creating a risky request.
 
 ## License
 
-GNU General Public License v3.0 - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- [Radarr](https://radarr.video/) for the excellent movie management platform
-- [Box Office Mojo](https://www.boxofficemojo.com/) for box office data
-- The self-hosting community for inspiration and feedback
-
-## Disclaimer
-
-This project is not affiliated with Box Office Mojo, IMDb, or Radarr. It's an independent tool created for personal media management.
-
----
-
-Made with ❤️ for the self-hosting community
+GPL-3.0. See [LICENSE](LICENSE).

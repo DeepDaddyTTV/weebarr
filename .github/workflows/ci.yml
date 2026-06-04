@@ -2,12 +2,12 @@ name: CI Pipeline
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
     paths-ignore:
       - '**.md'
       - 'docs/**'
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -78,7 +78,7 @@ jobs:
     - name: Run tests with coverage
       run: |
         export PYTHONPATH=$PYTHONPATH:$(pwd)
-        pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
+        pytest tests/unit -v --cov=src --cov-report=xml --cov-report=term-missing
         
 
   security:
@@ -118,41 +118,3 @@ jobs:
         path: |
           bandit-report.json
           safety-report.json
-
-  integration-test:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    services:
-      # Mock Radarr service for testing
-      radarr:
-        image: nginx:alpine
-        ports:
-          - 7878:80
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        cache: 'pip'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        
-    - name: Run integration tests
-      run: |
-        # Skip integration tests if directory doesn't exist
-        if [ -d tests/integration ] && [ "$(ls -A tests/integration/*.py 2>/dev/null)" ]; then
-          pytest tests/integration/ -v --tb=short
-        else
-          echo "No integration tests found, skipping..."
-        fi
-      env:
-        RADARR_URL: http://localhost:7878
-        RADARR_API_KEY: test-key
-        

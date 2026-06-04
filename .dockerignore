@@ -37,8 +37,7 @@ Thumbs.db
 
 # Local config (should be in volume)
 config/local.yaml
-config/boxarr.db
-config/weekly_pages/
+config/weebarr.db
 
 # Docker
 docker-compose.yml

@@ -1,1 +1,1 @@
-"""Tests for Boxarr."""
+"""Tests for Weebarr."""

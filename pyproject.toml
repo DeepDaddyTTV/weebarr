@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "boxarr"
-version = "1.7.0"
-description = "Box Office Tracking for Radarr"
+name = "weebarr"
+version = "0.1.0"
+description = "Seasonal anime discovery and Seerr request dashboard"
 readme = "README.md"
 license = {text = "GPL-3.0"}
 authors = [
-    {name = "Boxarr Project", email = "hello@boxarr.io"},
+    {name = "DeepDaddyTTV"},
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -26,12 +26,7 @@ dependencies = [
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
     "httpx>=0.25.0",
-    "beautifulsoup4>=4.12.0",
     "pydantic>=2.4.0",
-    "pydantic-settings>=2.0.0",
-    "apscheduler>=3.10.0",
-    "pyyaml>=6.0",
-    "python-multipart>=0.0.6",
     "jinja2>=3.1.0",
 ]
 
@@ -39,11 +34,9 @@ dependencies = [
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
-    "pytest-asyncio>=0.21.0",
     "black>=23.9.0",
     "flake8>=6.1.0",
     "mypy>=1.6.0",
-    "types-pyyaml>=6.0.0",
     "isort>=5.12.0",
     "bandit[toml]>=1.7.5",
     "safety>=2.3.0",
@@ -54,13 +47,13 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/iongpt/boxarr"
-Repository = "https://github.com/iongpt/boxarr"
-Issues = "https://github.com/iongpt/boxarr/issues"
-Documentation = "https://github.com/iongpt/boxarr/blob/main/README.md"
+Homepage = "https://github.com/DeepDaddyTTV/weebarr"
+Repository = "https://github.com/DeepDaddyTTV/weebarr"
+Issues = "https://github.com/DeepDaddyTTV/weebarr/issues"
+Documentation = "https://github.com/DeepDaddyTTV/weebarr/blob/main/README.md"
 
 [project.scripts]
-boxarr = "src.main:cli"
+weebarr = "src.main:cli"
 
 # Black configuration
 [tool.black]
@@ -87,7 +80,7 @@ profile = "black"
 multi_line_output = 3
 line_length = 88
 known_first_party = ["src"]
-known_third_party = ["fastapi", "uvicorn", "httpx", "beautifulsoup4", "pydantic", "apscheduler", "yaml", "pytest"]
+known_third_party = ["fastapi", "uvicorn", "httpx", "pydantic", "pytest"]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 include_trailing_comma = true
 force_grid_wrap = 0
@@ -111,19 +104,11 @@ warn_unreachable = true
 strict_equality = true
 ignore_missing_imports = true
 
-[[tool.mypy.overrides]]
-module = [
-    "bs4.*",
-    "apscheduler.*",
-    "yaml.*",
-]
-ignore_missing_imports = true
-
 # Pytest configuration
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q --strict-markers --strict-config"
-testpaths = ["tests"]
+testpaths = ["tests/unit"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

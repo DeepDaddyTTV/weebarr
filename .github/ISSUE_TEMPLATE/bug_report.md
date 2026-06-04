@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Create a report to help us improve Boxarr
+about: Create a report to help us improve Weebarr
 title: "[BUG] "
 labels: bug
 assignees: ''
@@ -27,14 +27,13 @@ If applicable, add screenshots to help explain your problem.
 ## Environment
 - OS: [e.g. Ubuntu 22.04, Windows 11, macOS 13]
 - Docker Version: [e.g. 24.0.6]
-- Boxarr Version: [e.g. v0.2.0]
-- Radarr Version: [e.g. 4.7.5]
+- Weebarr Version: [e.g. v0.1.0]
+- Seerr Version: [e.g. latest]
 - Browser (if web UI issue): [e.g. Chrome 118, Firefox 119]
 
 ## Configuration
-- Auto-add enabled: [Yes/No]
-- Scheduler enabled: [Yes/No]
-- Radarr connection: [Working/Failed]
+- Seerr connection: [Working/Failed]
+- AniList seasonal lookup: [Working/Failed]
 
 ## Logs
 Please provide relevant log output if available:

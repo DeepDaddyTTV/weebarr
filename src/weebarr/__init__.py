@@ -1,0 +1,1 @@
+"""Weebarr application package."""

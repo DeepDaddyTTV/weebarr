@@ -1,4 +1,4 @@
-# Boxarr Docker Image - Simple working version
+# Weebarr Docker Image
 
 FROM python:3.11-slim
 
@@ -21,12 +21,13 @@ COPY config/default.yaml /app/config/
 # Create config directory
 RUN mkdir -p /config
 
-# Environment variables (optional - can be configured via UI)
+# Environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    BOXARR_DATA_DIRECTORY=/config
+    WEEBARR_HOST=0.0.0.0 \
+    WEEBARR_PORT=8888
 
-# Volume for persistent configuration and data
+# Volume reserved for future persistent configuration and data
 VOLUME ["/config"]
 
 # Expose web port

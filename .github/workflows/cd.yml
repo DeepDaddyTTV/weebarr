@@ -2,6 +2,7 @@ name: CD Pipeline
 
 on:
   push:
+    branches: [ main ]
     tags:
       - 'v*'
   release:
@@ -55,9 +56,9 @@ jobs:
           type=semver,pattern={{major}}
           type=raw,value=latest,enable={{is_default_branch}}
         labels: |
-          org.opencontainers.image.title=Boxarr
-          org.opencontainers.image.description=Box Office Tracking for Radarr
-          org.opencontainers.image.vendor=Boxarr Project
+          org.opencontainers.image.title=Weebarr
+          org.opencontainers.image.description=Seasonal anime discovery and Seerr request dashboard
+          org.opencontainers.image.vendor=DeepDaddyTTV
           org.opencontainers.image.licenses=GPL-3.0
           
     - name: Build and push Docker images
@@ -83,7 +84,7 @@ jobs:
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
-          https://api.github.com/user/packages/container/boxarr \
+          https://api.github.com/user/packages/container/weebarr \
           -d '{"visibility":"public"}'
         
         echo "✅ Package made public automatically"

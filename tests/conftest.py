@@ -1,4 +1,4 @@
-"""Pytest configuration file for Boxarr tests."""
+"""Pytest configuration file for Weebarr tests."""
 
 import sys
 from pathlib import Path

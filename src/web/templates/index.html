@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Weebarr - Seasonal Anime</title>
+    <link rel="stylesheet" href="/static/css/weebarr.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Weebarr navigation">
+        <a class="brand" href="/seasonal" aria-label="Weebarr home">
+          <span class="brand-mark">W</span>
+          <span>
+            <strong>Weebarr</strong>
+            <small>v{{ version }}</small>
+          </span>
+        </a>
+        <nav class="nav-list">
+          <a class="nav-item active" href="/seasonal">Seasonal</a>
+          <a class="nav-item muted" href="#requests">Requests</a>
+          <a class="nav-item muted" href="#settings">Settings</a>
+        </nav>
+        <div class="theme-row" aria-label="Theme controls">
+          <button type="button" title="Light theme">☀</button>
+          <button type="button" title="Dark theme">☾</button>
+          <button type="button" title="System theme">◇</button>
+        </div>
+        <div class="connection-card">
+          <span class="pulse"></span>
+          <span>{{ "Connected" if seerr_configured else "Seerr missing" }}</span>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <p class="section-kicker">AniList popularity + Seerr requests</p>
+            <h1>Seasonal Anime</h1>
+          </div>
+          <div class="top-actions">
+            <select id="seasonSelect" aria-label="Season">
+              {% for season in ["WINTER", "SPRING", "SUMMER", "FALL"] %}
+              <option value="{{ season }}" {{ "selected" if season == default_season else "" }}>{{ season.title() }}</option>
+              {% endfor %}
+            </select>
+            <input id="yearInput" aria-label="Year" type="number" min="1970" max="2100" value="{{ default_year }}" />
+            <button id="refreshBtn" type="button">Refresh</button>
+          </div>
+        </header>
+
+        <section class="stats-grid" aria-label="Season stats">
+          <article class="stat-card">
+            <span>Anime This Season</span>
+            <strong id="statTotal">--</strong>
+          </article>
+          <article class="stat-card">
+            <span>Requestable</span>
+            <strong id="statRequestable">--</strong>
+          </article>
+          <article class="stat-card">
+            <span>Already Requested</span>
+            <strong id="statRequested">--</strong>
+          </article>
+          <article class="stat-card">
+            <span>Available</span>
+            <strong id="statAvailable">--</strong>
+          </article>
+        </section>
+
+        <section class="filter-panel">
+          <label class="search-wrap">
+            <span>Search</span>
+            <input id="searchInput" type="search" placeholder="Title, studio, genre..." />
+          </label>
+          <label>
+            <span>Status</span>
+            <select id="statusFilter">
+              <option value="all">All</option>
+              <option value="requestable">Requestable</option>
+              <option value="requested">Requested</option>
+              <option value="available">Available</option>
+              <option value="missing_mapping">Missing mapping</option>
+            </select>
+          </label>
+          <label>
+            <span>Sort</span>
+            <select id="sortSelect">
+              <option value="popularity">Popularity</option>
+              <option value="score">Score</option>
+              <option value="airing">Next airing</option>
+            </select>
+          </label>
+        </section>
+
+        <div class="content-grid">
+          <section id="animeSections" class="anime-sections" aria-live="polite"></section>
+          <aside id="spotlight" class="spotlight">
+            <div class="spotlight-empty">
+              <span class="orb"></span>
+              <h2>Select an anime</h2>
+              <p>Pick a seasonal card to see mapping status, next airing data, and the Seerr request action.</p>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script>
+      window.WEEBARR_DEFAULT_SEASON = "{{ default_season }}";
+      window.WEEBARR_DEFAULT_YEAR = {{ default_year }};
+    </script>
+    <script src="/static/js/weebarr.js"></script>
+  </body>
+</html>

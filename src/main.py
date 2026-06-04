@@ -1,234 +1,146 @@
 #!/usr/bin/env python3
-"""Main entry point for Boxarr application."""
+"""Weebarr entry point."""
 
-import asyncio
-import signal
-import sys
+from __future__ import annotations
+
+import logging
 from pathlib import Path
+from typing import Optional, Union
 
 import uvicorn
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
 
-from src.utils.logger import setup_logging
+from src.version import __version__
+from src.weebarr.services import WeebarrService
+from src.weebarr.settings import Settings
 
-# Setup logging first, before any other imports that might use logging
-setup_logging()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger("weebarr")
 
-from src.api.app import create_app_with_scheduler  # noqa: E402
-from src.core.boxoffice import BoxOfficeService  # noqa: E402
-from src.core.radarr import RadarrService  # noqa: E402
-from src.core.scheduler import BoxarrScheduler  # noqa: E402
-from src.utils.config import settings  # noqa: E402
-from src.utils.logger import get_logger  # noqa: E402
-
-logger = get_logger(__name__)
+ROOT = Path(__file__).resolve().parent
+WEB_ROOT = ROOT / "web"
+templates = Jinja2Templates(directory=str(WEB_ROOT / "templates"))
 
 
-class BoxarrApplication:
-    """Main application class."""
+class RequestPayload(BaseModel):
+    """Payload accepted by Weebarr before forwarding to Seerr."""
 
-    def __init__(self):
-        """Initialize application."""
-        self.scheduler = None
-        self.app = None
-        self._shutdown_event = asyncio.Event()
+    media_id: int = Field(..., alias="mediaId")
+    title: str
+    tvdb_id: Optional[int] = Field(default=None, alias="tvdbId")
+    seasons: Optional[Union[list[int], str]] = "all"
 
-    async def startup(self):
-        """Application startup."""
-        logger.info("Starting Boxarr application")
 
-        # Check if configured
-        if not settings.is_configured:
-            logger.info("No configuration found - starting in setup mode")
-            logger.info("Please visit http://localhost:8888 to configure Boxarr")
-            # Don't exit - allow API to start so user can configure via web UI
-        else:
-            # Test Radarr connection only if configured
-            try:
-                with RadarrService() as radarr:
-                    if not radarr.test_connection():
-                        logger.warning(
-                            "Failed to connect to Radarr - check configuration"
-                        )
-                    else:
-                        logger.info(
-                            f"Successfully connected to Radarr at {settings.radarr_url}"
-                        )
-            except Exception as e:
-                logger.warning(f"Radarr connection failed: {e}")
-                logger.info("Please check configuration via web UI")
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Create the FastAPI app."""
 
-        # Scheduler will be initialized in app creation
-        if settings.is_configured and settings.boxarr_scheduler_enabled:
-            logger.info("Scheduler will be started with the application")
+    app_settings = settings or Settings.from_env()
+    service = WeebarrService(app_settings)
+    app = FastAPI(
+        title="Weebarr",
+        version=__version__,
+        docs_url="/api/docs",
+        redoc_url=None,
+    )
 
-        logger.info("Boxarr startup complete")
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(WEB_ROOT / "static")),
+        name="static",
+    )
 
-    async def shutdown(self):
-        """Application shutdown."""
-        logger.info("Shutting down Boxarr")
+    @app.get("/", include_in_schema=False)
+    async def root() -> RedirectResponse:
+        return RedirectResponse(url="/seasonal")
 
-        # Scheduler cleanup is handled by FastAPI shutdown event
-        self._shutdown_event.set()
-        logger.info("Boxarr shutdown complete")
-
-    def handle_signal(self, sig):
-        """Handle shutdown signals."""
-        logger.info(f"Received signal {sig}")
-        asyncio.create_task(self.shutdown())
-
-    async def run_api(self):
-        """Run FastAPI application."""
-        self.app = create_app_with_scheduler()
-
-        config = uvicorn.Config(
-            app=self.app,
-            host=settings.boxarr_host,
-            port=settings.boxarr_port,
-            log_level=settings.log_level.lower(),
-            access_log=True,
+    @app.get("/seasonal", response_class=HTMLResponse, include_in_schema=False)
+    async def seasonal_page(request: Request) -> HTMLResponse:
+        season, year = service.current_season()
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "version": __version__,
+                "default_season": season,
+                "default_year": year,
+                "seerr_configured": app_settings.seerr_configured,
+            },
         )
 
-        server = uvicorn.Server(config)
+    @app.get("/api/health")
+    async def health() -> dict:
+        return {
+            "status": "healthy",
+            "app": "weebarr",
+            "version": __version__,
+            "seerr_configured": app_settings.seerr_configured,
+        }
 
-        # Start server in background
-        asyncio.create_task(server.serve())
+    @app.get("/api/config")
+    async def public_config() -> dict:
+        season, year = service.current_season()
+        return {
+            "version": __version__,
+            "defaultSeason": season,
+            "defaultYear": year,
+            "seasonOptions": service.season_options(year),
+            "seerrConfigured": app_settings.seerr_configured,
+            "requestSeasons": app_settings.seerr_request_seasons,
+        }
 
-        # Wait for shutdown
-        await self._shutdown_event.wait()
+    @app.get("/api/seasonal")
+    async def seasonal_anime(
+        season: str = Query(..., pattern="^(WINTER|SPRING|SUMMER|FALL)$"),
+        year: int = Query(..., ge=1970, le=2100),
+        per_page: int = Query(default=48, ge=1, le=80, alias="perPage"),
+    ) -> dict:
+        try:
+            return await service.seasonal_anime(
+                season=season.upper(),
+                year=year,
+                per_page=per_page,
+            )
+        except Exception as exc:
+            logger.exception("seasonal lookup failed")
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-        # Stop server
-        await server.shutdown()
-
-    async def run_cli(self):
-        """Run in CLI mode (no API)."""
-        logger.info("Running in CLI mode")
-
-        # Initialize scheduler for CLI mode
-        self.scheduler = BoxarrScheduler(
-            boxoffice_service=BoxOfficeService(),
-            radarr_service=RadarrService() if settings.radarr_api_key else None,
-        )
-
-        # Run immediate update
-        logger.info("Performing box office update...")
+    @app.post("/api/request")
+    async def request_in_seerr(payload: RequestPayload) -> dict:
+        if not app_settings.seerr_configured:
+            raise HTTPException(status_code=503, detail="Seerr is not configured")
 
         try:
-            results = await self.scheduler.update_box_office()
-
-            print("\n" + "=" * 50)
-            print("BOX OFFICE UPDATE RESULTS")
-            print("=" * 50)
-            print(f"Total movies: {results['total_count']}")
-            print(f"Matched: {results['matched_count']}")
-            print(f"Unmatched: {results['unmatched_count']}")
-
-            if results["status_breakdown"]:
-                print("\nStatus Breakdown:")
-                for status, count in results["status_breakdown"].items():
-                    print(f"  {status}: {count}")
-
-            if results["matched_movies"]:
-                print("\nMatched Movies:")
-                for movie in results["matched_movies"]:
-                    print(
-                        f"  #{movie['rank']} {movie['title']} -> {movie['radarr_title']}"
-                    )
-                    print(
-                        f"     Status: {movie['status']}, Has File: {movie['has_file']}"
-                    )
-
-            if results["unmatched_movies"]:
-                print("\nUnmatched Movies:")
-                for movie in results["unmatched_movies"]:
-                    print(f"  #{movie['rank']} {movie['title']}")
-
-            print("=" * 50 + "\n")
-
-        except Exception as e:
-            logger.error(f"Update failed: {e}")
-            sys.exit(1)
-
-    async def main(self, mode="api"):
-        """
-        Main application entry point.
-
-        Args:
-            mode: Run mode ("api" or "cli")
-        """
-        # CLI mode requires configuration
-        if mode == "cli" and not settings.is_configured:
-            logger.error(
-                "CLI mode requires configuration. Please run in API mode first to configure."
+            return await service.request_in_seerr(
+                media_id=payload.media_id,
+                title=payload.title,
+                tvdb_id=payload.tvdb_id,
+                seasons=payload.seasons or app_settings.seerr_request_seasons,
             )
-            sys.exit(1)
-
-        # Setup signal handlers
-        loop = asyncio.get_event_loop()
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(
-                sig, lambda s=sig: self.handle_signal(s)  # type: ignore
-            )
-
-        try:
-            await self.startup()
-
-            if mode == "api":
-                await self.run_api()
-            else:
-                await self.run_cli()
-
-        except Exception as e:
-            logger.error(f"Application error: {e}")
+        except HTTPException:
             raise
-        finally:
-            await self.shutdown()
+        except Exception as exc:
+            logger.exception("Seerr request failed")
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return app
 
 
-def cli():
-    """Command-line interface."""
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Boxarr - Box Office Tracking for Radarr"
+def cli() -> None:
+    settings = Settings.from_env()
+    uvicorn.run(
+        "src.main:create_app",
+        factory=True,
+        host=settings.host,
+        port=settings.port,
+        log_level=settings.log_level.lower(),
     )
-    parser.add_argument(
-        "--mode",
-        choices=["api", "cli", "update"],
-        default="api",
-        help="Run mode (default: api)",
-    )
-    parser.add_argument("--config", type=Path, help="Path to configuration file")
-    parser.add_argument(
-        "--log-level",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        default=None,
-        help="Override log level",
-    )
-
-    args = parser.parse_args()
-
-    # Override settings if provided
-    if args.config and args.config.exists():
-        env_protected = settings._get_env_set_fields()
-        settings.load_from_yaml(args.config, env_protected_fields=env_protected)
-
-    if args.log_level:
-        settings.log_level = args.log_level
-        setup_logging()
-
-    # Map update mode to cli
-    mode = "cli" if args.mode == "update" else args.mode
-
-    # Run application
-    app = BoxarrApplication()
-
-    try:
-        asyncio.run(app.main(mode))
-    except KeyboardInterrupt:
-        logger.info("Interrupted by user")
-    except Exception as e:
-        logger.error(f"Fatal error: {e}")
-        sys.exit(1)
 
 
 if __name__ == "__main__":

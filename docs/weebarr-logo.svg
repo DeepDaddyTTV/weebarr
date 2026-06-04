@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="220" viewBox="0 0 720 220" role="img" aria-labelledby="title desc">
+  <title id="title">Weebarr logo</title>
+  <desc id="desc">A neon Deep Zone styled Weebarr wordmark with a rounded W mark.</desc>
+  <defs>
+    <linearGradient id="markGradient" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#83e8ff"/>
+      <stop offset="1" stop-color="#ff4fae"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="45%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#83e8ff" stop-opacity=".42"/>
+      <stop offset=".55" stop-color="#ff4fae" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#24192f" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softShadow" x="-20%" y="-30%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="20" flood-color="#000000" flood-opacity=".35"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#ff4fae" flood-opacity=".22"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#83e8ff" flood-opacity=".18"/>
+    </filter>
+  </defs>
+  <rect width="720" height="220" rx="34" fill="#222328"/>
+  <rect width="720" height="220" rx="34" fill="url(#glow)"/>
+  <g filter="url(#softShadow)">
+    <rect x="54" y="46" width="128" height="128" rx="35" fill="url(#markGradient)"/>
+    <path d="M82 78l17.2 64h15.7l14.2-38.1 14.1 38.1h15.9l17.2-64h-18.1l-8.7 40.5-14.1-40.5h-12.8l-14.1 40.5-8.6-40.5z" fill="#12151b"/>
+  </g>
+  <g fill="#f3f5f9">
+    <text x="210" y="116" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="70" font-weight="800" letter-spacing="-4">Weebarr</text>
+    <text x="216" y="150" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="20" fill="#9aa3b7" letter-spacing="3">SEASONAL ANIME FOR SEERR</text>
+  </g>
+  <path d="M214 166h320" stroke="url(#markGradient)" stroke-width="4" stroke-linecap="round" opacity=".82"/>
+</svg>

@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest a new feature or enhancement for Boxarr
+about: Suggest a new feature or enhancement for Weebarr
 title: "[FEATURE] "
 labels: enhancement
 assignees: ''
