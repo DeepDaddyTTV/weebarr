@@ -19,9 +19,9 @@ def authenticated_client(tmp_path, **settings_overrides):
     base = {
         "config_path": str(tmp_path / "weebarr.json"),
         "auth_mode": "local",
-        "auth_username": "deepdaddy",
-        "auth_password": "supersafe123",
-        "session_secret": "test-session-secret",
+        "auth_username": "adminuser",
+        "auth_password": "example-password",
+        "session_secret": "example-session-secret",
     }
     base.update(settings_overrides)
     client = TestClient(create_app(Settings(**base)))
@@ -51,7 +51,7 @@ def test_health_endpoint_without_seerr():
 def test_settings_summary_uses_explicit_base_settings(tmp_path):
     client = authenticated_client(
         tmp_path,
-        seerr_base_url="http://seerr.internal:5055",
+        seerr_base_url="https://seerr.example.test",
         seerr_api_key="secret-value",
     )
 
@@ -60,7 +60,7 @@ def test_settings_summary_uses_explicit_base_settings(tmp_path):
     assert response.status_code == 200
     payload = response.json()
     assert payload["configured"] is True
-    assert payload["baseUrl"] == "http://seerr.internal:5055"
+    assert payload["baseUrl"] == "https://seerr.example.test"
     assert payload["hasApiKey"] is True
 
 
@@ -126,7 +126,7 @@ def test_settings_endpoint_saves_connection(tmp_path):
     response = client.put(
         "/api/settings/seerr",
         json={
-            "baseUrl": "http://seerr:5055",
+            "baseUrl": "https://seerr.example.test",
             "apiKey": "abc123",
             "requestSeasons": "first",
             "tags": [9, 11],
@@ -136,7 +136,7 @@ def test_settings_endpoint_saves_connection(tmp_path):
     assert response.status_code == 200
     payload = response.json()
     assert payload["success"] is True
-    assert payload["connection"]["baseUrl"] == "http://seerr:5055"
+    assert payload["connection"]["baseUrl"] == "https://seerr.example.test"
     assert payload["connection"]["hasApiKey"] is True
     assert payload["connection"]["requestSeasons"] == "first"
     assert payload["connection"]["tags"] == [9, 11]
@@ -249,6 +249,33 @@ def test_shape_anime_includes_installment_and_airing_labels():
 
     assert shaped["installmentLabel"] == "Season 2"
     assert shaped["seasonLabel"] == "Spring 2026"
+
+
+def test_shape_anime_includes_embeddable_trailer_metadata():
+    service = WeebarrService(Settings(audio_lookup_enabled=False))
+    shaped = service._shape_anime(
+        {
+            "id": 1,
+            "idMal": 2,
+            "countryOfOrigin": "JP",
+            "title": {"english": "Example Anime"},
+            "trailer": {
+                "id": "abc123",
+                "site": "youtube",
+                "thumbnail": "https://img.youtube.example/thumb.jpg",
+            },
+            "coverImage": {},
+            "studios": {"nodes": []},
+        },
+        rank=1,
+    )
+
+    assert shaped["trailer"]["site"] == "youtube"
+    assert shaped["trailer"]["siteLabel"] == "YouTube"
+    assert shaped["trailer"]["embedUrl"].startswith(
+        "https://www.youtube-nocookie.com/embed/abc123"
+    )
+    assert shaped["trailer"]["watchUrl"] == "https://www.youtube.com/watch?v=abc123"
 
 
 def test_content_filter_modes_hide_adult_and_nsfw_titles():
@@ -428,9 +455,9 @@ def test_local_setup_persists_access_and_requires_session_auth(tmp_path):
     response = client.post(
         "/api/setup/access",
         json={
-            "username": "deepdaddy",
-            "password": "supersafe123",
-            "confirmPassword": "supersafe123",
+            "username": "adminuser",
+            "password": "example-password",
+            "confirmPassword": "example-password",
         },
     )
 
@@ -455,9 +482,9 @@ def test_local_login_rejects_bad_password_and_accepts_good_password(tmp_path):
     setup_response = client.post(
         "/api/setup/access",
         json={
-            "username": "deepdaddy",
-            "password": "supersafe123",
-            "confirmPassword": "supersafe123",
+            "username": "adminuser",
+            "password": "example-password",
+            "confirmPassword": "example-password",
         },
     )
     assert setup_response.status_code == 200
@@ -465,15 +492,19 @@ def test_local_login_rejects_bad_password_and_accepts_good_password(tmp_path):
     new_client = TestClient(create_app(Settings(config_path=str(config_path))))
     bad = new_client.post(
         "/api/auth/login",
-        json={"username": "deepdaddy", "password": "badpass", "next": "/seasonal"},
+        json={
+            "username": "adminuser",
+            "password": "wrong-password",
+            "next": "/seasonal",
+        },
     )
     assert bad.status_code == 401
 
     good = new_client.post(
         "/api/auth/login",
         json={
-            "username": "deepdaddy",
-            "password": "supersafe123",
+            "username": "adminuser",
+            "password": "example-password",
             "next": "/seasonal",
         },
     )
@@ -488,9 +519,9 @@ def test_login_page_offers_only_local_sign_in_after_local_setup(tmp_path):
     response = client.post(
         "/api/setup/access",
         json={
-            "username": "deepdaddy",
-            "password": "supersafe123",
-            "confirmPassword": "supersafe123",
+            "username": "adminuser",
+            "password": "example-password",
+            "confirmPassword": "example-password",
         },
     )
 
@@ -510,8 +541,8 @@ def test_plex_only_login_page_hides_local_form(tmp_path):
     store.save_auth(
         {
             "mode": "plex",
-            "session_secret": "plex-session-secret",
-            "plex_allowed_users": ["deepdaddy@example.com"],
+            "session_secret": "example-plex-session-secret",
+            "plex_allowed_users": ["admin@example.invalid"],
         }
     )
     client = TestClient(create_app(Settings(config_path=str(config_path))))
@@ -527,28 +558,31 @@ def test_plex_only_login_page_hides_local_form(tmp_path):
 def test_plex_first_can_add_local_account_and_offer_both_login_paths(tmp_path):
     config_path = tmp_path / "weebarr.json"
     store = SettingsStore(
-        Settings(config_path=str(config_path), app_api_key="automation-token")
+        Settings(config_path=str(config_path), app_api_key="example-automation-token")
     )
     store.save_auth(
         {
             "mode": "plex",
-            "session_secret": "plex-session-secret",
-            "plex_allowed_users": ["deepdaddy@example.com"],
+            "session_secret": "example-plex-session-secret",
+            "plex_allowed_users": ["admin@example.invalid"],
         }
     )
     client = TestClient(
         create_app(
-            Settings(config_path=str(config_path), app_api_key="automation-token")
+            Settings(
+                config_path=str(config_path),
+                app_api_key="example-automation-token",
+            )
         )
     )
 
     response = client.put(
         "/api/settings/access/local",
-        headers={"X-API-Key": "automation-token"},
+        headers={"X-API-Key": "example-automation-token"},
         json={
-            "username": "deepdaddy",
-            "password": "supersafe123",
-            "confirmPassword": "supersafe123",
+            "username": "adminuser",
+            "password": "example-password",
+            "confirmPassword": "example-password",
         },
     )
 
@@ -572,11 +606,11 @@ def test_plex_setup_start_uses_current_request_origin_for_callback(
     config_path = tmp_path / "weebarr.json"
     client = TestClient(
         create_app(Settings(config_path=str(config_path))),
-        base_url="http://192.168.50.163:8898",
+        base_url="http://localhost",
     )
 
     async def fake_create_plex_pin(_settings):
-        return {"id": 123, "code": "pin-code"}
+        return {"id": 123, "code": "example-pin-code"}
 
     monkeypatch.setattr(main_module, "create_plex_pin", fake_create_plex_pin)
 
@@ -585,34 +619,31 @@ def test_plex_setup_start_uses_current_request_origin_for_callback(
     assert response.status_code in {302, 307}
     location = response.headers["location"]
     assert location.startswith("https://app.plex.tv/auth#?")
-    assert (
-        "forwardUrl=http%3A%2F%2F192.168.50.163%3A8898%2Fauth%2Fplex%2Fcallback"
-        in location
-    )
-    assert "code=pin-code" in location
+    assert "forwardUrl=http%3A%2F%2Flocalhost%2Fauth%2Fplex%2Fcallback" in location
+    assert "code=example-pin-code" in location
 
 
 def test_plex_setup_claims_single_admin_account(tmp_path, monkeypatch):
     config_path = tmp_path / "weebarr.json"
     client = TestClient(
         create_app(Settings(config_path=str(config_path))),
-        base_url="http://192.168.50.163:8898",
+        base_url="http://localhost",
     )
 
     async def fake_create_plex_pin(_settings):
-        return {"id": 123, "code": "pin-code"}
+        return {"id": 123, "code": "example-pin-code"}
 
     async def fake_fetch_plex_pin(_settings, *, pin_id: int, code: str):
         assert pin_id == 123
-        assert code == "pin-code"
-        return {"authToken": "plex-auth-token"}
+        assert code == "example-pin-code"
+        return {"authToken": "example-plex-auth-token"}
 
     async def fake_fetch_plex_user(_settings, *, token: str):
-        assert token == "plex-auth-token"
+        assert token == "example-plex-auth-token"
         return {
-            "username": "deepdaddy",
-            "email": "deepdaddy@example.com",
-            "friendlyName": "DeepDaddy",
+            "username": "adminuser",
+            "email": "admin@example.invalid",
+            "friendlyName": "Admin User",
         }
 
     monkeypatch.setattr(main_module, "create_plex_pin", fake_create_plex_pin)
@@ -633,7 +664,11 @@ def test_plex_setup_claims_single_admin_account(tmp_path, monkeypatch):
     payload = access.json()
     assert payload["setupRequired"] is False
     assert payload["authMode"] == "plex"
-    assert payload["plexAllowedUsers"] == ["deepdaddy", "deepdaddy@example.com"]
+    assert payload["plexAllowedUsers"] == [
+        "adminuser",
+        "admin@example.invalid",
+        "Admin User",
+    ]
 
     new_client = TestClient(create_app(Settings(config_path=str(config_path))))
     login_page = new_client.get("/login")
@@ -646,7 +681,7 @@ def test_public_host_cannot_open_setup_routes(tmp_path):
     config_path = tmp_path / "weebarr.json"
     client = TestClient(
         create_app(Settings(config_path=str(config_path))),
-        base_url="https://weebarr.thedeepzone.app",
+        base_url="https://weebarr.example.test",
     )
 
     blocked_page = client.get("/setup")
@@ -668,7 +703,7 @@ def test_public_host_does_not_redirect_to_setup(tmp_path):
     config_path = tmp_path / "weebarr.json"
     client = TestClient(
         create_app(Settings(config_path=str(config_path))),
-        base_url="https://weebarr.thedeepzone.app",
+        base_url="https://weebarr.example.test",
         follow_redirects=False,
     )
 
@@ -744,7 +779,7 @@ def test_classify_seerr_state_strict_monitoring_marks_later_season_missing():
 def test_resolve_seerr_prefers_ids_moe_mapping_before_title_search():
     service = WeebarrService(
         Settings(
-            seerr_base_url="http://seerr.internal:5055",
+            seerr_base_url="https://seerr.example.test",
             seerr_api_key="secret",
         )
     )

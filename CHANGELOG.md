@@ -2,6 +2,16 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.22] - 2026-06-05
+
+### Added
+
+- Embedded AniList trailer playback in the seasonal spotlight and mobile inline detail panel whenever AniList exposes an embeddable YouTube or Dailymotion trailer for the selected anime.
+
+### Fixed
+
+- Carried the Settings and availability refresh forward into a production rollout version without the retired `WEEBARR_ADMIN_TOKEN` write gate.
+
 ## [0.1.21] - 2026-06-05
 
 ### Changed
@@ -21,7 +31,7 @@ All notable changes to Weebarr will be documented in this file.
 ### Fixed
 
 - Replaced the live-text `weebarr-wordmark.svg` auth branding with a font-independent render-safe wordmark, so login and setup no longer fall back to the wrong browser font for the `eebarr` text.
-- Updated local-account username placeholders from `deepdaddy` to the generic `username` label across login, setup, and Settings.
+- Updated local-account username placeholders to the generic `username` label across login, setup, and Settings.
 
 ## [0.1.19] - 2026-06-05
 
@@ -33,7 +43,7 @@ All notable changes to Weebarr will be documented in this file.
 
 ### Changed
 
-- First-run setup is now restricted to local/private addresses instead of relying on a setup token, so the initial claim flow is only available from local URLs like `localhost` or `192.168.x.x`.
+- First-run setup is now restricted to local/private addresses instead of relying on a setup token, so the initial claim flow is only available from local or private-network hosts.
 - Setup now offers a true either-or admin choice: create a local username/password account or claim the instance to a single Plex account.
 - The main sidebar brand now uses the real Weebarr SVG wordmark instead of reconstructing the logo from a separate mark and text.
 - Plex-first setups can now add a local username/password later from Settings without losing Plex sign-in, and login automatically offers both methods whenever both are configured.

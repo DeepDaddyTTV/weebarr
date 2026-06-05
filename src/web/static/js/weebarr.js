@@ -479,6 +479,37 @@ function actionButtonTemplate(item, inline = false) {
   return `<button class="request-btn" type="button" data-request="${item.id}">${buttonText}<span aria-hidden="true">↗</span></button>`;
 }
 
+function trailerTemplate(item, compact = false) {
+  const trailer = item.trailer;
+  if (!trailer || !trailer.embedUrl) return "";
+
+  return `
+    <section class="trailer-block ${compact ? "inline-trailer-block" : ""}">
+      <div class="trailer-head">
+        <div>
+          <span class="trailer-kicker">Trailer</span>
+          <h3>${escapeHtml(trailer.siteLabel || "Watch")}</h3>
+        </div>
+        ${
+          trailer.watchUrl
+            ? `<a class="anilist-btn trailer-link" href="${trailer.watchUrl}" target="_blank" rel="noreferrer">Open trailer ↗</a>`
+            : ""
+        }
+      </div>
+      <div class="trailer-frame-shell">
+        <iframe
+          src="${trailer.embedUrl}"
+          title="${escapeHtml(`${item.title} trailer`)}"
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen
+        ></iframe>
+      </div>
+    </section>
+  `;
+}
+
 function inlineActionsTemplate(item) {
   const seerr = item.seerr || {};
   const actions = [
@@ -550,6 +581,7 @@ function inlineDetailTemplate(item) {
         <span class="audio-chip ${escapeHtml(audioState(item).state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audioState(item).label)}</span>
       </div>
       <div class="genre-row">${(item.genres || []).slice(0, 3).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
+      ${trailerTemplate(item, true)}
       <div class="detail-list inline-detail-list">
         <div><span>Season</span><strong>${escapeHtml(seasonSummary(item) || "Current season")}</strong></div>
         <div><span>Next Episode</span><strong>${formatAiring(item.nextAiring)}</strong></div>
@@ -741,6 +773,7 @@ function renderSpotlight(item) {
       <a href="${item.siteUrl}" target="_blank" rel="noreferrer">View on AniList ↗</a>
     </div>
     <div class="genre-row">${(item.genres || []).slice(0, 3).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
+    ${trailerTemplate(item)}
     <div class="detail-list">
       <div><span>Season</span><strong>${escapeHtml(seasonSummary(item) || "Current season")}</strong></div>
       <div><span>Next Episode</span><strong>${formatAiring(item.nextAiring)}</strong></div>

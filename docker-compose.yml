@@ -3,7 +3,7 @@ services:
     image: ghcr.io/deepdaddyttv/weebarr:latest
     container_name: weebarr
     environment:
-      TZ: America/New_York
+      TZ: UTC
       SEERR_BASE_URL: ${SEERR_BASE_URL:-http://seerr:5055}
       SEERR_API_KEY: ${SEERR_API_KEY:-change-me}
       SEERR_REQUEST_SEASONS: ${SEERR_REQUEST_SEASONS:-all}
@@ -13,7 +13,7 @@ services:
       AUDIO_CACHE_TTL_SECONDS: ${AUDIO_CACHE_TTL_SECONDS:-86400}
       AUDIO_LOOKUP_TIMEOUT_SECONDS: ${AUDIO_LOOKUP_TIMEOUT_SECONDS:-6}
     ports:
-      - "8898:8888"
+      - "8080:8888"
     volumes:
       - ./config:/config
     restart: unless-stopped

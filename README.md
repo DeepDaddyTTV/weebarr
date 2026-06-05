@@ -23,7 +23,7 @@ Weebarr helps self-hosted anime libraries stay ahead of each release season. It 
 ## Why Weebarr?
 
 - **Seasonal discovery**: Browse current and upcoming anime seasons without manually hunting through multiple anime sites.
-- **Popularity-first triage**: Group shows into Headliners, Strong Signal, and Deep Cuts using AniList popularity.
+- **Popularity-first triage**: Group shows into S-Tier, Canon, Bingeable, and Filler using AniList popularity.
 - **Seerr-native requests**: Request matched TV anime through Seerr so your existing Sonarr anime profile, root folder, and approval flow stay in control.
 - **Status-aware cards**: See whether a title is requestable, already requested, available, partially available, or missing a Seerr/TMDB match.
 - **Audio signal badges**: Shows a best-effort English dub/source-language badge using AniList origin data and cached MAL voice-actor data from Jikan.
@@ -37,19 +37,19 @@ services:
     image: ghcr.io/deepdaddyttv/weebarr:latest
     container_name: weebarr
     environment:
-      TZ: America/New_York
+      TZ: UTC
       SEERR_BASE_URL: http://seerr:5055
       SEERR_API_KEY: your-seerr-api-key
     ports:
-      - "8898:8888"
+      - "8080:8888"
     volumes:
       - ./config:/config
     restart: unless-stopped
 ```
 
-Open `http://localhost:8898`.
+Open `http://localhost:8080`.
 
-On a brand-new install, Weebarr now starts with a first-run access wizard. You can choose a Sonarr-style local account or Plex Auth, and optionally generate an app API key for automation access to `/api/*`.
+On a brand-new install, Weebarr starts with a first-run access wizard. You can choose a Sonarr-style local account or Plex Auth, then add an app API key later if you want automation access to `/api/*`.
 
 ## Configuration
 
@@ -73,7 +73,7 @@ Weebarr is configured with environment variables so it works cleanly in Docker C
 | `WEEBARR_PLEX_ALLOWED_USERS` | none | Optional comma-separated Plex username/email allowlist. |
 | `WEEBARR_CONTENT_FILTER_MODE` | `hide_nsfw` | Seasonal content filter. Supports `hide_nsfw` (AniList adult-only titles hidden) or `show_all`. |
 | `WEEBARR_STRICT_MONITORING` | `false` | When enabled, later sequel seasons are treated as `Season Missing` unless that specific season is explicitly present or requested in Seerr. |
-| `SEERR_BASE_URL` | none | Internal Seerr URL, for example `http://seerr:5055`. |
+| `SEERR_BASE_URL` | none | Seerr base URL, for example `http://seerr:5055`. |
 | `SEERR_API_KEY` | none | Seerr API key. Required for request/status integration. |
 | `SEERR_REQUEST_SEASONS` | `all` | Request mode for unmatched season-specific titles. Supports `all`, `first`, or `latest`, and Weebarr resolves that into real season numbers before calling Seerr. |
 | `SEERR_SONARR_SERVER_ID` | Seerr default | Optional Sonarr server override. |
@@ -95,7 +95,7 @@ Weebarr is configured with environment variables so it works cleanly in Docker C
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
-SEERR_BASE_URL=http://localhost:5055 SEERR_API_KEY=change-me python -m src.main
+WEEBARR_PORT=8080 SEERR_BASE_URL=http://localhost:5055 SEERR_API_KEY=change-me python -m src.main
 ```
 
 Run tests:

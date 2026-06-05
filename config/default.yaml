@@ -17,7 +17,7 @@ weebarr:
 
 seerr:
   base_url: "http://seerr:5055"
-  api_key: "change-me"
+  api_key: "your-seerr-api-key"
   request_seasons: "all"
   sonarr_server_id: null
   profile_id: null

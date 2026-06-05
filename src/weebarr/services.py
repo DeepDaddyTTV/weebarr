@@ -75,6 +75,7 @@ query SeasonalAnime($season: MediaSeason!, $year: Int!, $page: Int!, $perPage: I
       id
       idMal
       siteUrl
+      trailer { id site thumbnail }
       format
       status
       episodes
@@ -164,6 +165,48 @@ def _coerce_int(value: Any) -> int | None:
     if isinstance(value, str) and value.isdigit():
         return int(value)
     return None
+
+
+def _shape_trailer(trailer: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(trailer, dict):
+        return None
+
+    trailer_id = trailer.get("id")
+    if not isinstance(trailer_id, str) or not trailer_id.strip():
+        return None
+
+    site = trailer.get("site")
+    if not isinstance(site, str) or not site.strip():
+        return None
+
+    normalized_id = quote(trailer_id.strip(), safe="")
+    normalized_site = site.strip().lower()
+    thumbnail = trailer.get("thumbnail")
+    thumbnail_url = (
+        thumbnail.strip() if isinstance(thumbnail, str) and thumbnail.strip() else None
+    )
+
+    embed_url: str | None = None
+    watch_url: str | None = None
+    site_label = normalized_site.title()
+
+    if normalized_site == "youtube":
+        embed_url = f"https://www.youtube-nocookie.com/embed/{normalized_id}?rel=0"
+        watch_url = f"https://www.youtube.com/watch?v={normalized_id}"
+        site_label = "YouTube"
+    elif normalized_site == "dailymotion":
+        embed_url = f"https://www.dailymotion.com/embed/video/{normalized_id}"
+        watch_url = f"https://www.dailymotion.com/video/{normalized_id}"
+        site_label = "Dailymotion"
+
+    return {
+        "id": trailer_id.strip(),
+        "site": normalized_site,
+        "siteLabel": site_label,
+        "thumbnail": thumbnail_url,
+        "embedUrl": embed_url,
+        "watchUrl": watch_url,
+    }
 
 
 def tmdb_image_url(path: str | None, size: str) -> str | None:
@@ -461,6 +504,7 @@ class WeebarrService:
             "englishTitle": titles.get("english"),
             "nativeTitle": titles.get("native"),
             "siteUrl": item.get("siteUrl"),
+            "trailer": _shape_trailer(item.get("trailer")),
             "format": item.get("format"),
             "status": item.get("status"),
             "episodes": item.get("episodes"),
