@@ -2,6 +2,14 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.6] - 2026-06-05
+
+### Fixed
+
+- Reworked the wide-screen Seasonal filter layout so the `Hide Requested` row no longer spills into the spotlight column on larger desktop viewports.
+- Added explicit dropdown chevrons and spacing to the app's select controls so filter and season pickers read like dropdowns instead of plain text boxes.
+- Moved the quick `Filters` menu to open below its trigger instead of covering the stat cards above it.
+
 ## [0.1.5] - 2026-06-04
 
 ### Fixed
