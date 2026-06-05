@@ -985,6 +985,26 @@ class WeebarrService:
     def _select_default_server(servers: list[dict[str, Any]]) -> dict[str, Any]:
         return next((item for item in servers if item.get("isDefault")), servers[0])
 
+    @staticmethod
+    def _server_anime_series_type(server: dict[str, Any]) -> str:
+        value = (
+            str(server.get("animeSeriesType") or server.get("seriesType") or "anime")
+            .strip()
+            .lower()
+        )
+        if value in {"standard", "daily", "anime"}:
+            return value
+        return "anime"
+
+    @staticmethod
+    def _find_server_by_id(
+        servers: list[dict[str, Any]],
+        server_id: int,
+    ) -> dict[str, Any] | None:
+        return next(
+            (server for server in servers if server.get("id") == server_id), None
+        )
+
     async def _sonarr_defaults(self) -> dict[str, Any]:
         cache_key = "seerr-sonarr-defaults"
         cached = self.cache.get(cache_key)
@@ -1005,6 +1025,7 @@ class WeebarrService:
                 or server.get("activeProfileId"),
                 "rootFolder": server.get("activeAnimeDirectory")
                 or server.get("activeDirectory"),
+                "seriesType": self._server_anime_series_type(server),
             }
         self.cache.set(cache_key, defaults, self.settings.seerr_cache_ttl_seconds)
         return defaults
@@ -1034,6 +1055,7 @@ class WeebarrService:
                 or server.get("activeProfileId"),
                 "rootFolder": server.get("activeAnimeDirectory")
                 or server.get("activeDirectory"),
+                "seriesType": self._server_anime_series_type(server),
             }
 
         return {
@@ -1041,6 +1063,53 @@ class WeebarrService:
             "serverCount": len(servers),
             "defaults": defaults,
         }
+
+    def _resolve_request_server(
+        self,
+        servers: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        forced_server_id = self.settings.seerr_sonarr_server_id
+        forced_series_type = self.settings.seerr_series_type
+        selected_server: dict[str, Any] | None = None
+
+        if forced_server_id is not None:
+            selected_server = self._find_server_by_id(servers, forced_server_id)
+            if selected_server is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Configured Sonarr Server ID {forced_server_id} is not available in Seerr.",
+                )
+
+        if forced_series_type is None:
+            return selected_server
+
+        if selected_server is not None:
+            actual_type = self._server_anime_series_type(selected_server)
+            if actual_type != forced_series_type:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Configured Sonarr Server ID {forced_server_id} uses anime series type "
+                        f"'{actual_type}', not '{forced_series_type}'."
+                    ),
+                )
+            return selected_server
+
+        matching_servers = [
+            server
+            for server in servers
+            if self._server_anime_series_type(server) == forced_series_type
+        ]
+        if not matching_servers:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "No Sonarr server in Seerr matches the requested anime series type "
+                    f"'{forced_series_type}'. Leave Force Series Type on Seerr default or "
+                    "adjust the Sonarr integration settings in Seerr."
+                ),
+            )
+        return self._select_default_server(matching_servers)
 
     async def _resolve_request_seasons(
         self,
@@ -1085,27 +1154,37 @@ class WeebarrService:
         tvdb_id: int | None,
         seasons: list[int] | str,
     ) -> dict[str, Any]:
-        defaults = await self._sonarr_defaults()
         request_seasons = await self._resolve_request_seasons(media_id, seasons)
         payload: dict[str, Any] = {
             "mediaType": "tv",
             "mediaId": media_id,
             "is4k": False,
             "seasons": request_seasons,
-            "serverId": (
-                self.settings.seerr_sonarr_server_id
-                if self.settings.seerr_sonarr_server_id is not None
-                else defaults.get("serverId")
-            ),
-            "profileId": (
-                self.settings.seerr_profile_id
-                if self.settings.seerr_profile_id is not None
-                else defaults.get("profileId")
-            ),
-            "rootFolder": self.settings.seerr_root_folder or defaults.get("rootFolder"),
         }
         if tvdb_id:
             payload["tvdbId"] = tvdb_id
+        if (
+            self.settings.seerr_sonarr_server_id is not None
+            or self.settings.seerr_series_type is not None
+        ):
+            servers = await self._sonarr_servers(
+                self.settings.seerr_base_url,
+                self.settings.seerr_api_key,
+            )
+            selected_server = self._resolve_request_server(servers)
+            if selected_server is not None and selected_server.get("id") is not None:
+                payload["serverId"] = selected_server.get("id")
+        if self.settings.seerr_force_quality_profile:
+            if self.settings.seerr_profile_id is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Force Quality Profile is enabled, but no Quality Profile ID is configured."
+                    ),
+                )
+            payload["profileId"] = self.settings.seerr_profile_id
+        if self.settings.seerr_root_folder is not None:
+            payload["rootFolder"] = self.settings.seerr_root_folder
         if self.settings.seerr_language_profile_id is not None:
             payload["languageProfileId"] = self.settings.seerr_language_profile_id
         if self.settings.seerr_request_user_id is not None:

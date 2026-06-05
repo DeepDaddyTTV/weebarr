@@ -323,13 +323,45 @@
                     <label>
                       <span>Sonarr Server ID</span>
                       <input id="settingsSonarrServerId" name="sonarrServerId" type="number" min="1" placeholder="Use Seerr default" value="{{ connection.sonarrServerId or '' }}" />
-                      <small>Optional override. Leave blank to use Seerr’s default Sonarr server.</small>
+                      <small>Optional override. Leave blank to let Seerr choose its default Sonarr server for anime requests.</small>
                     </label>
 
                     <label>
+                      <span>Force Series Type</span>
+                      <div class="ui-select" data-ui-select="settingsSeriesType">
+                        <select id="settingsSeriesType" name="seriesType">
+                          <option value="default" {{ 'selected' if connection.seriesType == 'default' else '' }}>Use Seerr default</option>
+                          <option value="standard" {{ 'selected' if connection.seriesType == 'standard' else '' }}>Standard</option>
+                          <option value="anime" {{ 'selected' if connection.seriesType == 'anime' else '' }}>Anime / Absolute</option>
+                          <option value="daily" {{ 'selected' if connection.seriesType == 'daily' else '' }}>Daily</option>
+                        </select>
+                        <button id="settingsSeriesTypeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="settingsSeriesTypeMenu">
+                          <span class="ui-select-value"></span>
+                          <i class="ui-select-chevron" aria-hidden="true"></i>
+                        </button>
+                        <div id="settingsSeriesTypeMenu" class="ui-select-menu" role="listbox" hidden></div>
+                      </div>
+                      <small>Use Seerr default to keep the Sonarr anime series type from Seerr. Choosing a type makes Weebarr pick a Seerr Sonarr server that matches it when possible.</small>
+                    </label>
+
+                    <div class="full-width settings-toggle-field">
+                      <span>Quality Profile</span>
+                      <div class="settings-toggle-row">
+                        <div class="settings-toggle-copy">
+                          <strong>Force Quality Profile ID</strong>
+                          <small>Leave this off to use Seerr’s current anime/default quality profile for the chosen Sonarr server.</small>
+                        </div>
+                        <label class="toggle-switch" for="settingsForceQualityProfile" aria-label="Enable quality profile override">
+                          <input id="settingsForceQualityProfile" name="forceQualityProfile" type="checkbox" {{ 'checked' if connection.forceQualityProfile else '' }} />
+                          <i aria-hidden="true"></i>
+                        </label>
+                      </div>
+                    </div>
+
+                    <label>
                       <span>Profile ID</span>
-                      <input id="settingsProfileId" name="profileId" type="number" min="1" placeholder="Use anime/default profile" value="{{ connection.profileId or '' }}" />
-                      <small>Optional quality profile override for requests.</small>
+                      <input id="settingsProfileId" name="profileId" type="number" min="1" placeholder="Force this quality profile ID" value="{{ connection.profileId or '' }}" />
+                      <small>Only used when <code>Force Quality Profile</code> is enabled.</small>
                     </label>
 
                     <label>
@@ -353,7 +385,7 @@
                     <label class="full-width">
                       <span>Tag IDs</span>
                       <input id="settingsTags" name="tags" type="text" placeholder="12, 34, 56" value="{{ connection.tags | join(', ') if connection.tags else '' }}" />
-                      <small>Optional comma-separated Sonarr tag IDs to attach through Seerr.</small>
+                      <small>Optional comma-separated Sonarr tag IDs to attach through Seerr. Leave blank to use Seerr’s own default tags.</small>
                     </label>
                   </div>
                 </div>
@@ -377,8 +409,12 @@
                       <strong id="currentRequestSeasons">{{ connection.requestSeasons }}</strong>
                     </div>
                     <div class="pill-card">
-                      <span>Server/Profile</span>
-                      <strong id="currentProfileSummary">{{ connection.sonarrServerId or "Default" }} / {{ connection.profileId or "Default" }}</strong>
+                      <span>Server / Series Type</span>
+                      <strong id="currentProfileSummary">{{ connection.sonarrServerId or "Default" }} / {{ "Seerr default" if connection.seriesType == "default" else connection.seriesType|title }}</strong>
+                    </div>
+                    <div class="pill-card">
+                      <span>Quality Profile</span>
+                      <strong id="currentQualityProfileMode">{{ connection.profileId if connection.forceQualityProfile and connection.profileId else "Seerr default" }}</strong>
                     </div>
                     <div class="pill-card">
                       <span>Root Folder</span>
@@ -404,6 +440,10 @@
                       <div class="pill-card">
                         <span>Detected Profile</span>
                         <strong id="testProfileId">--</strong>
+                      </div>
+                      <div class="pill-card">
+                        <span>Detected Series Type</span>
+                        <strong id="testSeriesType">--</strong>
                       </div>
                       <div class="pill-card">
                         <span>Detected Root</span>

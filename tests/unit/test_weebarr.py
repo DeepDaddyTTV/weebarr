@@ -118,9 +118,12 @@ def test_settings_page_renders(tmp_path):
     assert "Seerr Integration" in response.text
     assert "Strict Monitoring" in response.text
     assert "Content Filter" in response.text
+    assert "Force Series Type" in response.text
+    assert "Force Quality Profile ID" in response.text
     assert "Weebarr Admin Token" not in response.text
     assert 'data-ui-select="settingsRequestSeasons"' in response.text
     assert 'data-ui-select="settingsContentFilterMode"' in response.text
+    assert 'data-ui-select="settingsSeriesType"' in response.text
 
 
 def test_settings_store_persists_overrides(tmp_path):
@@ -148,6 +151,9 @@ def test_settings_endpoint_saves_connection(tmp_path):
             "baseUrl": "https://seerr.example.test",
             "apiKey": "abc123",
             "requestSeasons": "first",
+            "forceQualityProfile": True,
+            "profileId": 22,
+            "seriesType": "standard",
             "tags": [9, 11],
         },
     )
@@ -158,7 +164,64 @@ def test_settings_endpoint_saves_connection(tmp_path):
     assert payload["connection"]["baseUrl"] == "https://seerr.example.test"
     assert payload["connection"]["hasApiKey"] is True
     assert payload["connection"]["requestSeasons"] == "first"
+    assert payload["connection"]["forceQualityProfile"] is True
+    assert payload["connection"]["profileId"] == 22
+    assert payload["connection"]["seriesType"] == "standard"
     assert payload["connection"]["tags"] == [9, 11]
+
+
+def test_settings_endpoint_can_clear_saved_request_overrides(tmp_path):
+    client = authenticated_client(
+        tmp_path,
+        seerr_base_url="https://seerr.example.test",
+        seerr_api_key="abc123",
+    )
+
+    seeded = client.put(
+        "/api/settings/seerr",
+        json={
+            "sonarrServerId": 8,
+            "profileId": 22,
+            "forceQualityProfile": True,
+            "seriesType": "anime",
+            "tags": [9, 11],
+        },
+    )
+    assert seeded.status_code == 200
+
+    response = client.put(
+        "/api/settings/seerr",
+        json={
+            "sonarrServerId": None,
+            "profileId": None,
+            "forceQualityProfile": False,
+            "seriesType": "default",
+            "tags": [],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["connection"]["sonarrServerId"] is None
+    assert payload["connection"]["profileId"] is None
+    assert payload["connection"]["forceQualityProfile"] is False
+    assert payload["connection"]["seriesType"] == "default"
+    assert payload["connection"]["tags"] == []
+
+
+def test_settings_endpoint_rejects_forced_quality_profile_without_id(tmp_path):
+    client = authenticated_client(tmp_path)
+
+    response = client.put(
+        "/api/settings/seerr",
+        json={
+            "forceQualityProfile": True,
+            "profileId": None,
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Quality Profile ID is required" in response.json()["detail"]
 
 
 def test_weebarr_settings_endpoint_saves_app_preferences(tmp_path):
@@ -1171,3 +1234,168 @@ def test_resolve_request_seasons_converts_string_modes():
     assert asyncio.run(service._resolve_request_seasons(1, "all")) == [1, 2, 4]
     assert asyncio.run(service._resolve_request_seasons(1, "first")) == [1]
     assert asyncio.run(service._resolve_request_seasons(1, "latest")) == [4]
+
+
+def test_request_in_seerr_uses_seerr_defaults_when_no_force_overrides(monkeypatch):
+    service = WeebarrService(
+        Settings(
+            seerr_base_url="https://seerr.example.test",
+            seerr_api_key="secret",
+        )
+    )
+    captured: dict[str, object] = {}
+
+    async def fake_resolve_request_seasons(_media_id: int, _seasons):
+        return [1]
+
+    async def fail_sonarr_servers(*_args, **_kwargs):
+        raise AssertionError("Sonarr server lookup should not run without overrides")
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json, headers):
+            captured["url"] = url
+            captured["json"] = json
+            captured["headers"] = headers
+
+            class Response:
+                status_code = 201
+                content = b"{}"
+
+                @staticmethod
+                def json():
+                    return {"id": 1}
+
+            return Response()
+
+    service._resolve_request_seasons = fake_resolve_request_seasons  # type: ignore[method-assign]
+    service._sonarr_servers = fail_sonarr_servers  # type: ignore[method-assign]
+    monkeypatch.setattr(services_module.httpx, "AsyncClient", FakeAsyncClient)
+
+    result = asyncio.run(
+        service.request_in_seerr(
+            media_id=196950,
+            title="Witch Hat Atelier",
+            tvdb_id=418666,
+            seasons="all",
+        )
+    )
+
+    assert result["success"] is True
+    payload = captured["json"]
+    assert payload == {
+        "mediaType": "tv",
+        "mediaId": 196950,
+        "is4k": False,
+        "seasons": [1],
+        "tvdbId": 418666,
+    }
+
+
+def test_request_in_seerr_can_force_series_type_and_quality_profile(monkeypatch):
+    service = WeebarrService(
+        Settings(
+            seerr_base_url="https://seerr.example.test",
+            seerr_api_key="secret",
+            seerr_force_quality_profile=True,
+            seerr_profile_id=22,
+            seerr_series_type="standard",
+        )
+    )
+    captured: dict[str, object] = {}
+
+    async def fake_resolve_request_seasons(_media_id: int, _seasons):
+        return [1]
+
+    async def fake_sonarr_servers(*_args, **_kwargs):
+        return [
+            {"id": 8, "name": "Anime Absolute", "animeSeriesType": "anime"},
+            {
+                "id": 4,
+                "name": "Anime Standard",
+                "animeSeriesType": "standard",
+                "isDefault": True,
+            },
+        ]
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json, headers):
+            captured["json"] = json
+
+            class Response:
+                status_code = 201
+                content = b"{}"
+
+                @staticmethod
+                def json():
+                    return {"id": 2}
+
+            return Response()
+
+    service._resolve_request_seasons = fake_resolve_request_seasons  # type: ignore[method-assign]
+    service._sonarr_servers = fake_sonarr_servers  # type: ignore[method-assign]
+    monkeypatch.setattr(services_module.httpx, "AsyncClient", FakeAsyncClient)
+
+    asyncio.run(
+        service.request_in_seerr(
+            media_id=196950,
+            title="Witch Hat Atelier",
+            tvdb_id=418666,
+            seasons="all",
+        )
+    )
+
+    payload = captured["json"]
+    assert payload["serverId"] == 4
+    assert payload["profileId"] == 22
+    assert payload["tvdbId"] == 418666
+
+
+def test_request_in_seerr_rejects_mismatched_forced_server_series_type(monkeypatch):
+    service = WeebarrService(
+        Settings(
+            seerr_base_url="https://seerr.example.test",
+            seerr_api_key="secret",
+            seerr_sonarr_server_id=8,
+            seerr_series_type="standard",
+        )
+    )
+
+    async def fake_resolve_request_seasons(_media_id: int, _seasons):
+        return [1]
+
+    async def fake_sonarr_servers(*_args, **_kwargs):
+        return [{"id": 8, "name": "Anime Absolute", "animeSeriesType": "anime"}]
+
+    service._resolve_request_seasons = fake_resolve_request_seasons  # type: ignore[method-assign]
+    service._sonarr_servers = fake_sonarr_servers  # type: ignore[method-assign]
+
+    with pytest.raises(services_module.HTTPException) as exc:
+        asyncio.run(
+            service.request_in_seerr(
+                media_id=196950,
+                title="Witch Hat Atelier",
+                tvdb_id=418666,
+                seasons="all",
+            )
+        )
+
+    assert exc.value.status_code == 400
+    assert "uses anime series type 'anime', not 'standard'" in exc.value.detail

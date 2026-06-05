@@ -2,6 +2,14 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.24] - 2026-06-05
+
+### Fixed
+
+- Stopped sending Seerr request-time Sonarr/profile/root defaults automatically, so Weebarr can now defer to Seerr's own anime request defaults unless you explicitly force an override.
+- Added `Force Series Type` and `Force Quality Profile` controls to Settings, including real clearing behavior for saved Sonarr/profile/tag overrides instead of trapping older values in the config.
+- Prevented the Seerr connection test from auto-filling detected Sonarr defaults back into the form, which had been making accidental permanent overrides too easy.
+
 ## [0.1.23] - 2026-06-05
 
 ### Security

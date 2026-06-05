@@ -90,6 +90,11 @@ class ConnectionPayload(BaseModel):
     request_seasons: Optional[str] = Field(default=None, alias="requestSeasons")
     sonarr_server_id: Optional[int] = Field(default=None, alias="sonarrServerId")
     profile_id: Optional[int] = Field(default=None, alias="profileId")
+    force_quality_profile: Optional[bool] = Field(
+        default=None,
+        alias="forceQualityProfile",
+    )
+    series_type: Optional[str] = Field(default=None, alias="seriesType")
     root_folder: Optional[str] = Field(default=None, alias="rootFolder")
     language_profile_id: Optional[int] = Field(default=None, alias="languageProfileId")
     request_user_id: Optional[int] = Field(default=None, alias="requestUserId")
@@ -1023,25 +1028,74 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.put("/api/settings/seerr")
     async def save_seerr_settings(payload: ConnectionPayload) -> dict[str, Any]:
+        submitted = payload.model_dump(exclude_unset=True)
+        current = current_settings()
         overrides: dict[str, Any] = {}
-        if payload.base_url is not None and payload.base_url.strip():
-            overrides["base_url"] = payload.base_url.strip().rstrip("/")
-        if payload.api_key is not None and payload.api_key.strip():
-            overrides["api_key"] = payload.api_key.strip()
-        if payload.request_seasons is not None and payload.request_seasons.strip():
-            overrides["request_seasons"] = payload.request_seasons.strip()
-        if payload.sonarr_server_id is not None:
+        if "base_url" in submitted:
+            if payload.base_url is not None and payload.base_url.strip():
+                overrides["base_url"] = payload.base_url.strip().rstrip("/")
+        if "api_key" in submitted:
+            if payload.api_key is not None and payload.api_key.strip():
+                overrides["api_key"] = payload.api_key.strip()
+        if "request_seasons" in submitted:
+            overrides["request_seasons"] = (
+                payload.request_seasons.strip()
+                if payload.request_seasons is not None
+                and payload.request_seasons.strip()
+                else None
+            )
+        if "sonarr_server_id" in submitted:
             overrides["sonarr_server_id"] = payload.sonarr_server_id
-        if payload.profile_id is not None:
+        if "profile_id" in submitted:
             overrides["profile_id"] = payload.profile_id
-        if payload.root_folder is not None:
-            overrides["root_folder"] = payload.root_folder.strip() or None
-        if payload.language_profile_id is not None:
+        if "force_quality_profile" in submitted:
+            overrides["force_quality_profile"] = bool(payload.force_quality_profile)
+        if "series_type" in submitted:
+            overrides["series_type"] = (
+                payload.series_type.strip()
+                if payload.series_type is not None and payload.series_type.strip()
+                else None
+            )
+        if "root_folder" in submitted:
+            overrides["root_folder"] = (
+                payload.root_folder.strip() if payload.root_folder is not None else None
+            ) or None
+        if "language_profile_id" in submitted:
             overrides["language_profile_id"] = payload.language_profile_id
-        if payload.request_user_id is not None:
+        if "request_user_id" in submitted:
             overrides["request_user_id"] = payload.request_user_id
-        if payload.tags is not None:
-            overrides["tags"] = payload.tags
+        if "tags" in submitted:
+            overrides["tags"] = payload.tags or None
+
+        effective_force_quality_profile = (
+            bool(payload.force_quality_profile)
+            if "force_quality_profile" in submitted
+            else current.seerr_force_quality_profile
+        )
+        effective_series_type = (
+            payload.series_type.strip().lower()
+            if "series_type" in submitted
+            and payload.series_type is not None
+            and payload.series_type.strip()
+            else current.seerr_series_type
+        )
+        if effective_series_type == "default":
+            effective_series_type = None
+        effective_profile_id = (
+            payload.profile_id
+            if "profile_id" in submitted
+            else current.seerr_profile_id
+        )
+        if effective_series_type not in (None, "standard", "daily", "anime"):
+            raise HTTPException(
+                status_code=400,
+                detail="Series Type must be one of Seerr default, Standard, Anime / Absolute, or Daily.",
+            )
+        if effective_force_quality_profile and effective_profile_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Quality Profile ID is required when Force Quality Profile is enabled.",
+            )
 
         updated = settings_store.save_seerr(overrides)
         service.clear_cache()

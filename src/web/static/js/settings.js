@@ -14,6 +14,13 @@ const contentFilterLabels = {
   show_all: "Show all",
 };
 
+const seriesTypeLabels = {
+  default: "Use Seerr default",
+  standard: "Standard",
+  anime: "Anime / Absolute",
+  daily: "Daily",
+};
+
 const els = {
   toast: document.querySelector("#toast"),
   weebarrBanner: document.querySelector("#weebarrSettingsBanner"),
@@ -31,6 +38,8 @@ const els = {
   apiKey: document.querySelector("#settingsApiKey"),
   requestSeasons: document.querySelector("#settingsRequestSeasons"),
   sonarrServerId: document.querySelector("#settingsSonarrServerId"),
+  forceQualityProfile: document.querySelector("#settingsForceQualityProfile"),
+  seriesType: document.querySelector("#settingsSeriesType"),
   profileId: document.querySelector("#settingsProfileId"),
   rootFolder: document.querySelector("#settingsRootFolder"),
   languageProfileId: document.querySelector("#settingsLanguageProfileId"),
@@ -48,11 +57,13 @@ const els = {
   currentApiKey: document.querySelector("#currentApiKey"),
   currentRequestSeasons: document.querySelector("#currentRequestSeasons"),
   currentProfileSummary: document.querySelector("#currentProfileSummary"),
+  currentQualityProfileMode: document.querySelector("#currentQualityProfileMode"),
   currentRootFolder: document.querySelector("#currentRootFolder"),
   currentTags: document.querySelector("#currentTags"),
   testServerCount: document.querySelector("#testServerCount"),
   testServerName: document.querySelector("#testServerName"),
   testProfileId: document.querySelector("#testProfileId"),
+  testSeriesType: document.querySelector("#testSeriesType"),
   testRootFolder: document.querySelector("#testRootFolder"),
   testButton: document.querySelector("#testConnectionBtn"),
 };
@@ -120,6 +131,12 @@ function parseTags(value) {
     .split(",")
     .map((part) => Number(part.trim()))
     .filter((part) => Number.isFinite(part));
+}
+
+function applyConnectionOverrideState() {
+  if (els.profileId) {
+    els.profileId.disabled = !Boolean(els.forceQualityProfile?.checked);
+  }
 }
 
 function escapeHtml(value) {
@@ -235,6 +252,8 @@ function connectionPayload() {
     baseUrl: els.baseUrl.value.trim(),
     requestSeasons: els.requestSeasons.value,
     sonarrServerId: parseOptionalInt(els.sonarrServerId.value),
+    forceQualityProfile: Boolean(els.forceQualityProfile?.checked),
+    seriesType: els.seriesType?.value || "default",
     profileId: parseOptionalInt(els.profileId.value),
     rootFolder: els.rootFolder.value.trim() || null,
     languageProfileId: parseOptionalInt(els.languageProfileId.value),
@@ -283,7 +302,14 @@ function updateConnection(connection) {
     els.currentRequestSeasons.textContent = connection.requestSeasons || "all";
   }
   if (els.currentProfileSummary) {
-    els.currentProfileSummary.textContent = `${connection.sonarrServerId || "Default"} / ${connection.profileId || "Default"}`;
+    const seriesTypeLabel =
+      seriesTypeLabels[connection.seriesType] || "Use Seerr default";
+    els.currentProfileSummary.textContent = `${connection.sonarrServerId || "Default"} / ${seriesTypeLabel}`;
+  }
+  if (els.currentQualityProfileMode) {
+    els.currentQualityProfileMode.textContent = connection.forceQualityProfile
+      ? connection.profileId || "Missing ID"
+      : "Seerr default";
   }
   if (els.currentRootFolder) {
     els.currentRootFolder.textContent = connection.rootFolder || "Default";
@@ -315,6 +341,12 @@ function updateConnection(connection) {
   if (els.profileId && !document.activeElement?.isSameNode(els.profileId)) {
     els.profileId.value = connection.profileId || "";
   }
+  if (els.forceQualityProfile) {
+    els.forceQualityProfile.checked = Boolean(connection.forceQualityProfile);
+  }
+  if (els.seriesType && connection.seriesType) {
+    els.seriesType.value = connection.seriesType;
+  }
   if (els.rootFolder && !document.activeElement?.isSameNode(els.rootFolder)) {
     els.rootFolder.value = connection.rootFolder || "";
   }
@@ -338,7 +370,8 @@ function updateConnection(connection) {
       ? `Stored ${connection.apiKeyPreview} (leave blank to keep)`
       : "Paste a Seerr API key";
   }
-  syncCustomSelects(["settingsRequestSeasons"]);
+  applyConnectionOverrideState();
+  syncCustomSelects(["settingsRequestSeasons", "settingsSeriesType"]);
 }
 
 function updateAccess(access) {
@@ -452,21 +485,13 @@ async function testConnection() {
   els.testServerCount.textContent = result.serverCount ?? "--";
   els.testServerName.textContent = defaults.serverName || "None";
   els.testProfileId.textContent = defaults.profileId || "Default";
+  els.testSeriesType.textContent =
+    seriesTypeLabels[defaults.seriesType] || "Use Seerr default";
   els.testRootFolder.textContent = defaults.rootFolder || "Default";
-
-  if (!els.sonarrServerId.value && defaults.serverId) {
-    els.sonarrServerId.value = defaults.serverId;
-  }
-  if (!els.profileId.value && defaults.profileId) {
-    els.profileId.value = defaults.profileId;
-  }
-  if (!els.rootFolder.value && defaults.rootFolder) {
-    els.rootFolder.value = defaults.rootFolder;
-  }
 
   showBanner(
     els.connectionBanner,
-    "Connection test succeeded. Seerr responded and default Sonarr values were detected.",
+    "Connection test succeeded. Seerr responded and its current anime request defaults were detected.",
     "success",
   );
   toast("Seerr connection test passed.");
@@ -542,6 +567,12 @@ if (els.accessForm) {
     } catch (error) {
       showBanner(els.accessBanner, `Save failed. ${error.message}`, "error");
     }
+  });
+}
+
+if (els.forceQualityProfile) {
+  els.forceQualityProfile.addEventListener("change", () => {
+    applyConnectionOverrideState();
   });
 }
 

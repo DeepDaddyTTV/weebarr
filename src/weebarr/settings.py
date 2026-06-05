@@ -99,6 +99,17 @@ def _normalize_content_filter_mode(value: Any) -> str:
     raise ValueError("content_filter_mode must be one of hide_nsfw or show_all")
 
 
+def _normalize_series_type(value: Any) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip().lower()
+    if normalized in {"", "default"}:
+        return None
+    if normalized in {"standard", "daily", "anime"}:
+        return normalized
+    raise ValueError("series_type must be one of default, standard, daily, or anime")
+
+
 def _normalize_auth_mode(value: Any) -> str:
     normalized = str(value or "disabled").strip().lower()
     if normalized in {"disabled", "local", "plex", "both"}:
@@ -158,6 +169,8 @@ class Settings:
     seerr_api_key: str = ""
     seerr_sonarr_server_id: int | None = None
     seerr_profile_id: int | None = None
+    seerr_force_quality_profile: bool = False
+    seerr_series_type: str | None = None
     seerr_root_folder: str | None = None
     seerr_language_profile_id: int | None = None
     seerr_tags: list[int] | None = None
@@ -283,6 +296,11 @@ class Settings:
             seerr_api_key=os.getenv("SEERR_API_KEY", ""),
             seerr_sonarr_server_id=_optional_int(os.getenv("SEERR_SONARR_SERVER_ID")),
             seerr_profile_id=_optional_int(os.getenv("SEERR_PROFILE_ID")),
+            seerr_force_quality_profile=_normalize_bool(
+                os.getenv("SEERR_FORCE_QUALITY_PROFILE"),
+                default=False,
+            ),
+            seerr_series_type=_normalize_series_type(os.getenv("SEERR_SERIES_TYPE")),
             seerr_root_folder=os.getenv("SEERR_ROOT_FOLDER") or None,
             seerr_language_profile_id=_optional_int(
                 os.getenv("SEERR_LANGUAGE_PROFILE_ID")
@@ -473,6 +491,8 @@ class SettingsStore:
             "requestSeasons": current.seerr_request_seasons,
             "sonarrServerId": current.seerr_sonarr_server_id,
             "profileId": current.seerr_profile_id,
+            "forceQualityProfile": current.seerr_force_quality_profile,
+            "seriesType": current.seerr_series_type or "default",
             "rootFolder": current.seerr_root_folder,
             "languageProfileId": current.seerr_language_profile_id,
             "requestUserId": current.seerr_request_user_id,
@@ -546,6 +566,16 @@ class SettingsStore:
                 _normalize_optional_int(seerr.get("profile_id"))
                 if "profile_id" in seerr
                 else self._base.seerr_profile_id
+            ),
+            seerr_force_quality_profile=(
+                _normalize_bool(seerr.get("force_quality_profile"))
+                if "force_quality_profile" in seerr
+                else self._base.seerr_force_quality_profile
+            ),
+            seerr_series_type=(
+                _normalize_series_type(seerr.get("series_type"))
+                if "series_type" in seerr
+                else self._base.seerr_series_type
             ),
             seerr_root_folder=(
                 _normalize_optional_str(seerr.get("root_folder"))
