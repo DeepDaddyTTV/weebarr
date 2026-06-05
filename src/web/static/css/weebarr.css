@@ -109,7 +109,7 @@ button,
 select,
 input {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.04);
+  background-color: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   outline: none;
@@ -511,7 +511,7 @@ h1 {
 .season-pill input {
   min-height: 38px;
   padding: 0;
-  background: transparent;
+  background-color: transparent;
   border: 0;
   border-radius: 0;
 }

@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.7] - 2026-06-05
+
+### Fixed
+
+- Preserved the new custom select chevrons by switching shared control backgrounds to `background-color`, which avoids wiping select background images out with a shorthand reset.
+
 ## [0.1.6] - 2026-06-05
 
 ### Fixed
