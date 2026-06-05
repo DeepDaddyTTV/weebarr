@@ -1144,6 +1144,10 @@ h1 {
   gap: 16px;
 }
 
+body[data-page="seasonal"] .stats-grid {
+  gap: 14px;
+}
+
 .stat-card {
   position: relative;
   display: grid;
@@ -1156,11 +1160,22 @@ h1 {
   border-radius: var(--radius-md);
 }
 
+body[data-page="seasonal"] .stat-card {
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  min-height: 72px;
+  padding: 10px 16px;
+  border-radius: 18px;
+}
+
 .stat-copy {
   display: grid;
   align-content: center;
   gap: 4px;
   min-width: 0;
+}
+
+body[data-page="seasonal"] .stat-copy {
+  gap: 2px;
 }
 
 .stat-card::after {
@@ -1209,6 +1224,11 @@ h1 {
   background: rgba(40, 199, 255, 0.1);
   border: 1px solid rgba(40, 199, 255, 0.64);
   border-radius: var(--radius-md);
+}
+
+body[data-page="seasonal"] .stat-icon {
+  width: 54px;
+  height: 54px;
 }
 
 .stat-icon::before,
@@ -1269,11 +1289,11 @@ h1 {
 .stat-icon-airing::after {
   top: 50%;
   left: 50%;
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-top: 2px solid currentColor;
   border-right: 2px solid currentColor;
-  transform: translate(-50%, -42%) rotate(-45deg);
+  transform: translate(-46%, -47%) rotate(-45deg);
   transform-origin: center;
 }
 
@@ -1305,6 +1325,11 @@ h1 {
   line-height: 1.25;
 }
 
+body[data-page="seasonal"] .stat-copy > span {
+  font-size: 11px;
+  line-height: 1.12;
+}
+
 .stat-card strong {
   display: block;
   min-width: 2ch;
@@ -1318,12 +1343,21 @@ h1 {
   white-space: nowrap;
 }
 
+body[data-page="seasonal"] .stat-card strong {
+  font-size: clamp(1.95rem, 2.35vw, 2.55rem);
+}
+
 .stat-card small {
   display: block;
   margin-top: 0;
   font-size: 11px;
   font-weight: 800;
   line-height: 1.25;
+}
+
+body[data-page="seasonal"] .stat-card small {
+  font-size: 10px;
+  line-height: 1.12;
 }
 
 .filter-panel {
@@ -1726,6 +1760,12 @@ body[data-page="requests"] .spotlight {
   cursor: pointer;
 }
 
+.poster-column {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
 .card-surface:hover {
   transform: none;
   border-color: transparent;
@@ -1772,7 +1812,8 @@ body[data-page="requests"] .spotlight {
   object-fit: cover;
 }
 
-.rank {
+.rank,
+.rank-chip {
   position: absolute;
   top: 6px;
   left: 6px;
@@ -1786,6 +1827,24 @@ body[data-page="requests"] .spotlight {
   background: rgba(255, 60, 125, 0.18);
   border: 1px solid rgba(255, 60, 125, 0.62);
   border-radius: 4px;
+}
+
+.poster-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.rank-chip {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 14px rgba(255, 60, 125, 0.14);
 }
 
 .card-body {
@@ -1852,10 +1911,6 @@ body[data-page="requests"] .spotlight {
   color: #ff5e9a;
 }
 
-.score-row .audio-chip {
-  margin-left: 0;
-}
-
 .audio-chip {
   display: inline-flex;
   align-items: center;
@@ -1913,13 +1968,6 @@ body[data-page="requests"] .spotlight {
   margin-bottom: 3px;
   color: var(--cyan);
   font-size: 11px;
-}
-
-.card-audio-row {
-  display: flex;
-  align-items: center;
-  min-height: 24px;
-  margin-top: 10px;
 }
 
 .card-foot {

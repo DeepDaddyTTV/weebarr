@@ -605,9 +605,14 @@ function cardTemplate(item) {
   return `
     <article class="anime-card ${isSelected ? "selected" : ""} ${compact && isSelected ? "inline-selected" : ""}" data-id="${item.id}" aria-expanded="${compact ? String(isSelected) : "false"}">
       <div class="card-surface" data-select="${item.id}" role="button" tabindex="0" aria-label="${escapeHtml(selectLabel)}" aria-expanded="${compact ? String(isSelected) : "false"}">
-        <div class="poster">
-          ${item.cover ? `<img src="${item.cover}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
-          <span class="rank">#${item.rank}</span>
+        <div class="poster-column">
+          <div class="poster">
+            ${item.cover ? `<img src="${item.cover}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
+          </div>
+          <div class="poster-pills">
+            <span class="rank-chip">#${item.rank}</span>
+            <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
+          </div>
         </div>
         <div class="card-body">
           <h3>${escapeHtml(item.title)}</h3>
@@ -618,9 +623,6 @@ function cardTemplate(item) {
         <span>♨ ${formatNumber(item.popularity)}</span>
       </div>
       <div class="next-line"><strong>Next Episode</strong>${formatAiring(item.nextAiring)}</div>
-      <div class="card-audio-row">
-        <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
-      </div>
       <div class="card-foot">
         <span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span>
         ${actionButtonTemplate(item)}

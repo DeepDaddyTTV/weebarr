@@ -2,6 +2,31 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.23] - 2026-06-05
+
+### Security
+
+- Removed the production-usable static session-secret fallback and replaced it with fail-closed startup checks for configured auth, plus ephemeral setup-only signing when the instance is still unclaimed.
+- Hardened first-run setup so Weebarr no longer trusts client-controlled `Host` or forwarded-IP headers to decide whether setup is local, and added an optional `WEEBARR_BOOTSTRAP_TOKEN` path for intentional remote first-run claims.
+- Stopped deriving Plex callback origins from request host values and now require `WEEBARR_PUBLIC_URL` for Plex-auth/public deployments.
+- Restricted the automation API key to safe read/request routes so it can no longer mutate admin authentication state or Settings.
+- Added lightweight in-app rate limits for local login, first-run setup, and Plex-auth starts.
+
+### Infrastructure
+
+- Pinned the runtime dependency set to known-safe versions, including safe Starlette and `python-dotenv` releases.
+- Replaced the old `safety` CI dependency check with `pip-audit`, and added `SECURITY.md`, Dependabot, and CodeQL workflow coverage.
+
+### Docs
+
+- Added `.env.example` and updated the README and compose examples to document `WEEBARR_PUBLIC_URL`, optional bootstrap-token setup, and reverse-proxy expectations for public deployments.
+
+### UI
+
+- Moved the seasonal card rank and audio chips into a shared pill row beneath the poster, with the rank badge now using the same pill shape language as the dub tag.
+- Changed the non-dub fallback label from origin-specific text to `EN Sub`.
+- Flattened the seasonal-only stat cards further and nudged the `Airing Soon` icon geometry so the top summary row fits the intended elongated layout more cleanly.
+
 ## [0.1.22] - 2026-06-05
 
 ### Added

@@ -4,6 +4,12 @@ services:
     container_name: weebarr
     environment:
       TZ: UTC
+      # Required when Weebarr is exposed through a reverse proxy, tunnel, HTTPS,
+      # or when Plex sign-in is enabled.
+      WEEBARR_PUBLIC_URL: ${WEEBARR_PUBLIC_URL:-http://localhost:8080}
+      # Optional one-time bootstrap secret for intentionally claiming a brand-new
+      # public instance. Leave blank for local-only first-run setup.
+      WEEBARR_BOOTSTRAP_TOKEN: ${WEEBARR_BOOTSTRAP_TOKEN:-}
       SEERR_BASE_URL: ${SEERR_BASE_URL:-http://seerr:5055}
       SEERR_API_KEY: ${SEERR_API_KEY:-change-me}
       SEERR_REQUEST_SEASONS: ${SEERR_REQUEST_SEASONS:-all}

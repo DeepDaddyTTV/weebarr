@@ -571,14 +571,14 @@ class WeebarrService:
                 "sourceLanguage": source["language"],
                 "sourceLabel": source["label"],
                 "fallbackState": source["state"],
-                "fallbackLabel": f"{source['label']} only",
+                "fallbackLabel": "EN Sub",
             }
         return {
             "sourceCountry": country,
             "sourceLanguage": None,
             "sourceLabel": "Sub",
-            "fallbackState": "unknown",
-            "fallbackLabel": "Audio ?",
+            "fallbackState": "sub_only",
+            "fallbackLabel": "EN Sub",
         }
 
     async def _resolve_audio(self, anime: dict[str, Any]) -> dict[str, Any]:
@@ -601,8 +601,8 @@ class WeebarrService:
             return cast(dict[str, Any], cached)
 
         result = {
-            "state": "unknown",
-            "label": "Audio ?",
+            "state": source["fallbackState"],
+            "label": source["fallbackLabel"],
             "englishDub": None,
             "sourceCountry": source["sourceCountry"],
             "sourceLanguage": source["sourceLanguage"],

@@ -16,7 +16,7 @@
           <p>First-run setup is only available from a local or private-network address. Choose whether this single-admin instance should use a local password or a Plex-only sign-in.</p>
         </div>
 
-        <div id="setupBanner" class="auth-banner" hidden></div>
+        <div id="setupBanner" class="auth-banner" {% if error_message %}data-tone="error"{% else %}hidden{% endif %}>{{ error_message or "" }}</div>
 
         <div class="setup-mode-grid" role="tablist" aria-label="Setup mode">
           <button id="setupModeLocal" class="setup-mode active" type="button" data-setup-mode="local" aria-pressed="true">

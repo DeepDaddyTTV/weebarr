@@ -8,6 +8,7 @@ import ipaddress
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import RLock
 from time import time
 from typing import Any, Optional, Union
 from urllib.parse import quote
@@ -35,6 +36,7 @@ from src.weebarr.auth import (
     plex_auth_user,
     plex_user_allowed,
     verify_api_key,
+    verify_bootstrap_token,
     verify_local_credentials,
 )
 from src.weebarr.services import WeebarrService
@@ -49,6 +51,21 @@ logger = logging.getLogger("weebarr")
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 templates = Jinja2Templates(directory=str(WEB_ROOT / "templates"))
+
+SETUP_PROXY_INDICATOR_HEADERS = (
+    "CF-Connecting-IP",
+    "Forwarded",
+    "X-Forwarded-For",
+    "X-Forwarded-Host",
+    "X-Forwarded-Port",
+    "X-Forwarded-Proto",
+    "X-Real-IP",
+)
+API_KEY_ALLOWED_PATHS = {
+    "/api/health",
+    "/api/seasonal",
+    "/api/request",
+}
 
 
 class RequestPayload(BaseModel):
@@ -116,6 +133,37 @@ class LocalAccountPayload(BaseModel):
     confirm_password: str = Field(default="", alias="confirmPassword")
 
 
+class RateLimiter:
+    """Minimal in-memory fixed-window limiter for sensitive auth/setup paths."""
+
+    def __init__(self, *, limit: int, window_seconds: int) -> None:
+        self.limit = max(1, limit)
+        self.window_seconds = max(1, window_seconds)
+        self._lock = RLock()
+        self._windows: dict[str, tuple[float, int]] = {}
+
+    def consume(self, key: str) -> int | None:
+        """Record an attempt and return retry-after seconds when blocked."""
+
+        now = time()
+        with self._lock:
+            window_started, count = self._windows.get(key, (now, 0))
+            if now - window_started >= self.window_seconds:
+                window_started, count = now, 0
+            if count >= self.limit:
+                retry_after = max(
+                    1, int(self.window_seconds - max(0, now - window_started))
+                )
+                self._windows[key] = (window_started, count)
+                return retry_after
+            self._windows[key] = (window_started, count + 1)
+        return None
+
+    def reset(self, key: str) -> None:
+        with self._lock:
+            self._windows.pop(key, None)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Create the FastAPI app."""
 
@@ -130,8 +178,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         raise RuntimeError(
             "A session secret is required when Weebarr authentication is enabled."
         )
+    if initial_settings.uses_plex_auth and not initial_settings.public_url:
+        raise RuntimeError(
+            "WEEBARR_PUBLIC_URL is required when Plex authentication is enabled."
+        )
     service = WeebarrService(settings_store.get)
     asset_version = str(int(time()))
+    session_secret = initial_settings.session_secret or generate_session_secret()
+    login_rate_limiter = RateLimiter(
+        limit=initial_settings.login_rate_limit_attempts,
+        window_seconds=initial_settings.login_rate_limit_window_seconds,
+    )
+    setup_rate_limiter = RateLimiter(
+        limit=initial_settings.setup_rate_limit_attempts,
+        window_seconds=initial_settings.setup_rate_limit_window_seconds,
+    )
+    plex_rate_limiter = RateLimiter(
+        limit=initial_settings.plex_rate_limit_attempts,
+        window_seconds=initial_settings.plex_rate_limit_window_seconds,
+    )
     app = FastAPI(
         title="Weebarr",
         version=__version__,
@@ -174,6 +239,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return verify_api_key(current_settings(), header_key) or verify_api_key(
             current_settings(), bearer_key
         )
+
+    def bootstrap_token_authorized(request: Request) -> bool:
+        if request.session.get("bootstrap_authorized") is True:
+            return True
+
+        settings_now = current_settings()
+        if not settings_now.bootstrap_token_enabled:
+            return False
+
+        header_value = request.headers.get("X-Weebarr-Bootstrap-Token", "")
+        bearer = request.headers.get("Authorization", "").strip()
+        bearer_token = (
+            bearer[7:].strip() if bearer.lower().startswith("bearer ") else ""
+        )
+        query_value = request.query_params.get("bootstrap", "")
+        candidate = header_value or query_value or bearer_token
+        if not verify_bootstrap_token(settings_now, candidate):
+            return False
+        request.session["bootstrap_authorized"] = True
+        return True
+
+    def api_key_path_allowed(path: str) -> bool:
+        return path in API_KEY_ALLOWED_PATHS
 
     def connection_summary() -> dict[str, Any]:
         return settings_store.connection_summary()
@@ -251,9 +339,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             items.append(enriched)
         return {**payload, "items": items}
 
-    def header_first_value(header_name: str, request: Request) -> str:
-        raw_value = request.headers.get(header_name, "")
-        return raw_value.split(",", 1)[0].strip()
+    def is_local_ip(value: str) -> bool:
+        candidate = value.strip()
+        if not candidate:
+            return False
+        try:
+            address = ipaddress.ip_address(candidate)
+        except ValueError:
+            return False
+        return address.is_private or address.is_loopback or address.is_link_local
 
     def normalize_host(value: str) -> str:
         host = value.strip().lower()
@@ -289,45 +383,53 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return False
         return address.is_private or address.is_loopback or address.is_link_local
 
-    def is_local_ip(value: str) -> bool:
-        candidate = value.strip()
-        if not candidate:
-            return False
-        if candidate == "testclient":
-            return True
-        try:
-            address = ipaddress.ip_address(candidate)
-        except ValueError:
-            return False
-        return address.is_private or address.is_loopback or address.is_link_local
+    def request_uses_proxy_headers(request: Request) -> bool:
+        return any(
+            request.headers.get(header_name, "").strip()
+            for header_name in SETUP_PROXY_INDICATOR_HEADERS
+        )
+
+    def direct_client_ip(request: Request) -> str:
+        return request.client.host if request.client and request.client.host else ""
+
+    def request_is_direct_local(request: Request) -> bool:
+        client_host = direct_client_ip(request)
+        if client_host == "testclient":
+            return is_local_host(request.url.hostname or "")
+        return is_local_ip(client_host)
 
     def setup_request_allowed(request: Request) -> bool:
-        forwarded_host = header_first_value("X-Forwarded-Host", request)
-        host = (
-            forwarded_host
-            or request.headers.get("Host", "")
-            or (request.url.hostname or "")
-        )
-        if host:
-            return is_local_host(host)
+        if bootstrap_token_authorized(request):
+            return True
+        if request_uses_proxy_headers(request):
+            return False
+        return request_is_direct_local(request)
 
-        client_ip = (
-            header_first_value("CF-Connecting-IP", request)
-            or header_first_value("X-Forwarded-For", request)
-            or header_first_value("X-Real-IP", request)
-            or (request.client.host if request.client else "")
+    def rate_limit_key(scope: str, request: Request) -> str:
+        return f"{scope}:{direct_client_ip(request) or 'unknown'}"
+
+    def enforce_rate_limit(
+        request: Request,
+        limiter: RateLimiter,
+        *,
+        scope: str,
+        detail: str,
+    ) -> None:
+        retry_after = limiter.consume(rate_limit_key(scope, request))
+        if retry_after is None:
+            return
+        raise HTTPException(
+            status_code=429,
+            detail=detail,
+            headers={"Retry-After": str(retry_after)},
         )
-        return is_local_ip(client_ip)
 
     def setup_blocked_response(request: Request) -> HTMLResponse:
-        host = request.url.hostname or "localhost"
-        port = f":{request.url.port}" if request.url.port else ""
-        local_hint = f"http://{host}{port}/setup" if is_local_host(host) else None
-        hint_html = (
-            f"<p class='auth-alt-copy'>Open a local/private Weebarr URL such as <code>{local_hint}</code> to finish first-run setup.</p>"
-            if local_hint
-            else "<p class='auth-alt-copy'>Open Weebarr from a local/private-network URL to finish first-run setup.</p>"
-        )
+        settings_now = current_settings()
+        if settings_now.bootstrap_token_enabled:
+            hint_html = "<p class='auth-alt-copy'>Finish first-run setup from a direct local/private-network address, or supply the configured bootstrap token for an intentional remote claim.</p>"
+        else:
+            hint_html = "<p class='auth-alt-copy'>Finish first-run setup from a direct local/private-network address. Setup requests forwarded through a proxy or tunnel are blocked until the app is claimed.</p>"
         content = f"""<!doctype html>
 <html lang="en">
   <head>
@@ -343,7 +445,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
       <section class="auth-panel auth-panel-setup">
         <div class="auth-brand">
           <img class="auth-wordmark" src="/static/img/weebarr-wordmark.svg?v={asset_version}" alt="Weebarr" />
-          <p>First-run setup is only available from a local or private-network address.</p>
+          <p>First-run setup is only available from a trusted bootstrap path.</p>
         </div>
         <div class="auth-banner" data-tone="error">Setup is blocked from this address.</div>
         {hint_html}
@@ -377,6 +479,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "plex_incomplete": "Plex did not finish the sign-in handoff in time. Try again.",
             "plex_not_allowed": "That Plex account is not allowed to access this Weebarr instance.",
             "plex_failed": "Plex sign-in could not be completed. Try again.",
+            "plex_public_url_required": "Set WEEBARR_PUBLIC_URL before using Plex sign-in so Weebarr can send Plex a trusted callback URL.",
+            "rate_limited": "Too many recent sign-in attempts. Wait a moment and try again.",
+        }.get((error or "").strip().lower())
+
+    def setup_error_message(error: str | None) -> str | None:
+        return {
+            "plex_public_url_required": "Set WEEBARR_PUBLIC_URL before using Plex setup so Weebarr can send Plex a trusted callback URL.",
+            "rate_limited": "Too many recent setup attempts. Wait a moment and try again.",
         }.get((error or "").strip().lower())
 
     def dashboard_context(
@@ -424,6 +534,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "version": __version__,
             "asset_version": asset_version,
             "setup_required": current_settings().setup_required,
+            "error_message": setup_error_message(request.query_params.get("error")),
         }
 
     class AuthGateMiddleware(BaseHTTPMiddleware):
@@ -450,7 +561,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         return JSONResponse(
                             status_code=403,
                             content={
-                                "detail": "First-run setup is only available from a local or private-network address."
+                                "detail": "First-run setup is only available from a trusted bootstrap path."
                             },
                         )
                     return setup_blocked_response(request)
@@ -479,7 +590,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return await call_next(request)
 
             if path.startswith("/api/") and api_key_authorized(request):
-                return await call_next(request)
+                if api_key_path_allowed(path):
+                    return await call_next(request)
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "detail": "Automation API keys cannot access this endpoint."
+                    },
+                )
 
             if request.state.auth_user is not None:
                 return await call_next(request)
@@ -500,7 +618,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(AuthGateMiddleware)
     app.add_middleware(
         SessionMiddleware,
-        secret_key=initial_settings.session_secret or "weebarr-dev-session",
+        secret_key=session_secret,
         session_cookie=initial_settings.session_cookie_name,
         max_age=initial_settings.session_max_age_seconds,
         same_site="lax",
@@ -535,12 +653,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/setup/access")
     async def complete_setup(
+        request: Request,
         payload: AccessSetupPayload,
     ) -> dict[str, Any]:
         if not current_settings().setup_required:
             raise HTTPException(
                 status_code=409, detail="Weebarr access is already configured."
             )
+        enforce_rate_limit(
+            request,
+            setup_rate_limiter,
+            scope="setup",
+            detail="Too many recent setup attempts. Try again shortly.",
+        )
         username = payload.username.strip()
         password = payload.password
         if not username:
@@ -563,6 +688,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "plex_allowed_users": None,
             }
         )
+        setup_rate_limiter.reset(rate_limit_key("setup", request))
+        request.session.pop("bootstrap_authorized", None)
         return {
             "success": True,
             "mode": updated.effective_auth_mode,
@@ -596,6 +723,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(
                 status_code=404, detail="Local sign-in is not configured."
             )
+        limit_key = rate_limit_key("login", request)
+        retry_after = login_rate_limiter.consume(limit_key)
+        if retry_after is not None:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many recent sign-in attempts. Try again shortly.",
+                headers={"Retry-After": str(retry_after)},
+            )
 
         if not verify_local_credentials(
             settings_now,
@@ -604,6 +739,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ):
             raise HTTPException(status_code=401, detail="Invalid username or password.")
 
+        login_rate_limiter.reset(limit_key)
         user = AuthUser(
             mode="local",
             username=settings_now.auth_username,
@@ -625,6 +761,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         setup_claim = settings_now.setup_required or setup
         if not setup_claim and not settings_now.plex_login_enabled:
             return RedirectResponse(url="/login")
+        if not settings_now.public_url:
+            error_redirect = "/setup?error=plex_public_url_required"
+            if not setup_claim:
+                error_redirect = "/login?error=plex_public_url_required"
+            return RedirectResponse(url=error_redirect)
+        enforce_rate_limit(
+            request,
+            plex_rate_limiter,
+            scope="plex",
+            detail="Too many recent Plex sign-in attempts. Try again shortly.",
+        )
 
         pin = await create_plex_pin(settings_now)
         request.session["plex_pending"] = {
@@ -633,12 +780,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "next": sanitize_next_path(next),
             "setup": setup_claim,
         }
-        public_origin = (
-            settings_now.public_url.rstrip("/")
-            if settings_now.public_url
-            else str(request.base_url).rstrip("/")
-        )
-        forward_url = f"{public_origin}/auth/plex/callback"
+        forward_url = f"{settings_now.public_url.rstrip('/')}/auth/plex/callback"
         auth_url = build_plex_auth_url(
             settings_now,
             code=str(pin.get("code") or ""),
@@ -695,6 +837,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 }
             )
             settings_now = updated
+            request.session.pop("bootstrap_authorized", None)
         if not plex_user_allowed(settings_now, user_payload):
             request.session.pop("plex_pending", None)
             return RedirectResponse(url="/login?error=plex_not_allowed")

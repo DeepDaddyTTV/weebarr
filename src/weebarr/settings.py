@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from threading import RLock
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 
 def _default_config_path() -> str:
@@ -43,6 +44,19 @@ def _normalize_optional_str(value: str | None) -> str | None:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def _normalize_public_url(value: str | None) -> str | None:
+    normalized = _normalize_optional_str(value)
+    if normalized is None:
+        return None
+
+    parsed = urlsplit(normalized)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("public_url must be an absolute http or https URL")
+
+    clean_path = parsed.path.rstrip("/")
+    return urlunsplit((parsed.scheme, parsed.netloc, clean_path, "", ""))
 
 
 def _normalize_optional_int(value: Any) -> int | None:
@@ -166,11 +180,19 @@ class Settings:
     session_cookie_name: str = "weebarr_session"
     session_max_age_seconds: int = 2592000
     public_url: str | None = None
+    bootstrap_token: str = ""
+    bootstrap_token_hash: str = ""
     plex_client_id: str = "weebarr-web"
     plex_product_name: str = "Weebarr"
     plex_product_version: str = "0.0.0"
     plex_platform: str = "Web"
     plex_allowed_users: list[str] | None = None
+    login_rate_limit_attempts: int = 5
+    login_rate_limit_window_seconds: int = 300
+    setup_rate_limit_attempts: int = 5
+    setup_rate_limit_window_seconds: int = 600
+    plex_rate_limit_attempts: int = 8
+    plex_rate_limit_window_seconds: int = 300
     config_path: str = DEFAULT_CONFIG_PATH
 
     @property
@@ -202,6 +224,10 @@ class Settings:
     @property
     def api_key_enabled(self) -> bool:
         return bool(self.app_api_key or self.app_api_key_hash)
+
+    @property
+    def bootstrap_token_enabled(self) -> bool:
+        return bool(self.bootstrap_token or self.bootstrap_token_hash)
 
     @property
     def auth_configured(self) -> bool:
@@ -292,7 +318,9 @@ class Settings:
             session_max_age_seconds=int(
                 os.getenv("WEEBARR_SESSION_MAX_AGE_SECONDS", "2592000")
             ),
-            public_url=_normalize_optional_str(os.getenv("WEEBARR_PUBLIC_URL")),
+            public_url=_normalize_public_url(os.getenv("WEEBARR_PUBLIC_URL")),
+            bootstrap_token=os.getenv("WEEBARR_BOOTSTRAP_TOKEN", ""),
+            bootstrap_token_hash=os.getenv("WEEBARR_BOOTSTRAP_TOKEN_HASH", ""),
             plex_client_id=os.getenv("WEEBARR_PLEX_CLIENT_ID", "weebarr-web"),
             plex_product_name=os.getenv("WEEBARR_PLEX_PRODUCT_NAME", "Weebarr"),
             plex_product_version=os.getenv("WEEBARR_PLEX_PRODUCT_VERSION", "0.0.0"),
@@ -301,6 +329,24 @@ class Settings:
                 os.getenv("WEEBARR_PLEX_ALLOWED_USERS")
             )
             or None,
+            login_rate_limit_attempts=int(
+                os.getenv("WEEBARR_LOGIN_RATE_LIMIT_ATTEMPTS", "5")
+            ),
+            login_rate_limit_window_seconds=int(
+                os.getenv("WEEBARR_LOGIN_RATE_LIMIT_WINDOW_SECONDS", "300")
+            ),
+            setup_rate_limit_attempts=int(
+                os.getenv("WEEBARR_SETUP_RATE_LIMIT_ATTEMPTS", "5")
+            ),
+            setup_rate_limit_window_seconds=int(
+                os.getenv("WEEBARR_SETUP_RATE_LIMIT_WINDOW_SECONDS", "600")
+            ),
+            plex_rate_limit_attempts=int(
+                os.getenv("WEEBARR_PLEX_RATE_LIMIT_ATTEMPTS", "8")
+            ),
+            plex_rate_limit_window_seconds=int(
+                os.getenv("WEEBARR_PLEX_RATE_LIMIT_WINDOW_SECONDS", "300")
+            ),
             config_path=os.getenv("WEEBARR_CONFIG_PATH", DEFAULT_CONFIG_PATH),
         )
 
@@ -571,7 +617,7 @@ class SettingsStore:
             )
             or "",
             public_url=(
-                _normalize_optional_str(auth.get("public_url"))
+                _normalize_public_url(auth.get("public_url"))
                 if "public_url" in auth
                 else self._base.public_url
             ),

@@ -150,6 +150,19 @@ def verify_api_key(settings: Settings, candidate: str) -> bool:
     return False
 
 
+def verify_bootstrap_token(settings: Settings, candidate: str) -> bool:
+    """Validate the optional first-run bootstrap token."""
+
+    token = candidate.strip()
+    if not token:
+        return False
+    if settings.bootstrap_token_hash:
+        return verify_secret(token, settings.bootstrap_token_hash)
+    if settings.bootstrap_token:
+        return hmac.compare_digest(token, settings.bootstrap_token)
+    return False
+
+
 def masked_preview(secret: str) -> str:
     """Create a small preview string safe to display in the UI."""
 

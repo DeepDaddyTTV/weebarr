@@ -1,8 +1,10 @@
 import asyncio
 
+import pytest
 from fastapi.testclient import TestClient
 
 import src.main as main_module
+import src.weebarr.services as services_module
 from src.main import create_app
 from src.weebarr.services import (
     WeebarrService,
@@ -15,7 +17,9 @@ from src.weebarr.services import (
 from src.weebarr.settings import Settings, SettingsStore
 
 
-def authenticated_client(tmp_path, **settings_overrides):
+def authenticated_client(
+    tmp_path, *, base_url: str = "http://testserver", **settings_overrides
+):
     base = {
         "config_path": str(tmp_path / "weebarr.json"),
         "auth_mode": "local",
@@ -24,7 +28,7 @@ def authenticated_client(tmp_path, **settings_overrides):
         "session_secret": "example-session-secret",
     }
     base.update(settings_overrides)
-    client = TestClient(create_app(Settings(**base)))
+    client = TestClient(create_app(Settings(**base)), base_url=base_url)
     login = client.post(
         "/api/auth/login",
         json={
@@ -46,6 +50,21 @@ def test_health_endpoint_without_seerr():
     assert response.status_code == 200
     assert response.json()["app"] == "weebarr"
     assert response.json()["seerr_configured"] is False
+
+
+def test_configured_auth_requires_explicit_session_secret(tmp_path):
+    with pytest.raises(
+        RuntimeError,
+        match="A session secret is required when Weebarr authentication is enabled.",
+    ):
+        create_app(
+            Settings(
+                config_path=str(tmp_path / "weebarr.json"),
+                auth_mode="local",
+                auth_username="adminuser",
+                auth_password="example-password",
+            )
+        )
 
 
 def test_settings_summary_uses_explicit_base_settings(tmp_path):
@@ -226,9 +245,32 @@ def test_shape_anime_includes_audio_origin_fallback():
     )
 
     assert shaped["countryOfOrigin"] == "JP"
-    assert (
-        service._source_audio(shaped["countryOfOrigin"])["fallbackLabel"] == "JA only"
-    )
+    assert service._source_audio(shaped["countryOfOrigin"])["fallbackLabel"] == "EN Sub"
+
+
+def test_resolve_audio_uses_en_sub_fallback_when_jikan_lookup_fails(monkeypatch):
+    service = WeebarrService(Settings(audio_lookup_enabled=True))
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url):
+            raise services_module.httpx.RequestError("rate limited", request=None)
+
+    monkeypatch.setattr(services_module.httpx, "AsyncClient", FakeAsyncClient)
+
+    result = asyncio.run(service._resolve_audio({"malId": 2, "countryOfOrigin": "JP"}))
+
+    assert result["label"] == "EN Sub"
+    assert result["state"] == "ja_only"
+    assert result["confidence"] == "lookup_failed"
 
 
 def test_shape_anime_includes_installment_and_airing_labels():
@@ -471,9 +513,49 @@ def test_local_setup_persists_access_and_requires_session_auth(tmp_path):
     assert protected_page.status_code in {302, 307}
     assert protected_page.headers["location"].startswith("/login")
 
-    new_client = TestClient(create_app(Settings(config_path=str(config_path))))
+    new_client = TestClient(
+        create_app(
+            Settings(
+                config_path=str(config_path),
+                public_url="https://weebarr.example.test",
+            )
+        )
+    )
     unauthorized = new_client.get("/api/config")
     assert unauthorized.status_code == 401
+
+
+def test_setup_rate_limit_returns_429(tmp_path):
+    client = TestClient(
+        create_app(
+            Settings(
+                config_path=str(tmp_path / "weebarr.json"),
+                setup_rate_limit_attempts=1,
+                setup_rate_limit_window_seconds=300,
+            )
+        )
+    )
+
+    first = client.post(
+        "/api/setup/access",
+        json={
+            "username": "",
+            "password": "example-password",
+            "confirmPassword": "example-password",
+        },
+    )
+    second = client.post(
+        "/api/setup/access",
+        json={
+            "username": "adminuser",
+            "password": "example-password",
+            "confirmPassword": "example-password",
+        },
+    )
+
+    assert first.status_code == 400
+    assert second.status_code == 429
+    assert second.headers["retry-after"]
 
 
 def test_local_login_rejects_bad_password_and_accepts_good_password(tmp_path):
@@ -512,6 +594,52 @@ def test_local_login_rejects_bad_password_and_accepts_good_password(tmp_path):
     assert good.json()["redirectTo"] == "/seasonal"
 
 
+def test_local_login_rate_limit_returns_429(tmp_path):
+    client = TestClient(
+        create_app(
+            Settings(
+                config_path=str(tmp_path / "weebarr.json"),
+                auth_mode="local",
+                auth_username="adminuser",
+                auth_password="example-password",
+                session_secret="example-session-secret",
+                login_rate_limit_attempts=2,
+                login_rate_limit_window_seconds=300,
+            )
+        )
+    )
+
+    first = client.post(
+        "/api/auth/login",
+        json={
+            "username": "adminuser",
+            "password": "wrong-password",
+            "next": "/seasonal",
+        },
+    )
+    second = client.post(
+        "/api/auth/login",
+        json={
+            "username": "adminuser",
+            "password": "wrong-password",
+            "next": "/seasonal",
+        },
+    )
+    third = client.post(
+        "/api/auth/login",
+        json={
+            "username": "adminuser",
+            "password": "wrong-password",
+            "next": "/seasonal",
+        },
+    )
+
+    assert first.status_code == 401
+    assert second.status_code == 401
+    assert third.status_code == 429
+    assert third.headers["retry-after"]
+
+
 def test_login_page_offers_only_local_sign_in_after_local_setup(tmp_path):
     config_path = tmp_path / "weebarr.json"
     client = TestClient(create_app(Settings(config_path=str(config_path))))
@@ -537,28 +665,11 @@ def test_login_page_offers_only_local_sign_in_after_local_setup(tmp_path):
 
 def test_plex_only_login_page_hides_local_form(tmp_path):
     config_path = tmp_path / "weebarr.json"
-    store = SettingsStore(Settings(config_path=str(config_path)))
-    store.save_auth(
-        {
-            "mode": "plex",
-            "session_secret": "example-plex-session-secret",
-            "plex_allowed_users": ["admin@example.invalid"],
-        }
-    )
-    client = TestClient(create_app(Settings(config_path=str(config_path))))
-
-    login_page = client.get("/login")
-
-    assert login_page.status_code == 200
-    assert "Continue with Plex" in login_page.text
-    assert "Username" not in login_page.text
-    assert "Password" not in login_page.text
-
-
-def test_plex_first_can_add_local_account_and_offer_both_login_paths(tmp_path):
-    config_path = tmp_path / "weebarr.json"
     store = SettingsStore(
-        Settings(config_path=str(config_path), app_api_key="example-automation-token")
+        Settings(
+            config_path=str(config_path),
+            public_url="https://weebarr.example.test",
+        )
     )
     store.save_auth(
         {
@@ -571,14 +682,31 @@ def test_plex_first_can_add_local_account_and_offer_both_login_paths(tmp_path):
         create_app(
             Settings(
                 config_path=str(config_path),
-                app_api_key="example-automation-token",
+                public_url="https://weebarr.example.test",
             )
         )
     )
 
+    login_page = client.get("/login")
+
+    assert login_page.status_code == 200
+    assert "Continue with Plex" in login_page.text
+    assert "Username" not in login_page.text
+    assert "Password" not in login_page.text
+
+
+def test_authenticated_session_can_add_local_account_and_offer_both_login_paths(
+    tmp_path,
+):
+    client = authenticated_client(
+        tmp_path,
+        base_url="https://weebarr.example.test",
+        public_url="https://weebarr.example.test",
+        plex_allowed_users=["admin@example.invalid"],
+    )
+
     response = client.put(
         "/api/settings/access/local",
-        headers={"X-API-Key": "example-automation-token"},
         json={
             "username": "adminuser",
             "password": "example-password",
@@ -593,20 +721,129 @@ def test_plex_first_can_add_local_account_and_offer_both_login_paths(tmp_path):
     assert payload["access"]["localAuthConfigured"] is True
     assert payload["access"]["plexLoginEnabled"] is True
 
-    login_page = client.get("/login")
+    login_page = TestClient(
+        create_app(
+            Settings(
+                config_path=str(tmp_path / "weebarr.json"),
+                public_url="https://weebarr.example.test",
+                plex_allowed_users=["admin@example.invalid"],
+            )
+        ),
+        base_url="https://weebarr.example.test",
+    ).get("/login")
     assert login_page.status_code == 200
     assert "Continue with Plex" in login_page.text
     assert "Username" in login_page.text
     assert "Password" in login_page.text
 
 
-def test_plex_setup_start_uses_current_request_origin_for_callback(
-    tmp_path, monkeypatch
-):
+def test_automation_api_key_cannot_create_local_account(tmp_path):
+    config_path = tmp_path / "weebarr.json"
+    store = SettingsStore(
+        Settings(
+            config_path=str(config_path),
+            app_api_key="example-automation-token",
+            public_url="https://weebarr.example.test",
+        )
+    )
+    store.save_auth(
+        {
+            "mode": "plex",
+            "session_secret": "example-plex-session-secret",
+            "plex_allowed_users": ["admin@example.invalid"],
+        }
+    )
+    client = TestClient(
+        create_app(
+            Settings(
+                config_path=str(config_path),
+                app_api_key="example-automation-token",
+                public_url="https://weebarr.example.test",
+            )
+        )
+    )
+
+    response = client.put(
+        "/api/settings/access/local",
+        headers={"X-API-Key": "example-automation-token"},
+        json={
+            "username": "adminuser",
+            "password": "example-password",
+            "confirmPassword": "example-password",
+        },
+    )
+
+    assert response.status_code == 403
+    assert (
+        response.json()["detail"] == "Automation API keys cannot access this endpoint."
+    )
+
+
+def test_plex_auth_config_requires_public_url_at_startup(tmp_path):
+    with pytest.raises(
+        RuntimeError,
+        match="WEEBARR_PUBLIC_URL is required when Plex authentication is enabled.",
+    ):
+        create_app(
+            Settings(
+                config_path=str(tmp_path / "weebarr.json"),
+                session_secret="example-plex-session-secret",
+                plex_allowed_users=["admin@example.invalid"],
+            )
+        )
+
+
+def test_plex_setup_start_requires_explicit_public_url(tmp_path):
     config_path = tmp_path / "weebarr.json"
     client = TestClient(
         create_app(Settings(config_path=str(config_path))),
         base_url="http://localhost",
+    )
+
+    response = client.get("/auth/plex/start?setup=1", follow_redirects=False)
+
+    assert response.status_code in {302, 307}
+    assert response.headers["location"] == "/setup?error=plex_public_url_required"
+
+
+def test_https_public_url_marks_session_cookie_secure(tmp_path):
+    client = TestClient(
+        create_app(
+            Settings(
+                config_path=str(tmp_path / "weebarr.json"),
+                auth_mode="local",
+                auth_username="adminuser",
+                auth_password="example-password",
+                session_secret="example-session-secret",
+                public_url="https://weebarr.example.test",
+            )
+        ),
+        base_url="https://weebarr.example.test",
+    )
+
+    response = client.post(
+        "/api/auth/login",
+        json={
+            "username": "adminuser",
+            "password": "example-password",
+            "next": "/seasonal",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "secure" in response.headers["set-cookie"].lower()
+
+
+def test_plex_setup_start_uses_explicit_public_url_for_callback(tmp_path, monkeypatch):
+    config_path = tmp_path / "weebarr.json"
+    client = TestClient(
+        create_app(
+            Settings(
+                config_path=str(config_path),
+                public_url="https://weebarr.example.test",
+            )
+        ),
+        base_url="https://localhost",
     )
 
     async def fake_create_plex_pin(_settings):
@@ -619,15 +856,23 @@ def test_plex_setup_start_uses_current_request_origin_for_callback(
     assert response.status_code in {302, 307}
     location = response.headers["location"]
     assert location.startswith("https://app.plex.tv/auth#?")
-    assert "forwardUrl=http%3A%2F%2Flocalhost%2Fauth%2Fplex%2Fcallback" in location
+    assert (
+        "forwardUrl=https%3A%2F%2Fweebarr.example.test%2Fauth%2Fplex%2Fcallback"
+        in location
+    )
     assert "code=example-pin-code" in location
 
 
 def test_plex_setup_claims_single_admin_account(tmp_path, monkeypatch):
     config_path = tmp_path / "weebarr.json"
     client = TestClient(
-        create_app(Settings(config_path=str(config_path))),
-        base_url="http://localhost",
+        create_app(
+            Settings(
+                config_path=str(config_path),
+                public_url="https://weebarr.example.test",
+            )
+        ),
+        base_url="https://localhost",
     )
 
     async def fake_create_plex_pin(_settings):
@@ -670,7 +915,14 @@ def test_plex_setup_claims_single_admin_account(tmp_path, monkeypatch):
         "Admin User",
     ]
 
-    new_client = TestClient(create_app(Settings(config_path=str(config_path))))
+    new_client = TestClient(
+        create_app(
+            Settings(
+                config_path=str(config_path),
+                public_url="https://weebarr.example.test",
+            )
+        )
+    )
     login_page = new_client.get("/login")
     assert login_page.status_code == 200
     assert "Continue with Plex" in login_page.text
@@ -686,17 +938,89 @@ def test_public_host_cannot_open_setup_routes(tmp_path):
 
     blocked_page = client.get("/setup")
     assert blocked_page.status_code == 403
-    assert (
-        "First-run setup is only available from a local or private-network address."
-        in blocked_page.text
-    )
+    assert "Setup is blocked from this address." in blocked_page.text
 
     blocked_api = client.get("/api/setup/status")
     assert blocked_api.status_code == 403
-    assert (
-        "First-run setup is only available from a local or private-network address."
-        in blocked_api.json()["detail"]
+    assert "trusted bootstrap path" in blocked_api.json()["detail"]
+
+
+def test_spoofed_forwarded_headers_cannot_bypass_setup_lock(tmp_path):
+    config_path = tmp_path / "weebarr.json"
+    client = TestClient(
+        create_app(Settings(config_path=str(config_path))),
+        base_url="https://weebarr.example.test",
     )
+    spoofed_headers = {
+        "Host": "localhost",
+        "X-Forwarded-Host": "localhost",
+        "X-Forwarded-For": "127.0.0.1",
+        "X-Real-IP": "127.0.0.1",
+    }
+
+    blocked_page = client.get("/setup", headers=spoofed_headers)
+    blocked_setup = client.post(
+        "/api/setup/access",
+        headers=spoofed_headers,
+        json={
+            "username": "adminuser",
+            "password": "example-password",
+            "confirmPassword": "example-password",
+        },
+    )
+    blocked_plex_start = client.get(
+        "/auth/plex/start?setup=1",
+        headers=spoofed_headers,
+        follow_redirects=False,
+    )
+    blocked_plex_callback = client.get(
+        "/auth/plex/callback",
+        headers=spoofed_headers,
+        follow_redirects=False,
+    )
+
+    assert blocked_page.status_code == 403
+    assert blocked_setup.status_code == 403
+    assert blocked_plex_start.status_code == 403
+    assert blocked_plex_callback.status_code == 403
+
+
+def test_public_setup_requires_bootstrap_token_for_remote_claim(tmp_path):
+    config_path = tmp_path / "weebarr.json"
+    client = TestClient(
+        create_app(
+            Settings(
+                config_path=str(config_path),
+                bootstrap_token="claim-this-instance",
+            )
+        ),
+        base_url="https://weebarr.example.test",
+    )
+
+    blocked = client.post(
+        "/api/setup/access",
+        json={
+            "username": "adminuser",
+            "password": "example-password",
+            "confirmPassword": "example-password",
+        },
+    )
+    assert blocked.status_code == 403
+
+    allowed_page = client.get("/setup?bootstrap=claim-this-instance")
+    assert allowed_page.status_code == 200
+
+    allowed_setup = client.post(
+        "/api/setup/access",
+        json={
+            "username": "adminuser",
+            "password": "example-password",
+            "confirmPassword": "example-password",
+        },
+    )
+
+    assert allowed_setup.status_code == 200
+    assert allowed_setup.json()["mode"] == "local"
 
 
 def test_public_host_does_not_redirect_to_setup(tmp_path):
