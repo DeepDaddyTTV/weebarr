@@ -664,6 +664,7 @@ function toggleSelectedItem(clickedId) {
 
 function setFilterOpen(open) {
   state.filterOpen = open;
+  els.filterMenu.parentElement?.classList.toggle("is-open", open);
   if (open) {
     setCustomSelectOpen(null);
   }

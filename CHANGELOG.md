@@ -2,6 +2,14 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.9] - 2026-06-05
+
+### Fixed
+
+- Raised the seasonal dashboard dropdown layers above the stat cards and anime posters so open menus render on top instead of disappearing behind content panels.
+- Normalized the season year input into a styled textfield with consistent width and no native spinner chrome so the year no longer clips across desktop and mobile layouts.
+- Kept the top action row and filter controls in the same visual system across responsive breakpoints while preserving the inline mobile expansion flow.
+
 ## [0.1.8] - 2026-06-05
 
 ### Changed
