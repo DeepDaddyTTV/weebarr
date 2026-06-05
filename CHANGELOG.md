@@ -2,6 +2,19 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.17] - 2026-06-05
+
+### Changed
+
+- Simplified Weebarr access control to a single-admin model: first-run setup now creates one local admin account, and the login screen always offers both username/password and Plex sign-in.
+- Removed the mode picker, public URL prompt, and first-run API key generation from the setup UI so first-run setup stays focused on creating the admin account.
+
+### Fixed
+
+- Restored correct `hidden` behavior across auth/setup surfaces so the setup success panel and other hidden UI blocks no longer render before they are opened.
+- Updated the auth, dashboard, and settings copy to match the single-admin scope instead of implying multi-user or immediate automation-key setup.
+- Kept the seasonal `Hide Requested` toggle centered between the season quick filter and the `Filters` action while preserving the custom in-page dropdown treatment on Settings.
+
 ## [0.1.16] - 2026-06-05
 
 ### Added

@@ -13,24 +13,16 @@
       <section class="auth-panel auth-panel-setup">
         <div class="auth-brand">
           <img class="auth-wordmark" src="/static/img/weebarr-wordmark.svg" alt="Weebarr" />
-          <p>Choose how this Weebarr instance should be protected before anyone can use the dashboard or API.</p>
+          <p>Create the admin account for this Weebarr instance. After setup, you can sign in with this password or use the Plex button on the login screen.</p>
         </div>
 
         <div id="setupBanner" class="auth-banner" hidden></div>
 
-        <div class="setup-mode-grid" role="tablist" aria-label="Authentication mode">
-          <button id="modeLocalBtn" class="setup-mode active" type="button" data-mode-choice="local" aria-pressed="true">
-            <strong>Local account</strong>
-            <span>Sonarr-style username and password.</span>
-          </button>
-          <button id="modePlexBtn" class="setup-mode" type="button" data-mode-choice="plex" aria-pressed="false">
-            <strong>Plex Auth</strong>
-            <span>Browser sign-in through your Plex account.</span>
-          </button>
-        </div>
-
         <form id="setupForm" class="auth-form setup-form" novalidate>
-          <input id="setupMode" type="hidden" value="local" />
+          <div class="auth-section-head">
+            <h2>Create Account</h2>
+            <p>This account becomes the local admin sign-in for Weebarr.</p>
+          </div>
 
           {% if admin_protected %}
           <label>
@@ -55,45 +47,12 @@
             </label>
           </div>
 
-          <div id="plexSetupFields" class="setup-fields" hidden>
-            <label>
-              <span>Public URL</span>
-              <input id="setupPublicUrl" type="url" placeholder="https://weebarr.example.com" value="{{ suggested_public_url }}" />
-              <small>Needed for Plex to return the browser to this Weebarr instance after sign-in.</small>
-            </label>
-            <label>
-              <span>Allowed Plex Users</span>
-              <input id="setupPlexAllowedUsers" type="text" placeholder="optional@email.com, plexUsername" />
-              <small>Optional comma-separated allowlist. Leave blank to allow any Plex account that completes the flow.</small>
-            </label>
-          </div>
-
-          <div class="setup-api-panel">
-            <div class="setup-api-header">
-              <strong>Automation API Key</strong>
-              <label class="toggle-switch" for="setupGenerateApiKey" aria-label="Generate an app API key">
-                <input id="setupGenerateApiKey" type="checkbox" checked />
-                <i aria-hidden="true"></i>
-              </label>
-            </div>
-            <p>Create a Weebarr app API key so external automation can use the API without a browser session.</p>
-            <label id="setupApiKeyWrap" class="setup-api-input" hidden>
-              <span>Custom API Key</span>
-              <input id="setupApiKey" type="text" placeholder="Leave blank to auto-generate" />
-            </label>
-          </div>
-
-          <button class="refresh-btn auth-submit" type="submit">Save Access Setup</button>
+          <button class="refresh-btn auth-submit" type="submit">Create Account</button>
         </form>
 
         <section id="setupSuccess" class="setup-success" hidden>
-          <h2>Access configured</h2>
-          <p id="setupSuccessCopy">Weebarr access is ready.</p>
-          <div id="setupKeyCard" class="setup-key-card" hidden>
-            <span>App API Key</span>
-            <code id="setupGeneratedApiKey"></code>
-            <small>This key is shown once. Store it somewhere safe.</small>
-          </div>
+          <h2>Account created</h2>
+          <p id="setupSuccessCopy">The admin account is ready. Continue into Weebarr.</p>
           <button id="setupContinueBtn" class="refresh-btn auth-submit" type="button">Continue</button>
         </section>
       </section>
@@ -101,7 +60,6 @@
 
     <script>
       window.WEEBARR_SETUP = {
-        suggestedPublicUrl: "{{ suggested_public_url }}",
         adminProtected: {{ "true" if admin_protected else "false" }},
       };
     </script>

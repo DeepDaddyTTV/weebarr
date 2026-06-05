@@ -13,12 +13,11 @@
       <section class="auth-panel auth-panel-login">
         <div class="auth-brand">
           <img class="auth-wordmark" src="/static/img/weebarr-wordmark.svg" alt="Weebarr" />
-          <p>Sign in to the anime request dashboard.</p>
+          <p>Sign in to the single-admin anime request dashboard with your Weebarr password or Plex.</p>
         </div>
 
         <div id="authBanner" class="auth-banner" {% if error_message %}data-tone="error"{% else %}hidden{% endif %}>{{ error_message or "" }}</div>
 
-        {% if auth_mode == "local" %}
         <form id="localLoginForm" class="auth-form" novalidate>
           <input id="loginNext" type="hidden" value="{{ next_path }}" />
           <label>
@@ -31,12 +30,18 @@
           </label>
           <button class="refresh-btn auth-submit" type="submit">Sign In</button>
         </form>
-        {% else %}
+
+        <div class="auth-divider" aria-hidden="true"><span>or</span></div>
+
         <div class="auth-plex">
-          <p>Use Plex Auth to access this Weebarr instance.</p>
-          <button id="plexLoginBtn" class="refresh-btn auth-submit" type="button" data-next="{{ next_path }}">Continue with Plex</button>
+          <button id="plexLoginBtn" class="plex-auth-btn" type="button" data-next="{{ next_path }}">
+            <span class="plex-auth-mark" aria-hidden="true">
+              <img src="/static/img/Plex_logo_2022.svg?v={{ asset_version }}" alt="" />
+            </span>
+            <span>Continue with Plex</span>
+          </button>
+          <p class="auth-alt-copy">Plex sign-in returns to this same Weebarr URL automatically.</p>
         </div>
-        {% endif %}
       </section>
     </main>
 

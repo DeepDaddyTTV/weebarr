@@ -73,8 +73,8 @@
             <strong>{{ auth_user_name or "Authenticated" }}</strong>
           </div>
           <hr />
-          <span class="connection-label">{{ "Plex Auth" if auth_mode == "plex" else "Local account" }}</span>
-          <span class="connection-host">{{ access.apiKeyPreview if access.apiKeyEnabled else "API key not enabled" }}</span>
+          <span class="connection-label">{{ "Plex session" if auth_user_mode == "plex" else "Local session" }}</span>
+          <span class="connection-host">Single-admin access with local password and Plex sign-in.</span>
           <a class="connection-cta" href="/logout">Sign Out</a>
         </div>
         <div class="connection-card">
@@ -225,19 +225,19 @@
               <div class="settings-pill-grid compact">
                 <div class="pill-card">
                   <span>Mode</span>
-                  <strong>{{ "Plex Auth" if access.authMode == "plex" else "Local account" }}</strong>
+                  <strong>Single admin</strong>
                 </div>
                 <div class="pill-card">
-                  <span>User</span>
-                  <strong>{{ access.authUsername or auth_user_name or "Current session" }}</strong>
+                  <span>Session</span>
+                  <strong>{{ "Plex Auth" if auth_user_mode == "plex" else "Local account" }}</strong>
                 </div>
                 <div class="pill-card">
-                  <span>Automation Key</span>
-                  <strong>{{ access.apiKeyPreview if access.apiKeyEnabled else "Disabled" }}</strong>
+                  <span>Sign-In</span>
+                  <strong>Username/password + Plex</strong>
                 </div>
                 <div class="pill-card">
-                  <span>Public URL</span>
-                  <strong>{{ access.publicUrl or "Request host fallback" }}</strong>
+                  <span>Plex Return URL</span>
+                  <strong>{{ access.publicUrl or "Automatic current URL" }}</strong>
                 </div>
               </div>
             </section>

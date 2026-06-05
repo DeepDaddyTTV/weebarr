@@ -29,10 +29,8 @@ from src.weebarr.auth import (
     create_plex_pin,
     fetch_plex_pin,
     fetch_plex_user,
-    generate_api_key,
     generate_session_secret,
     hash_secret,
-    masked_preview,
     plex_auth_user,
     plex_user_allowed,
     verify_api_key,
@@ -95,17 +93,9 @@ class AccessSetupPayload(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    mode: str = "local"
     username: str = ""
     password: str = ""
     confirm_password: str = Field(default="", alias="confirmPassword")
-    public_url: Optional[str] = Field(default=None, alias="publicUrl")
-    plex_allowed_users: Optional[list[str]] = Field(
-        default=None,
-        alias="plexAllowedUsers",
-    )
-    api_key: Optional[str] = Field(default=None, alias="apiKey")
-    generate_api_key: bool = Field(default=True, alias="generateApiKey")
     admin_token: Optional[str] = Field(default=None, alias="adminToken")
 
 
@@ -115,13 +105,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     base_settings = settings or Settings.from_env()
     settings_store = SettingsStore(base_settings)
     initial_settings = settings_store.get()
-    if initial_settings.auth_enabled and not initial_settings.session_secret:
+    if (
+        initial_settings.auth_enabled
+        and not initial_settings.session_secret
+        and not initial_settings.setup_required
+    ):
         raise RuntimeError(
             "A session secret is required when Weebarr authentication is enabled."
         )
-    if initial_settings.uses_local_auth and (
-        not initial_settings.auth_username
-        or not (initial_settings.auth_password_hash or initial_settings.auth_password)
+    if (
+        initial_settings.auth_mode == "local"
+        and not initial_settings.local_auth_configured
+        and not initial_settings.setup_required
     ):
         raise RuntimeError(
             "A username and password are required when local auth is enabled."
@@ -182,6 +177,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {
             "auth_enabled": current_settings().auth_enabled,
             "auth_mode": current_settings().auth_mode,
+            "plex_login_enabled": current_settings().plex_login_enabled,
             "auth_user_name": user.display_name if user else None,
             "auth_user_mode": user.mode if user else None,
         }
@@ -256,19 +252,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "version": __version__,
             "asset_version": asset_version,
             "auth_mode": current_settings().auth_mode,
+            "plex_login_enabled": current_settings().plex_login_enabled,
             "next_path": sanitize_next_path(request.query_params.get("next")),
             "error_message": login_error_message(request.query_params.get("error")),
         }
 
     def setup_context(request: Request) -> dict[str, Any]:
-        suggested_public_url = current_settings().public_url or str(
-            request.base_url
-        ).rstrip("/")
         return {
             "request": request,
             "version": __version__,
             "asset_version": asset_version,
-            "suggested_public_url": suggested_public_url,
             "setup_required": current_settings().setup_required,
             "admin_protected": current_settings().admin_protected,
         }
@@ -375,84 +368,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         require_admin(payload.admin_token)
 
-        mode = payload.mode.strip().lower()
-        if mode not in {"local", "plex"}:
+        username = payload.username.strip()
+        password = payload.password
+        if not username:
+            raise HTTPException(status_code=400, detail="Username is required.")
+        if len(password) < 8:
             raise HTTPException(
                 status_code=400,
-                detail="Choose either local or plex access.",
+                detail="Password must be at least 8 characters.",
             )
+        if password != payload.confirm_password:
+            raise HTTPException(status_code=400, detail="Passwords do not match.")
 
-        session_secret = generate_session_secret()
-        api_key_plain = (payload.api_key or "").strip()
-        if payload.generate_api_key and not api_key_plain:
-            api_key_plain = generate_api_key()
-
-        overrides: dict[str, Any] = {
-            "mode": mode,
-            "session_secret": session_secret,
-            "api_key_hash": hash_secret(api_key_plain) if api_key_plain else None,
-            "api_key_preview": masked_preview(api_key_plain) if api_key_plain else None,
-        }
-
-        if mode == "local":
-            username = payload.username.strip()
-            password = payload.password
-            if not username:
-                raise HTTPException(status_code=400, detail="Username is required.")
-            if len(password) < 8:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Password must be at least 8 characters.",
-                )
-            if password != payload.confirm_password:
-                raise HTTPException(status_code=400, detail="Passwords do not match.")
-
-            overrides.update(
-                {
-                    "username": username,
-                    "password_hash": hash_secret(password),
-                    "public_url": (
-                        payload.public_url.strip().rstrip("/")
-                        if payload.public_url and payload.public_url.strip()
-                        else None
-                    ),
-                    "plex_allowed_users": None,
-                }
-            )
-            updated = settings_store.save_auth(overrides)
-            user = AuthUser(mode="local", username=username, display_name=username)
-            set_auth_user(request, user)
-            return {
-                "success": True,
-                "mode": updated.auth_mode,
-                "redirectTo": DEFAULT_REDIRECT_PATH,
-                "generatedApiKey": api_key_plain or None,
-            }
-
-        public_url = (
-            payload.public_url.strip().rstrip("/")
-            if payload.public_url and payload.public_url.strip()
-            else str(request.base_url).rstrip("/")
-        )
-        allowed_users = [
-            entry.strip()
-            for entry in (payload.plex_allowed_users or [])
-            if entry and entry.strip()
-        ]
-        overrides.update(
+        updated = settings_store.save_auth(
             {
-                "username": "",
-                "password_hash": None,
-                "public_url": public_url,
-                "plex_allowed_users": allowed_users,
+                "mode": "local",
+                "username": username,
+                "password_hash": hash_secret(password),
+                "session_secret": generate_session_secret(),
             }
         )
-        updated = settings_store.save_auth(overrides)
+        user = AuthUser(mode="local", username=username, display_name=username)
+        set_auth_user(request, user)
         return {
             "success": True,
             "mode": updated.auth_mode,
-            "redirectTo": "/login",
-            "generatedApiKey": api_key_plain or None,
+            "redirectTo": DEFAULT_REDIRECT_PATH,
         }
 
     @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
@@ -478,8 +419,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         payload: LocalLoginPayload,
     ) -> dict[str, Any]:
         settings_now = current_settings()
-        if not settings_now.uses_local_auth:
-            raise HTTPException(status_code=404, detail="Local auth is not enabled.")
+        if not settings_now.local_auth_configured:
+            raise HTTPException(
+                status_code=404, detail="Local sign-in is not configured."
+            )
 
         if not verify_local_credentials(
             settings_now,
@@ -505,7 +448,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         next: str | None = None,
     ) -> RedirectResponse:
         settings_now = current_settings()
-        if not settings_now.uses_plex_auth:
+        if not settings_now.plex_login_enabled:
             return RedirectResponse(url="/login")
 
         pin = await create_plex_pin(settings_now)
@@ -530,7 +473,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/auth/plex/callback", include_in_schema=False)
     async def plex_auth_callback(request: Request) -> RedirectResponse:
         settings_now = current_settings()
-        if not settings_now.uses_plex_auth:
+        if not settings_now.plex_login_enabled:
             return RedirectResponse(url="/login")
 
         pending = request.session.get("plex_pending")

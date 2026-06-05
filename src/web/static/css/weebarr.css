@@ -47,6 +47,10 @@ body[data-theme="light"] {
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   min-height: 100%;
@@ -610,6 +614,27 @@ body[data-page="setup"] {
   gap: 16px;
 }
 
+.auth-section-head {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.auth-section-head h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 1000;
+  letter-spacing: -0.04em;
+}
+
+.auth-section-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 .auth-form label,
 .setup-fields,
 .setup-api-panel {
@@ -637,9 +662,36 @@ body[data-page="setup"] {
   margin-top: 4px;
 }
 
+.auth-divider {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin: 6px 0 2px;
+}
+
+.auth-divider::before {
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(126, 191, 229, 0.3), transparent);
+}
+
+.auth-divider span {
+  position: relative;
+  z-index: 1;
+  padding: 0 12px;
+  color: var(--subtle);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: linear-gradient(145deg, rgba(10, 16, 25, 0.92), rgba(12, 18, 30, 0.88));
+}
+
 .auth-plex {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .auth-plex p {
@@ -648,6 +700,45 @@ body[data-page="setup"] {
   font-size: 14px;
   font-weight: 700;
   line-height: 1.55;
+}
+
+.plex-auth-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 18px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 1000;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.025)),
+    linear-gradient(135deg, rgba(40, 199, 255, 0.06), rgba(255, 60, 125, 0.08));
+  border: 1px solid rgba(126, 191, 229, 0.3);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.plex-auth-mark {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+}
+
+.plex-auth-mark img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.auth-alt-copy {
+  text-align: center;
 }
 
 .setup-mode-grid {
@@ -1256,6 +1347,7 @@ h1 {
   align-items: center;
   gap: 10px;
   min-height: 46px;
+  width: max-content;
   justify-self: start;
   align-self: end;
 }
@@ -1364,6 +1456,7 @@ h1 {
 .filter-panel.has-hide-toggle .filter-toggle {
   grid-column: 3;
   justify-self: center;
+  margin-inline: auto;
 }
 
 .filter-panel.has-hide-toggle .filter-actions {

@@ -169,12 +169,22 @@ class Settings:
         return self.auth_mode != "disabled"
 
     @property
+    def local_auth_configured(self) -> bool:
+        return bool(
+            self.auth_username and (self.auth_password_hash or self.auth_password)
+        )
+
+    @property
     def uses_local_auth(self) -> bool:
-        return self.auth_mode == "local"
+        return self.auth_mode == "local" or self.local_auth_configured
 
     @property
     def uses_plex_auth(self) -> bool:
         return self.auth_mode == "plex"
+
+    @property
+    def plex_login_enabled(self) -> bool:
+        return self.auth_enabled and self.auth_configured
 
     @property
     def api_key_enabled(self) -> bool:
@@ -186,10 +196,8 @@ class Settings:
 
     @property
     def auth_configured(self) -> bool:
-        if self.uses_local_auth:
-            return bool(
-                self.auth_username and (self.auth_password_hash or self.auth_password)
-            )
+        if self.local_auth_configured:
+            return True
         if self.uses_plex_auth:
             return True
         return False
@@ -403,6 +411,8 @@ class SettingsStore:
             "configured": current.auth_configured,
             "authMode": current.auth_mode,
             "authUsername": current.auth_username,
+            "localAuthConfigured": current.local_auth_configured,
+            "plexLoginEnabled": current.plex_login_enabled,
             "publicUrl": current.public_url,
             "plexAllowedUsers": current.plex_allowed_users or [],
             "apiKeyEnabled": current.api_key_enabled,

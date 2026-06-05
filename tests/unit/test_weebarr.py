@@ -2,6 +2,7 @@ import asyncio
 
 from fastapi.testclient import TestClient
 
+import src.main as main_module
 from src.main import create_app
 from src.weebarr.services import (
     WeebarrService,
@@ -352,11 +353,12 @@ def test_setup_page_renders(tmp_path):
     response = client.get("/setup")
 
     assert response.status_code == 200
-    assert "Save Access Setup" in response.text
-    assert "Plex Auth" in response.text
+    assert "Create Account" in response.text
+    assert "Save Access Setup" not in response.text
+    assert "data-mode-choice" not in response.text
 
 
-def test_local_setup_persists_access_and_allows_api_key(tmp_path):
+def test_local_setup_persists_access_and_requires_session_auth(tmp_path):
     config_path = tmp_path / "weebarr.json"
     app = create_app(Settings(config_path=str(config_path)))
     client = TestClient(app)
@@ -364,11 +366,9 @@ def test_local_setup_persists_access_and_allows_api_key(tmp_path):
     response = client.post(
         "/api/setup/access",
         json={
-            "mode": "local",
             "username": "deepdaddy",
             "password": "supersafe123",
             "confirmPassword": "supersafe123",
-            "generateApiKey": True,
         },
     )
 
@@ -376,7 +376,7 @@ def test_local_setup_persists_access_and_allows_api_key(tmp_path):
     payload = response.json()
     assert payload["mode"] == "local"
     assert payload["redirectTo"] == "/seasonal"
-    assert payload["generatedApiKey"].startswith("weebarr_")
+    assert "generatedApiKey" not in payload
 
     protected_page = client.get("/seasonal")
     assert protected_page.status_code == 200
@@ -385,13 +385,6 @@ def test_local_setup_persists_access_and_allows_api_key(tmp_path):
     unauthorized = new_client.get("/api/config")
     assert unauthorized.status_code == 401
 
-    api_authorized = new_client.get(
-        "/api/config",
-        headers={"X-API-Key": payload["generatedApiKey"]},
-    )
-    assert api_authorized.status_code == 200
-    assert api_authorized.json()["access"]["configured"] is True
-
 
 def test_local_login_rejects_bad_password_and_accepts_good_password(tmp_path):
     config_path = tmp_path / "weebarr.json"
@@ -399,11 +392,9 @@ def test_local_login_rejects_bad_password_and_accepts_good_password(tmp_path):
     setup_response = client.post(
         "/api/setup/access",
         json={
-            "mode": "local",
             "username": "deepdaddy",
             "password": "supersafe123",
             "confirmPassword": "supersafe123",
-            "generateApiKey": False,
         },
     )
     assert setup_response.status_code == 200
@@ -427,29 +418,54 @@ def test_local_login_rejects_bad_password_and_accepts_good_password(tmp_path):
     assert good.json()["redirectTo"] == "/seasonal"
 
 
-def test_plex_setup_persists_and_login_page_uses_plex_flow(tmp_path):
+def test_login_page_offers_local_and_plex_sign_in(tmp_path):
     config_path = tmp_path / "weebarr.json"
     client = TestClient(create_app(Settings(config_path=str(config_path))))
 
     response = client.post(
         "/api/setup/access",
         json={
-            "mode": "plex",
-            "publicUrl": "https://weebarr.example.com",
-            "plexAllowedUsers": ["plexuser", "deepdaddy@example.com"],
-            "generateApiKey": False,
+            "username": "deepdaddy",
+            "password": "supersafe123",
+            "confirmPassword": "supersafe123",
         },
     )
 
     assert response.status_code == 200
-    payload = response.json()
-    assert payload["mode"] == "plex"
-    assert payload["redirectTo"] == "/login"
 
     new_client = TestClient(create_app(Settings(config_path=str(config_path))))
     login_page = new_client.get("/login")
     assert login_page.status_code == 200
+    assert "Username" in login_page.text
+    assert "Password" in login_page.text
     assert "Continue with Plex" in login_page.text
+
+
+def test_plex_start_uses_current_request_origin_for_callback(tmp_path, monkeypatch):
+    config_path = tmp_path / "weebarr.json"
+    client = TestClient(create_app(Settings(config_path=str(config_path))))
+    setup = client.post(
+        "/api/setup/access",
+        json={
+            "username": "deepdaddy",
+            "password": "supersafe123",
+            "confirmPassword": "supersafe123",
+        },
+    )
+    assert setup.status_code == 200
+
+    async def fake_create_plex_pin(_settings):
+        return {"id": 123, "code": "pin-code"}
+
+    monkeypatch.setattr(main_module, "create_plex_pin", fake_create_plex_pin)
+
+    response = client.get("/auth/plex/start?next=/requests", follow_redirects=False)
+
+    assert response.status_code in {302, 307}
+    location = response.headers["location"]
+    assert location.startswith("https://app.plex.tv/auth#?")
+    assert "forwardUrl=http%3A%2F%2Ftestserver%2Fauth%2Fplex%2Fcallback" in location
+    assert "code=pin-code" in location
 
 
 def test_setup_requires_admin_token_when_configured(tmp_path):
@@ -463,11 +479,9 @@ def test_setup_requires_admin_token_when_configured(tmp_path):
     blocked = client.post(
         "/api/setup/access",
         json={
-            "mode": "local",
             "username": "deepdaddy",
             "password": "supersafe123",
             "confirmPassword": "supersafe123",
-            "generateApiKey": False,
         },
     )
     assert blocked.status_code == 401
@@ -475,11 +489,9 @@ def test_setup_requires_admin_token_when_configured(tmp_path):
     allowed = client.post(
         "/api/setup/access",
         json={
-            "mode": "local",
             "username": "deepdaddy",
             "password": "supersafe123",
             "confirmPassword": "supersafe123",
-            "generateApiKey": False,
             "adminToken": "setup-secret-token",
         },
     )
