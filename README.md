@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/weebarr-logo.svg" alt="Weebarr wordmark" width="520"/>
+<img src="docs/weebarr-logo.png" alt="Weebarr wordmark" width="520"/>
 
 **Seasonal anime discovery and Seerr request management**
 
