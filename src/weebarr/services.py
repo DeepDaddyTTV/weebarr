@@ -10,6 +10,7 @@ from collections import Counter
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any, cast
+from urllib.parse import quote
 
 import httpx
 from fastapi import HTTPException
@@ -18,6 +19,7 @@ from src.weebarr.settings import Settings
 
 ANILIST_URL = "https://graphql.anilist.co"
 JIKAN_CHARACTERS_URL = "https://api.jikan.moe/v4/anime/{mal_id}/characters"
+IDS_MOE_URL = "https://api.ids.moe/ids/{mal_id}?p=mal"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p"
 SEASONS = ("WINTER", "SPRING", "SUMMER", "FALL")
 MEDIA_STATUS = {
@@ -353,13 +355,16 @@ class WeebarrService:
 
         enriched = await asyncio.gather(*(enrich(item) for item in anime))
         stats = Counter(item["seerr"]["state"] for item in enriched)
+        requestable_count = sum(
+            1 for item in enriched if (item.get("seerr") or {}).get("requestable")
+        )
         result = {
             "season": season,
             "year": year,
             "generatedAt": datetime.now(timezone.utc).isoformat(),
             "stats": {
                 "total": len(enriched),
-                "requestable": stats.get("requestable", 0) + stats.get("partial", 0),
+                "requestable": requestable_count,
                 "requested": stats.get("requested", 0),
                 "available": stats.get("available", 0),
                 "missingMapping": stats.get("missing_mapping", 0),
@@ -587,6 +592,26 @@ class WeebarrService:
         self.cache.set(cache_key, payload, self.settings.seerr_cache_ttl_seconds)
         return payload
 
+    async def _ids_moe_tmdb_id(self, mal_id: int) -> int | None:
+        cache_key = f"idsmoe-mal:{mal_id}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cast(int | None, cached)
+
+        async with httpx.AsyncClient(
+            timeout=self.settings.request_timeout_seconds
+        ) as client:
+            response = await client.get(IDS_MOE_URL.format(mal_id=mal_id))
+            if response.status_code == 404:
+                self.cache.set(cache_key, None, self.settings.anilist_cache_ttl_seconds)
+                return None
+            response.raise_for_status()
+            payload = cast(dict[str, Any], response.json())
+
+        tmdb_id = _coerce_int(payload.get("themoviedb"))
+        self.cache.set(cache_key, tmdb_id, self.settings.anilist_cache_ttl_seconds)
+        return tmdb_id
+
     def _resolve_target_season(
         self,
         anime: dict[str, Any],
@@ -666,6 +691,14 @@ class WeebarrService:
         elif target_season and season_statuses.get(target_season) == 4:
             state = "partial"
             label = (
+                f"{target_label} Partial"
+                if target_label
+                else f"Season {target_season} Partial"
+            )
+            requestable = False
+        elif target_season:
+            state = "requestable"
+            label = (
                 f"Missing {target_label}"
                 if target_label
                 else f"Missing Season {target_season}"
@@ -676,7 +709,7 @@ class WeebarrService:
         elif status_code == 5:
             state, label, requestable = "available", "Available", False
         elif status_code == 4:
-            state, label, requestable = "partial", "Request Missing", True
+            state, label, requestable = "partial", "Partially Available", False
 
         return {
             "state": state,
@@ -713,6 +746,20 @@ class WeebarrService:
                 "label": "Seerr not configured",
                 "requestable": False,
             }
+
+        mal_id = _coerce_int(anime.get("malId"))
+        if mal_id is not None:
+            try:
+                tmdb_id = await self._ids_moe_tmdb_id(mal_id)
+            except httpx.HTTPError:
+                tmdb_id = None
+            if tmdb_id is not None:
+                try:
+                    details = await self._seerr_tv_details(tmdb_id)
+                except httpx.HTTPError:
+                    details = None
+                if isinstance(details, dict) and details.get("id"):
+                    return self._classify_seerr_state(anime, details, details, 120)
 
         raw_titles = [
             anime.get("englishTitle"),
@@ -779,8 +826,7 @@ class WeebarrService:
             timeout=self.settings.request_timeout_seconds
         ) as client:
             response = await client.get(
-                f"{self.settings.seerr_base_url}/api/v1/search",
-                params={"query": query},
+                f"{self.settings.seerr_base_url}/api/v1/search?query={quote(query, safe='')}",
                 headers={"X-Api-Key": self.settings.seerr_api_key},
             )
             if response.status_code == 400:

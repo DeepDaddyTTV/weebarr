@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from time import time
 from typing import Any, Optional, Union
@@ -34,8 +35,11 @@ class RequestPayload(BaseModel):
     """Payload accepted by Weebarr before forwarding to Seerr."""
 
     media_id: int = Field(..., alias="mediaId")
+    anime_id: Optional[int] = Field(default=None, alias="animeId")
     title: str
     tvdb_id: Optional[int] = Field(default=None, alias="tvdbId")
+    season: Optional[str] = None
+    year: Optional[int] = None
     seasons: Optional[Union[list[int], str]] = None
 
 
@@ -81,6 +85,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def connection_summary() -> dict[str, Any]:
         return settings_store.connection_summary()
+
+    def annotate_weebarr_requests(
+        payload: dict[str, Any],
+        *,
+        season: str,
+        year: int,
+    ) -> dict[str, Any]:
+        history = settings_store.request_history(season=season, year=year)
+        history_by_anilist = {
+            str(record["anilist_id"]): {
+                "requestedAt": record["requested_at"],
+                "requestSeasons": record["request_seasons"],
+                "tmdbId": record["tmdb_id"],
+                "tvdbId": record["tvdb_id"],
+                "title": record["title"],
+            }
+            for record in history
+        }
+        items = []
+        for item in payload.get("items", []):
+            enriched = dict(item)
+            enriched["weebarrRequest"] = history_by_anilist.get(str(item.get("id")))
+            items.append(enriched)
+        return {**payload, "items": items}
 
     def require_admin(token: Optional[str]) -> None:
         configured = current_settings().admin_token
@@ -253,10 +281,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         per_page: int = Query(default=48, ge=1, le=80, alias="perPage"),
     ) -> dict[str, Any]:
         try:
-            return await service.seasonal_anime(
+            payload = await service.seasonal_anime(
                 season=season.upper(),
                 year=year,
                 per_page=per_page,
+            )
+            return annotate_weebarr_requests(
+                payload,
+                season=season.upper(),
+                year=year,
             )
         except Exception as exc:
             logger.exception("seasonal lookup failed")
@@ -268,12 +301,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=503, detail="Seerr is not configured")
 
         try:
-            return await service.request_in_seerr(
+            result = await service.request_in_seerr(
                 media_id=payload.media_id,
                 title=payload.title,
                 tvdb_id=payload.tvdb_id,
                 seasons=payload.seasons or current_settings().seerr_request_seasons,
             )
+            if (
+                payload.anime_id is not None
+                and payload.season
+                and payload.year is not None
+            ):
+                record = settings_store.record_request(
+                    {
+                        "anilist_id": payload.anime_id,
+                        "tmdb_id": payload.media_id,
+                        "tvdb_id": payload.tvdb_id,
+                        "title": payload.title,
+                        "season": payload.season,
+                        "year": payload.year,
+                        "requested_at": datetime.now(timezone.utc).isoformat(),
+                        "request_seasons": result.get("sentSeasons", []),
+                    }
+                )
+                result["weebarrRequest"] = {
+                    "requestedAt": record["requested_at"],
+                    "requestSeasons": record["request_seasons"],
+                    "tmdbId": record["tmdb_id"],
+                    "tvdbId": record["tvdb_id"],
+                    "title": record["title"],
+                }
+            return result
         except HTTPException:
             raise
         except Exception as exc:

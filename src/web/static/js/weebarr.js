@@ -49,7 +49,7 @@ const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"];
 const themeStorageKey = "weebarr-theme";
 const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
 const requestQueueStates = new Set(["partial", "requested", "available"]);
-const fullyRequestedStates = new Set(["requested", "available"]);
+const fullyRequestedStates = new Set(["partial", "requested", "available"]);
 
 els.filter.value = state.filter;
 els.sort.value = state.sort;
@@ -349,6 +349,10 @@ function isRequestQueueItem(item) {
   return requestQueueStates.has((item.seerr || {}).state);
 }
 
+function hasWeebarrRequest(item) {
+  return Boolean(item.weebarrRequest?.requestedAt);
+}
+
 function isHiddenByRequestedToggle(item) {
   return fullyRequestedStates.has((item.seerr || {}).state);
 }
@@ -357,7 +361,7 @@ function visibleItems() {
   const query = state.query.trim().toLowerCase();
   let items = [...state.items];
   if (state.view === "requests") {
-    items = items.filter(isRequestQueueItem);
+    items = items.filter(hasWeebarrRequest);
   }
   if (state.view === "seasonal" && state.hideRequested) {
     items = items.filter((item) => !isHiddenByRequestedToggle(item));
@@ -384,7 +388,7 @@ function visibleItems() {
     items = items.filter((item) => {
       const seerr = item.seerr || {};
       if (state.filter === "requestable") {
-        return seerr.state === "requestable" || seerr.state === "partial";
+        return seerr.state === "requestable";
       }
       return seerr.state === state.filter;
     });
@@ -435,7 +439,7 @@ function syncSelectedItem(items) {
 
 function renderStats(stats) {
   const scopedItems =
-    state.view === "requests" ? state.items.filter(isRequestQueueItem) : state.items;
+    state.view === "requests" ? state.items.filter(hasWeebarrRequest) : state.items;
   const soonCutoff = Date.now() + 7 * 24 * 60 * 60 * 1000;
   const airingSoon = scopedItems.filter((item) => {
     if (!item.nextAiring?.airingAt) return false;
@@ -473,7 +477,7 @@ function actionButtonTemplate(item, inline = false) {
   if (!seerr.requestable) {
     return `<a class="anilist-btn" href="${item.siteUrl}" target="_blank" rel="noreferrer">AniList ↗</a>`;
   }
-  const buttonText = seerr.state === "partial" ? "Request Missing Seasons" : "Request in Seerr";
+  const buttonText = seerr.state === "partial" ? "Request Missing" : "Request in Seerr";
   return `<button class="request-btn" type="button" data-request="${item.id}">${buttonText}<span aria-hidden="true">↗</span></button>`;
 }
 
@@ -485,12 +489,47 @@ function inlineActionsTemplate(item) {
   if (!seerr || seerr.state === "disabled") {
     actions.push(`<a class="request-btn inline-link" href="/settings#connections">Configure Seerr</a>`);
   } else if (seerr.requestable) {
-    const buttonText = seerr.state === "partial" ? "Request Missing Seasons" : "Request in Seerr";
+    const buttonText = seerr.state === "partial" ? "Request Missing" : "Request in Seerr";
     actions.push(
       `<button class="request-btn inline-link" type="button" data-request="${item.id}">${buttonText}<span aria-hidden="true">↗</span></button>`,
     );
   }
   return `<div class="inline-actions inline-spotlight-actions">${actions.join("")}</div>`;
+}
+
+function requestDate(item) {
+  return formatDate(item.weebarrRequest?.requestedAt);
+}
+
+function requestListTemplate(item) {
+  const seerr = item.seerr || {};
+  const subtitle = item.romajiTitle && item.romajiTitle !== item.title ? item.romajiTitle : item.englishTitle || "";
+  const summary = plainDescription(item.description, 150);
+  const checked = hasWeebarrRequest(item) ? "checked" : "";
+  return `
+    <article class="request-row">
+      <div class="request-row-media">
+        ${item.cover ? `<img src="${item.cover}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
+      </div>
+      <div class="request-row-copy">
+        <div class="request-row-head">
+          <div class="request-row-title">
+            <h3>${escapeHtml(item.title)}</h3>
+            ${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}
+          </div>
+          <span class="request-check ${checked}" aria-label="Requested through Weebarr" role="img">
+            <i aria-hidden="true"></i>
+          </span>
+        </div>
+        <p class="request-row-summary">${escapeHtml(summary || "No summary available.")}</p>
+        <div class="request-row-foot">
+          <span><strong>Requested</strong>${requestDate(item)}</span>
+          <span><strong>Air Date</strong>${formatDate(item.startDate)}</span>
+          <span><strong>Status</strong>${escapeHtml(statusLabel(item))}</span>
+        </div>
+      </div>
+    </article>
+  `;
 }
 
 function inlineDetailTemplate(item) {
@@ -606,9 +645,18 @@ function renderSections(allItems) {
   if (!items.length) {
     const message =
       state.view === "requests"
-        ? "No requested anime match the current season and filters."
+        ? "No anime have been requested through Weebarr for this season yet."
         : "No anime match the current filters.";
     els.sections.innerHTML = `<div class="empty-state">${message}</div>${renderPager(0)}`;
+    return;
+  }
+  if (state.view === "requests") {
+    els.sections.innerHTML = `
+      <section class="request-list">
+        ${items.map(requestListTemplate).join("")}
+      </section>
+      ${renderPager(allItems.length)}
+    `;
     return;
   }
   const groups = new Map();
@@ -656,6 +704,10 @@ function renderSections(allItems) {
 }
 
 function renderSpotlight(item) {
+  if (state.view === "requests") {
+    els.spotlight.hidden = true;
+    return;
+  }
   if (isCompactDetails()) {
     els.spotlight.hidden = true;
     return;
@@ -757,8 +809,11 @@ async function requestItem(id) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         mediaId: item.seerr.tmdbId,
+        animeId: item.id,
         tvdbId: item.seerr.tvdbId,
         title: item.title,
+        season: item.season,
+        year: item.seasonYear,
         seasons: item.seerr.requestSeasons,
       }),
     });
@@ -766,9 +821,17 @@ async function requestItem(id) {
       const detail = await readError(response);
       throw new Error(detail);
     }
+    const payload = await response.json();
     item.seerr.state = "requested";
     item.seerr.label = "Requested";
     item.seerr.requestable = false;
+    item.weebarrRequest = payload.weebarrRequest || {
+      requestedAt: new Date().toISOString(),
+      requestSeasons: item.seerr.requestSeasons,
+      tmdbId: item.seerr.tmdbId,
+      tvdbId: item.seerr.tvdbId,
+      title: item.title,
+    };
     state.selectedId = String(item.id);
     renderAll();
     toast(`${item.title} was requested in Seerr.`);

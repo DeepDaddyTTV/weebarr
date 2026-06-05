@@ -2,6 +2,21 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.13] - 2026-06-05
+
+### Fixed
+
+- Switched Seerr matching to prefer an AniList MAL ID -> `ids.moe` -> TMDb ID path before falling back to title search, which makes season matching much more durable for anime with awkward English naming.
+- Fixed Seerr title-search requests by explicitly percent-encoding the query string so search fallbacks no longer silently fail on titles with spaces and other reserved characters.
+- Reclassified partial target seasons as already tracked instead of requestable, so shows like `Re:ZERO ... Season 4` and `That Time I Got Reincarnated as a Slime Season 4` no longer show a bogus missing-season request button.
+- Shortened the remaining partial-state request CTA copy from `Request Missing Seasons` to `Request Missing`.
+
+### Changed
+
+- The Requests page now renders as a Weebarr-owned request list instead of a generic Seerr status mirror.
+- Weebarr now persists its own request history and only shows titles on the Requests page when the request was actually sent from Weebarr.
+- Seasonal API responses now annotate each anime with any matching Weebarr request record so the UI can distinguish Weebarr-origin requests from anime that merely exist in Seerr.
+
 ## [0.1.12] - 2026-06-05
 
 ### Fixed

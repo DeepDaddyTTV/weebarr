@@ -55,6 +55,45 @@ def _normalize_tags(value: Any) -> list[int] | None:
     raise ValueError("tags must be a list or comma-separated string")
 
 
+def _normalize_request_record(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    anilist_id = _normalize_optional_int(value.get("anilist_id"))
+    season = _normalize_optional_str(value.get("season"))
+    year = _normalize_optional_int(value.get("year"))
+    requested_at = _normalize_optional_str(value.get("requested_at"))
+    if anilist_id is None or not season or year is None or not requested_at:
+        return None
+    request_seasons = value.get("request_seasons")
+    normalized_request_seasons = (
+        sorted(
+            {
+                season_id
+                for season_id in (
+                    _normalize_optional_int(part) for part in request_seasons
+                )
+                if season_id is not None and season_id > 0
+            }
+        )
+        if isinstance(request_seasons, list)
+        else []
+    )
+    return {
+        "anilist_id": anilist_id,
+        "tmdb_id": _normalize_optional_int(value.get("tmdb_id")),
+        "tvdb_id": _normalize_optional_int(value.get("tvdb_id")),
+        "title": _normalize_optional_str(value.get("title")) or "",
+        "season": season,
+        "year": year,
+        "requested_at": requested_at,
+        "request_seasons": normalized_request_seasons,
+    }
+
+
+def _request_record_key(record: dict[str, Any]) -> str:
+    return f"{record['anilist_id']}:{record['season']}:{record['year']}"
+
+
 @dataclass(frozen=True)
 class Settings:
     """Environment-backed settings."""
@@ -163,6 +202,60 @@ class SettingsStore:
             self._write_payload(payload)
             self._current = self._build_settings(payload)
             return self._current
+
+    def request_history(
+        self,
+        *,
+        season: str | None = None,
+        year: int | None = None,
+    ) -> list[dict[str, Any]]:
+        with self._lock:
+            payload = self._load_payload()
+            raw_records = payload.get("requests", [])
+            if not isinstance(raw_records, list):
+                return []
+            records = [
+                record
+                for record in (_normalize_request_record(item) for item in raw_records)
+                if record is not None
+            ]
+            if season is not None:
+                records = [record for record in records if record["season"] == season]
+            if year is not None:
+                records = [record for record in records if record["year"] == year]
+            return sorted(records, key=lambda item: item["requested_at"], reverse=True)
+
+    def record_request(self, record: dict[str, Any]) -> dict[str, Any]:
+        normalized = _normalize_request_record(record)
+        if normalized is None:
+            raise ValueError("invalid request record")
+
+        with self._lock:
+            payload = self._load_payload()
+            raw_records = payload.get("requests", [])
+            if not isinstance(raw_records, list):
+                raw_records = []
+
+            key = _request_record_key(normalized)
+            updated_records: list[dict[str, Any]] = []
+            replaced = False
+            for item in raw_records:
+                existing = _normalize_request_record(item)
+                if existing is None:
+                    continue
+                if _request_record_key(existing) == key:
+                    normalized["requested_at"] = existing["requested_at"]
+                    updated_records.append(normalized)
+                    replaced = True
+                else:
+                    updated_records.append(existing)
+
+            if not replaced:
+                updated_records.append(normalized)
+
+            payload["requests"] = updated_records
+            self._write_payload(payload)
+            return normalized
 
     def connection_summary(self) -> dict[str, Any]:
         current = self.get()
