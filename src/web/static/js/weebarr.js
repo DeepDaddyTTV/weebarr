@@ -12,6 +12,7 @@ const state = {
   pageSize: 12,
   theme: "dark",
   filterOpen: false,
+  openDropdown: null,
   hideRequested: false,
 };
 
@@ -42,6 +43,8 @@ const els = {
 
 const compactDetailsMedia = window.matchMedia("(max-width: 900px)");
 const forceCompactPreview = new URLSearchParams(window.location.search).get("compactPreview") === "1";
+const customSelectRoots = [...document.querySelectorAll("[data-ui-select]")];
+const customSelects = new Map();
 const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"];
 const themeStorageKey = "weebarr-theme";
 const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
@@ -49,6 +52,7 @@ const requestQueueStates = new Set(["partial", "requested", "available"]);
 const fullyRequestedStates = new Set(["requested", "available"]);
 
 els.filter.value = state.filter;
+els.sort.value = state.sort;
 
 function toast(message) {
   els.toast.textContent = message;
@@ -105,6 +109,86 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+function syncCustomSelect(configOrId) {
+  const config =
+    typeof configOrId === "string" ? customSelects.get(configOrId) : configOrId;
+  if (!config) return;
+  const { root, select, trigger, value, menu } = config;
+  const selectedOption = select.options[select.selectedIndex];
+  value.textContent = selectedOption ? selectedOption.textContent : "";
+  root.dataset.value = select.value;
+  menu.innerHTML = [...select.options]
+    .map((option) => {
+      const selected = option.value === select.value;
+      return `
+        <button
+          class="ui-select-option ${selected ? "selected" : ""}"
+          type="button"
+          role="option"
+          aria-selected="${String(selected)}"
+          data-select-option="${select.id}"
+          data-value="${escapeHtml(option.value)}"
+        >
+          <span>${escapeHtml(option.textContent)}</span>
+          ${selected ? "<i aria-hidden=\"true\">●</i>" : ""}
+        </button>
+      `;
+    })
+    .join("");
+  trigger.setAttribute("data-value", select.value);
+}
+
+function syncCustomSelects(selectIds) {
+  if (Array.isArray(selectIds) && selectIds.length) {
+    selectIds.forEach((selectId) => syncCustomSelect(selectId));
+    return;
+  }
+  customSelects.forEach((config) => syncCustomSelect(config));
+}
+
+function setCustomSelectOpen(selectId = null) {
+  state.openDropdown = selectId;
+  customSelects.forEach((config, key) => {
+    const open = key === selectId;
+    config.root.classList.toggle("open", open);
+    config.menu.hidden = !open;
+    config.trigger.setAttribute("aria-expanded", String(open));
+  });
+}
+
+function initializeCustomSelects() {
+  customSelectRoots.forEach((root) => {
+    const select = root.querySelector("select");
+    const trigger = root.querySelector(".ui-select-trigger");
+    const value = root.querySelector(".ui-select-value");
+    const menu = root.querySelector(".ui-select-menu");
+    if (!select || !trigger || !value || !menu) return;
+    select.setAttribute("aria-hidden", "true");
+    select.tabIndex = -1;
+    const config = { root, select, trigger, value, menu };
+    customSelects.set(select.id, config);
+    syncCustomSelect(config);
+    trigger.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const nextOpen = state.openDropdown === select.id ? null : select.id;
+      setFilterOpen(false);
+      setCustomSelectOpen(nextOpen);
+    });
+    menu.addEventListener("click", (event) => {
+      const option = event.target.closest("[data-select-option]");
+      if (!option) return;
+      const nextValue = option.dataset.value;
+      if (select.value !== nextValue) {
+        select.value = nextValue;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      syncCustomSelect(config);
+      setCustomSelectOpen(null);
+    });
+    select.addEventListener("change", () => syncCustomSelect(config));
+  });
+}
+
 function plainDescription(value, limit = 340) {
   const text = String(value || "No description from AniList.")
     .replace(/<[^>]+>/g, " ")
@@ -157,6 +241,7 @@ function updateSeasonControls() {
     option.textContent = `${titleCaseSeason(option.value)} ${state.year}`;
     option.selected = option.value === state.season;
   });
+  syncCustomSelects(["seasonSelect", "filterSeasonSelect"]);
 }
 
 function shiftSeason(delta) {
@@ -343,23 +428,51 @@ function actionButtonTemplate(item, inline = false) {
   return `<button class="request-btn" type="button" data-request="${item.id}">${buttonText}<span aria-hidden="true">↗</span></button>`;
 }
 
+function inlineActionsTemplate(item) {
+  const seerr = item.seerr || {};
+  const actions = [
+    `<a class="anilist-btn inline-link" href="${item.siteUrl}" target="_blank" rel="noreferrer">AniList ↗</a>`,
+  ];
+  if (!seerr || seerr.state === "disabled") {
+    actions.push(`<a class="request-btn inline-link" href="/settings#connections">Configure Seerr</a>`);
+  } else if (seerr.requestable) {
+    const buttonText = seerr.state === "partial" ? "Request Missing Seasons" : "Request in Seerr";
+    actions.push(
+      `<button class="request-btn inline-link" type="button" data-request="${item.id}">${buttonText}<span aria-hidden="true">↗</span></button>`,
+    );
+  }
+  return `<div class="inline-actions inline-spotlight-actions">${actions.join("")}</div>`;
+}
+
 function inlineDetailTemplate(item) {
   const seerr = item.seerr || {};
-  const audio = audioState(item);
   return `
-    <div class="inline-detail">
+    <div class="inline-detail inline-spotlight">
+      <div class="inline-spotlight-media" style="background-image: url('${item.banner || item.cover || ""}')">
+        <span class="rank inline-spotlight-rank">#${item.rank}</span>
+      </div>
+      <div class="inline-spotlight-head">
+        <div class="inline-spotlight-copy">
+          <h3>${escapeHtml(item.title)}</h3>
+          <p class="spotlight-subtitle">${escapeHtml(item.romajiTitle || item.englishTitle || item.title)}</p>
+        </div>
+        <button class="inline-detail-close" type="button" data-inline-close="${item.id}" aria-label="Close details">×</button>
+      </div>
+      <div class="score-row inline-spotlight-score">
+        <span>★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
+        <span>♨ ${formatNumber(item.popularity)}</span>
+        <span class="audio-chip ${escapeHtml(audioState(item).state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audioState(item).label)}</span>
+      </div>
       <div class="genre-row">${(item.genres || []).slice(0, 3).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
-      <div class="inline-detail-grid">
+      <div class="detail-list inline-detail-list">
         <div><span>Next Episode</span><strong>${formatAiring(item.nextAiring)}</strong></div>
-        <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audio.state)}">${escapeHtml(audio.label)}</span></strong></div>
+        <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audioState(item).state)}">${escapeHtml(audioState(item).label)}</span></strong></div>
+        <div><span>Overview</span><strong>${plainDescription(item.description, 520)}</strong></div>
+        <div><span>Start Date</span><strong>${formatDate(item.startDate)}</strong></div>
         <div><span>Seerr Match</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
         <div><span>Status</span><strong class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</strong></div>
       </div>
-      <p class="inline-description">${plainDescription(item.description, 220)}</p>
-      <div class="inline-actions">
-        <a class="anilist-btn inline-link" href="${item.siteUrl}" target="_blank" rel="noreferrer">AniList ↗</a>
-        ${actionButtonTemplate(item, true)}
-      </div>
+      ${inlineActionsTemplate(item)}
     </div>
   `;
 }
@@ -373,7 +486,7 @@ function cardTemplate(item) {
   const selectLabel = compact && isSelected ? `Collapse details for ${item.title}` : `Open details for ${item.title}`;
   return `
     <article class="anime-card ${isSelected ? "selected" : ""} ${compact && isSelected ? "inline-selected" : ""}" data-id="${item.id}" aria-expanded="${compact ? String(isSelected) : "false"}">
-      <button class="card-surface" type="button" data-select="${item.id}" onclick="window.weebarrToggleSelect && window.weebarrToggleSelect('${escapeHtml(item.id)}')" aria-label="${escapeHtml(selectLabel)}" aria-expanded="${compact ? String(isSelected) : "false"}">
+      <button class="card-surface" type="button" data-select="${item.id}" aria-label="${escapeHtml(selectLabel)}" aria-expanded="${compact ? String(isSelected) : "false"}">
         <div class="poster">
           ${item.cover ? `<img src="${item.cover}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
           <span class="rank">#${item.rank}</span>
@@ -471,6 +584,21 @@ function renderSections(allItems) {
   `,
     )
     .join("")}${renderPager(allItems.length)}`;
+  els.sections.querySelectorAll("[data-select]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleSelectedItem(String(button.dataset.select));
+    });
+  });
+  els.sections.querySelectorAll("[data-inline-close]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      state.selectedId = null;
+      renderAll();
+    });
+  });
 }
 
 function renderSpotlight(item) {
@@ -536,6 +664,9 @@ function toggleSelectedItem(clickedId) {
 
 function setFilterOpen(open) {
   state.filterOpen = open;
+  if (open) {
+    setCustomSelectOpen(null);
+  }
   els.filterMenu.hidden = !open;
   els.filterButton.setAttribute("aria-expanded", String(open));
 }
@@ -699,6 +830,9 @@ els.filterMenu.addEventListener("click", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  if (!event.target.closest(".ui-select")) {
+    setCustomSelectOpen(null);
+  }
   if (state.filterOpen && !event.target.closest(".filter-actions")) {
     setFilterOpen(false);
   }
@@ -714,11 +848,6 @@ els.sections.addEventListener("click", (event) => {
   const requestButton = event.target.closest("[data-request]");
   if (requestButton) {
     requestItem(requestButton.dataset.request);
-    return;
-  }
-  const selectButton = event.target.closest("[data-select]");
-  if (selectButton) {
-    toggleSelectedItem(String(selectButton.dataset.select));
     return;
   }
   if (shouldIgnoreCardToggle(event.target)) return;
@@ -753,12 +882,14 @@ compactDetailsMedia.addEventListener("change", () => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    setCustomSelectOpen(null);
     setFilterOpen(false);
   }
 });
 
 window.weebarrToggleSelect = toggleSelectedItem;
 applyTheme();
+initializeCustomSelects();
 document.body.classList.toggle("compact-preview", forceCompactPreview);
 updateSeasonControls();
 if (els.hideRequested) {

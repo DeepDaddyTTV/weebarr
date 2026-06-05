@@ -30,6 +30,8 @@ def test_seasonal_page_renders():
     assert response.status_code == 200
     assert "Weebarr" in response.text
     assert "Seasonal Anime" in response.text
+    assert 'data-ui-select="season"' in response.text
+    assert "ui-select-trigger" in response.text
 
 
 def test_requests_page_renders():

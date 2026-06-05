@@ -54,15 +54,22 @@
           </div>
           <div class="top-actions">
             <button id="prevSeasonBtn" class="icon-btn" type="button" aria-label="Previous season">‹</button>
-            <label class="season-pill">
-              <span aria-hidden="true">▣</span>
-              <select id="seasonSelect" aria-label="Season">
-                {% for season in ["WINTER", "SPRING", "SUMMER", "FALL"] %}
-                <option value="{{ season }}" {{ "selected" if season == default_season else "" }}>{{ season.title() }}</option>
-                {% endfor %}
-              </select>
-              <input id="yearInput" aria-label="Year" type="number" min="1970" max="2100" value="{{ default_year }}" />
-            </label>
+            <div class="season-pill">
+              <span class="season-pill-mark" aria-hidden="true">▣</span>
+              <div class="ui-select ui-select-inline" data-ui-select="season">
+                <select id="seasonSelect" aria-label="Season">
+                  {% for season in ["WINTER", "SPRING", "SUMMER", "FALL"] %}
+                  <option value="{{ season }}" {{ "selected" if season == default_season else "" }}>{{ season.title() }}</option>
+                  {% endfor %}
+                </select>
+                <button id="seasonSelectTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="seasonSelectMenu">
+                  <span class="ui-select-value"></span>
+                  <i class="ui-select-chevron" aria-hidden="true"></i>
+                </button>
+                <div id="seasonSelectMenu" class="ui-select-menu" role="listbox" hidden></div>
+              </div>
+              <input id="yearInput" class="season-year" aria-label="Year" type="number" min="1970" max="2100" value="{{ default_year }}" />
+            </div>
             <button id="nextSeasonBtn" class="icon-btn" type="button" aria-label="Next season">›</button>
             <button id="refreshBtn" class="refresh-btn" type="button"><span aria-hidden="true">↻</span>Refresh</button>
           </div>
@@ -110,29 +117,50 @@
           </label>
           <label>
             <span>Status</span>
-            <select id="statusFilter">
-              <option value="all">All</option>
-              <option value="requestable">Requestable</option>
-              <option value="requested">Requested</option>
-              <option value="available">Available</option>
-              <option value="missing_mapping">Missing mapping</option>
-            </select>
+            <div class="ui-select" data-ui-select="status">
+              <select id="statusFilter">
+                <option value="all">All</option>
+                <option value="requestable">Requestable</option>
+                <option value="requested">Requested</option>
+                <option value="available">Available</option>
+                <option value="missing_mapping">Missing mapping</option>
+              </select>
+              <button id="statusFilterTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="statusFilterMenu">
+                <span class="ui-select-value"></span>
+                <i class="ui-select-chevron" aria-hidden="true"></i>
+              </button>
+              <div id="statusFilterMenu" class="ui-select-menu" role="listbox" hidden></div>
+            </div>
           </label>
           <label>
             <span>Sort by</span>
-            <select id="sortSelect">
-              <option value="popularity">Popularity</option>
-              <option value="score">Score</option>
-              <option value="airing">Next airing</option>
-            </select>
+            <div class="ui-select" data-ui-select="sort">
+              <select id="sortSelect">
+                <option value="popularity">Popularity</option>
+                <option value="score">Score</option>
+                <option value="airing">Next airing</option>
+              </select>
+              <button id="sortSelectTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sortSelectMenu">
+                <span class="ui-select-value"></span>
+                <i class="ui-select-chevron" aria-hidden="true"></i>
+              </button>
+              <div id="sortSelectMenu" class="ui-select-menu" role="listbox" hidden></div>
+            </div>
           </label>
           <label>
             <span>Season</span>
-            <select id="filterSeasonSelect" aria-label="Season quick filter">
-              {% for season in ["WINTER", "SPRING", "SUMMER", "FALL"] %}
-              <option value="{{ season }}" {{ "selected" if season == default_season else "" }}>{{ season.title() }} {{ default_year }}</option>
-              {% endfor %}
-            </select>
+            <div class="ui-select" data-ui-select="filterSeason">
+              <select id="filterSeasonSelect" aria-label="Season quick filter">
+                {% for season in ["WINTER", "SPRING", "SUMMER", "FALL"] %}
+                <option value="{{ season }}" {{ "selected" if season == default_season else "" }}>{{ season.title() }} {{ default_year }}</option>
+                {% endfor %}
+              </select>
+              <button id="filterSeasonSelectTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="filterSeasonSelectMenu">
+                <span class="ui-select-value"></span>
+                <i class="ui-select-chevron" aria-hidden="true"></i>
+              </button>
+              <div id="filterSeasonSelectMenu" class="ui-select-menu" role="listbox" hidden></div>
+            </div>
           </label>
           {% if page_name == "seasonal" %}
           <div class="filter-toggle">

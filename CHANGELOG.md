@@ -2,6 +2,18 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.8] - 2026-06-05
+
+### Changed
+
+- Replaced the seasonal dashboard's native browser selects with custom in-page dropdown components for the season picker, status filter, sort control, and seasonal quick filter.
+- Reworked the seasonal filter/topbar control styling so the dashboard uses one consistent control language across desktop and mobile instead of mixing browser-default dropdown behavior with custom buttons.
+
+### Fixed
+
+- Upgraded mobile card expansion to open a full inline detail panel using the same information model as the desktop spotlight.
+- Bound card selection directly to the rendered card surface buttons so mobile taps reliably expand and collapse the inline detail panel.
+
 ## [0.1.7] - 2026-06-05
 
 ### Fixed
