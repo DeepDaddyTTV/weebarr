@@ -2,7 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
-## [0.1.18] - 2026-06-05
+## [0.1.20] - 2026-06-05
+
+### Fixed
+
+- Replaced the live-text `weebarr-wordmark.svg` auth branding with a font-independent render-safe wordmark, so login and setup no longer fall back to the wrong browser font for the `eebarr` text.
+- Updated local-account username placeholders from `deepdaddy` to the generic `username` label across login, setup, and Settings.
 
 ## [0.1.19] - 2026-06-05
 
