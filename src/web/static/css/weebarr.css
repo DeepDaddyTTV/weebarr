@@ -17,6 +17,9 @@
   --purple: #b466ff;
   --green: #55e18d;
   --warning: #ffd166;
+  --hover-gradient: linear-gradient(135deg, rgba(40, 199, 255, 0.92), rgba(180, 102, 255, 0.78) 50%, rgba(255, 60, 125, 0.92));
+  --hover-fill: linear-gradient(145deg, rgba(40, 199, 255, 0.08), rgba(180, 102, 255, 0.04) 48%, rgba(255, 60, 125, 0.08));
+  --hover-glow: 0 18px 42px rgba(40, 199, 255, 0.16), 0 22px 48px rgba(255, 60, 125, 0.12);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -35,6 +38,8 @@ body[data-theme="light"] {
   --text: #121c2b;
   --muted: #5d6e82;
   --subtle: #778699;
+  --hover-fill: linear-gradient(145deg, rgba(255, 255, 255, 0.5), rgba(40, 199, 255, 0.08) 52%, rgba(255, 60, 125, 0.1));
+  --hover-glow: 0 18px 40px rgba(40, 199, 255, 0.14), 0 20px 44px rgba(255, 60, 125, 0.1);
   --shadow: 0 22px 70px rgba(42, 68, 99, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
@@ -225,11 +230,70 @@ body[data-theme="light"] .toggle-switch input:checked + i::after {
 }
 
 .brand {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 17px;
+  padding: 14px 16px;
+  margin: -14px -16px 0;
   color: inherit;
   text-decoration: none;
+  border-radius: 24px;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.brand > * {
+  position: relative;
+  z-index: 1;
+}
+
+.brand::before,
+.anime-card::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 1px;
+  pointer-events: none;
+  content: "";
+  background: var(--hover-gradient);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.brand::after,
+.anime-card::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  background: var(--hover-fill);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.brand:hover,
+.brand:focus-visible {
+  box-shadow: var(--hover-glow);
+  transform: translateY(-1px);
+}
+
+.brand:hover::before,
+.brand:hover::after,
+.brand:focus-visible::before,
+.brand:focus-visible::after {
+  opacity: 1;
 }
 
 .brand-mark {
@@ -283,9 +347,24 @@ body[data-theme="light"] .toggle-switch input:checked + i::after {
   border-radius: var(--radius-md);
 }
 
-.nav-item span {
+.nav-glyph {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
   color: var(--muted);
-  font-size: 21px;
+}
+
+.nav-glyph svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .nav-item.active {
@@ -295,7 +374,7 @@ body[data-theme="light"] .toggle-switch input:checked + i::after {
   box-shadow: 0 0 20px rgba(255, 60, 125, 0.12);
 }
 
-.nav-item.active span {
+.nav-item.active .nav-glyph {
   color: var(--pink);
 }
 
@@ -700,24 +779,19 @@ h1 {
 .stat-card {
   position: relative;
   display: grid;
-  grid-template-columns: 62px minmax(0, 1fr);
+  grid-template-columns: 56px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 16px;
-  min-height: 104px;
-  padding: 16px 18px;
+  gap: 14px;
+  min-height: 88px;
+  padding: 14px 16px;
   overflow: hidden;
   border-radius: var(--radius-md);
 }
 
-.stat-card > div {
+.stat-copy {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "title"
-    "value"
-    "meta";
   align-content: center;
-  row-gap: 4px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -854,8 +928,7 @@ h1 {
   color: var(--muted);
 }
 
-.stat-card > div > span {
-  grid-area: title;
+.stat-copy > span {
   display: block;
   font-size: 13px;
   font-weight: 900;
@@ -863,20 +936,19 @@ h1 {
 }
 
 .stat-card strong {
-  grid-area: value;
-  display: grid;
-  width: 100%;
-  place-items: center;
+  display: block;
+  min-width: 2ch;
   margin-top: 0;
-  font-size: clamp(2.45rem, 3vw, 3.15rem);
+  font-size: clamp(2.2rem, 2.75vw, 3rem);
   font-weight: 900;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  text-align: center;
+  text-align: right;
+  justify-self: end;
+  white-space: nowrap;
 }
 
 .stat-card small {
-  grid-area: meta;
   display: block;
   margin-top: 0;
   font-size: 12px;
@@ -1121,6 +1193,7 @@ h1 {
 
 .anime-card {
   position: relative;
+  isolation: isolate;
   display: grid;
   gap: 0;
   min-height: 218px;
@@ -1128,6 +1201,7 @@ h1 {
   overflow: hidden;
   text-align: left;
   border-radius: var(--radius-md);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 
 .card-surface {
@@ -1154,9 +1228,31 @@ h1 {
   box-shadow: none;
 }
 
+.card-surface:focus-visible {
+  outline: none;
+}
+
+.anime-card:hover,
+.anime-card:focus-within {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), var(--hover-glow), var(--shadow);
+  transform: translateY(-2px);
+}
+
+.anime-card:hover::before,
+.anime-card:hover::after,
+.anime-card:focus-within::before,
+.anime-card:focus-within::after {
+  opacity: 1;
+}
+
 .anime-card.selected {
   border-color: var(--pink);
   box-shadow: 0 0 0 1px rgba(255, 60, 125, 0.72), 0 0 34px rgba(255, 60, 125, 0.18), var(--shadow);
+}
+
+.anime-card.selected:hover,
+.anime-card.selected:focus-within {
+  box-shadow: 0 0 0 1px rgba(255, 60, 125, 0.72), 0 0 38px rgba(255, 60, 125, 0.22), 0 0 30px rgba(40, 199, 255, 0.14), var(--shadow);
 }
 
 .poster {
@@ -2093,7 +2189,7 @@ h1 {
   }
 
   .stat-card {
-    grid-template-columns: 54px 1fr;
+    grid-template-columns: 52px minmax(0, 1fr) auto;
   }
 
   .filter-panel {
@@ -2201,7 +2297,31 @@ h1 {
   }
 
   .top-actions {
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: 42px minmax(0, min(100%, 324px)) 42px;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .top-actions .refresh-btn {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+
+  .season-pill {
+    width: 100%;
+    justify-content: center;
+    margin-inline: auto;
+  }
+
+  .ui-select-inline {
+    flex: 1 1 auto;
+  }
+
+  .ui-select-inline .ui-select-trigger {
+    justify-content: center;
   }
 
   .stats-grid,
@@ -2346,6 +2466,24 @@ body.compact-preview .spotlight {
 
   .nav-list {
     display: grid;
+  }
+
+  .top-actions {
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+  }
+
+  .season-pill {
+    padding: 0 10px;
+  }
+
+  .season-pill-mark {
+    display: none;
+  }
+
+  .season-year {
+    width: 72px;
+    min-width: 72px;
+    padding: 0 10px;
   }
 
   .anime-card {

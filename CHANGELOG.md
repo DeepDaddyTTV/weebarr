@@ -2,6 +2,19 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.12] - 2026-06-05
+
+### Fixed
+
+- Reworked the top seasonal stat cards into a tighter right-value layout so the numbers sit in a dedicated lane and the summary row no longer feels oversized.
+- Centered the mobile season picker row and moved the refresh action onto its own line so the season/year selector stays visually balanced on narrow screens.
+- Added rounded gradient hover outlines and glow treatments to the main brand lockup and seasonal anime cards for a consistent interactive state.
+- Replaced the sidebar's text glyphs with flat inline icons, including a TV icon for Seasonal, a radar-style icon for Requests, and a matching 2D gear for Settings.
+
+### Changed
+
+- README now embeds the transparent original Weebarr wordmark and the two manual dashboard captures placed in `src/web/static/img`.
+
 ## [0.1.11] - 2026-06-05
 
 ### Fixed
