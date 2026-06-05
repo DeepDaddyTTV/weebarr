@@ -12,11 +12,8 @@
     <div class="app-shell">
       <aside class="sidebar" aria-label="Weebarr navigation">
         <a class="brand" href="/seasonal" aria-label="Weebarr home">
-          <span class="brand-mark" aria-hidden="true">
-            <img src="/static/img/weebarr-mark.svg" alt="" />
-          </span>
-          <span>
-            <strong>Weebarr</strong>
+          <span class="brand-lockup">
+            <img class="brand-wordmark" src="/static/img/weebarr-wordmark.svg?v={{ asset_version }}" alt="Weebarr" />
             <small>v{{ version }}</small>
           </span>
         </a>
@@ -74,7 +71,7 @@
           </div>
           <hr />
           <span class="connection-label">{{ "Plex session" if auth_user_mode == "plex" else "Local session" }}</span>
-          <span class="connection-host">Single-admin access with local password and Plex sign-in.</span>
+          <span class="connection-host">{{ auth_access_copy }}</span>
           <a class="connection-cta" href="/logout">Sign Out</a>
         </div>
         <div class="connection-card">

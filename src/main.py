@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -96,7 +97,6 @@ class AccessSetupPayload(BaseModel):
     username: str = ""
     password: str = ""
     confirm_password: str = Field(default="", alias="confirmPassword")
-    admin_token: Optional[str] = Field(default=None, alias="adminToken")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -174,12 +174,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def auth_summary(request: Request) -> dict[str, Any]:
         user = current_auth_user(request)
+        settings_now = current_settings()
+        if settings_now.uses_plex_auth:
+            access_copy = "Single-admin access is locked to the claimed Plex account."
+            signin_copy = "Plex only"
+        elif settings_now.uses_local_auth:
+            access_copy = (
+                "Single-admin access uses the configured local username and password."
+            )
+            signin_copy = "Username/password"
+        else:
+            access_copy = "Authentication has not been configured yet."
+            signin_copy = "Setup required"
         return {
             "auth_enabled": current_settings().auth_enabled,
             "auth_mode": current_settings().auth_mode,
             "plex_login_enabled": current_settings().plex_login_enabled,
             "auth_user_name": user.display_name if user else None,
             "auth_user_mode": user.mode if user else None,
+            "auth_access_copy": access_copy,
+            "auth_signin_copy": signin_copy,
         }
 
     def annotate_weebarr_requests(
@@ -210,6 +224,125 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         configured = current_settings().admin_token
         if configured and token != configured:
             raise HTTPException(status_code=401, detail="Valid admin token required")
+
+    def header_first_value(header_name: str, request: Request) -> str:
+        raw_value = request.headers.get(header_name, "")
+        return raw_value.split(",", 1)[0].strip()
+
+    def normalize_host(value: str) -> str:
+        host = value.strip().lower()
+        if not host:
+            return ""
+        if "://" in host:
+            host = host.split("://", 1)[1]
+        host = host.split("/", 1)[0]
+        if host.startswith("[") and "]" in host:
+            host = host[1 : host.index("]")]
+        elif ":" in host:
+            host = host.rsplit(":", 1)[0]
+        return host
+
+    def is_local_host(value: str) -> bool:
+        host = normalize_host(value)
+        if not host:
+            return False
+        if host in {
+            "localhost",
+            "127.0.0.1",
+            "::1",
+            "0.0.0.0",
+            "testserver",
+            "host.docker.internal",
+        }:
+            return True
+        if host.endswith(".local"):
+            return True
+        try:
+            address = ipaddress.ip_address(host)
+        except ValueError:
+            return False
+        return address.is_private or address.is_loopback or address.is_link_local
+
+    def is_local_ip(value: str) -> bool:
+        candidate = value.strip()
+        if not candidate:
+            return False
+        if candidate == "testclient":
+            return True
+        try:
+            address = ipaddress.ip_address(candidate)
+        except ValueError:
+            return False
+        return address.is_private or address.is_loopback or address.is_link_local
+
+    def setup_request_allowed(request: Request) -> bool:
+        forwarded_host = header_first_value("X-Forwarded-Host", request)
+        host = (
+            forwarded_host
+            or request.headers.get("Host", "")
+            or (request.url.hostname or "")
+        )
+        if host:
+            return is_local_host(host)
+
+        client_ip = (
+            header_first_value("CF-Connecting-IP", request)
+            or header_first_value("X-Forwarded-For", request)
+            or header_first_value("X-Real-IP", request)
+            or (request.client.host if request.client else "")
+        )
+        return is_local_ip(client_ip)
+
+    def setup_blocked_response(request: Request) -> HTMLResponse:
+        host = request.url.hostname or "localhost"
+        port = f":{request.url.port}" if request.url.port else ""
+        local_hint = f"http://{host}{port}/setup" if is_local_host(host) else None
+        hint_html = (
+            f"<p class='auth-alt-copy'>Open a local/private Weebarr URL such as <code>{local_hint}</code> to finish first-run setup.</p>"
+            if local_hint
+            else "<p class='auth-alt-copy'>Open Weebarr from a local/private-network URL to finish first-run setup.</p>"
+        )
+        content = f"""<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Weebarr - Setup Locked</title>
+    <link rel="icon" href="/static/img/weebarr-mark.svg?v={asset_version}" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/img/weebarr-mark.png?v={asset_version}" />
+    <link rel="stylesheet" href="/static/css/weebarr.css?v={asset_version}" />
+  </head>
+  <body data-theme="dark" data-page="setup">
+    <main class="auth-screen">
+      <section class="auth-panel auth-panel-setup">
+        <div class="auth-brand">
+          <img class="auth-wordmark" src="/static/img/weebarr-wordmark.svg?v={asset_version}" alt="Weebarr" />
+          <p>First-run setup is only available from a local or private-network address.</p>
+        </div>
+        <div class="auth-banner" data-tone="error">Setup is blocked from this address.</div>
+        {hint_html}
+      </section>
+    </main>
+  </body>
+</html>"""
+        return HTMLResponse(status_code=403, content=content)
+
+    def plex_allowed_user_values(user: dict[str, Any]) -> list[str]:
+        candidates = [
+            str(user.get("username") or "").strip(),
+            str(user.get("email") or "").strip(),
+            str(user.get("title") or "").strip(),
+            str(user.get("friendlyName") or "").strip(),
+        ]
+        seen: set[str] = set()
+        normalized: list[str] = []
+        for candidate in candidates:
+            folded = candidate.casefold()
+            if not candidate or folded in seen:
+                continue
+            seen.add(folded)
+            normalized.append(candidate)
+        return normalized
 
     def login_error_message(error: str | None) -> str | None:
         return {
@@ -247,12 +380,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     def login_context(request: Request) -> dict[str, Any]:
+        settings_now = current_settings()
         return {
             "request": request,
             "version": __version__,
             "asset_version": asset_version,
-            "auth_mode": current_settings().auth_mode,
-            "plex_login_enabled": current_settings().plex_login_enabled,
+            "auth_mode": settings_now.auth_mode,
+            "local_login_enabled": settings_now.uses_local_auth,
+            "plex_login_enabled": settings_now.plex_login_enabled,
             "next_path": sanitize_next_path(request.query_params.get("next")),
             "error_message": login_error_message(request.query_params.get("error")),
         }
@@ -263,7 +398,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "version": __version__,
             "asset_version": asset_version,
             "setup_required": current_settings().setup_required,
-            "admin_protected": current_settings().admin_protected,
         }
 
     class AuthGateMiddleware(BaseHTTPMiddleware):
@@ -275,11 +409,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if settings_now.setup_required:
                 if path.startswith("/static") or path in {
                     "/api/health",
+                }:
+                    return await call_next(request)
+                if path in {
                     "/setup",
                     "/api/setup/status",
                     "/api/setup/access",
+                    "/auth/plex/start",
+                    "/auth/plex/callback",
                 }:
-                    return await call_next(request)
+                    if setup_request_allowed(request):
+                        return await call_next(request)
+                    if path.startswith("/api/"):
+                        return JSONResponse(
+                            status_code=403,
+                            content={
+                                "detail": "First-run setup is only available from a local or private-network address."
+                            },
+                        )
+                    return setup_blocked_response(request)
                 if path.startswith("/api/"):
                     return JSONResponse(
                         status_code=409,
@@ -287,7 +435,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                             "detail": "Weebarr setup is required before using the API."
                         },
                     )
-                return RedirectResponse(url="/setup")
+                if setup_request_allowed(request):
+                    return RedirectResponse(url="/setup")
+                return setup_blocked_response(request)
 
             if not settings_now.auth_enabled:
                 return await call_next(request)
@@ -359,15 +509,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/setup/access")
     async def complete_setup(
-        request: Request,
         payload: AccessSetupPayload,
     ) -> dict[str, Any]:
         if not current_settings().setup_required:
             raise HTTPException(
                 status_code=409, detail="Weebarr access is already configured."
             )
-        require_admin(payload.admin_token)
-
         username = payload.username.strip()
         password = payload.password
         if not username:
@@ -385,15 +532,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "mode": "local",
                 "username": username,
                 "password_hash": hash_secret(password),
-                "session_secret": generate_session_secret(),
+                "session_secret": current_settings().session_secret
+                or generate_session_secret(),
+                "plex_allowed_users": None,
             }
         )
-        user = AuthUser(mode="local", username=username, display_name=username)
-        set_auth_user(request, user)
         return {
             "success": True,
             "mode": updated.auth_mode,
-            "redirectTo": DEFAULT_REDIRECT_PATH,
+            "redirectTo": "/login",
         }
 
     @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
@@ -446,9 +593,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def plex_auth_start(
         request: Request,
         next: str | None = None,
+        setup: bool = False,
     ) -> RedirectResponse:
         settings_now = current_settings()
-        if not settings_now.plex_login_enabled:
+        setup_claim = settings_now.setup_required or setup
+        if not setup_claim and not settings_now.plex_login_enabled:
             return RedirectResponse(url="/login")
 
         pin = await create_plex_pin(settings_now)
@@ -456,6 +605,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "id": pin.get("id"),
             "code": pin.get("code"),
             "next": sanitize_next_path(next),
+            "setup": setup_claim,
         }
         public_origin = (
             settings_now.public_url.rstrip("/")
@@ -473,10 +623,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/auth/plex/callback", include_in_schema=False)
     async def plex_auth_callback(request: Request) -> RedirectResponse:
         settings_now = current_settings()
-        if not settings_now.plex_login_enabled:
+        pending = request.session.get("plex_pending")
+        setup_claim = bool(isinstance(pending, dict) and pending.get("setup")) or (
+            settings_now.setup_required
+        )
+        if setup_claim and not setup_request_allowed(request):
+            request.session.pop("plex_pending", None)
+            return RedirectResponse(url="/setup")
+        if not setup_claim and not settings_now.plex_login_enabled:
             return RedirectResponse(url="/login")
 
-        pending = request.session.get("plex_pending")
         if (
             not isinstance(pending, dict)
             or not pending.get("id")
@@ -501,6 +657,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return RedirectResponse(url="/login?error=plex_incomplete")
 
         user_payload = await fetch_plex_user(settings_now, token=str(auth_token))
+        if setup_claim:
+            updated = settings_store.save_auth(
+                {
+                    "mode": "plex",
+                    "username": None,
+                    "password_hash": None,
+                    "session_secret": settings_now.session_secret
+                    or generate_session_secret(),
+                    "plex_allowed_users": plex_allowed_user_values(user_payload),
+                }
+            )
+            settings_now = updated
         if not plex_user_allowed(settings_now, user_payload):
             request.session.pop("plex_pending", None)
             return RedirectResponse(url="/login?error=plex_not_allowed")

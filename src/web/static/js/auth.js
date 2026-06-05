@@ -1,5 +1,6 @@
 const authState = {
   page: document.body.dataset.page || "auth",
+  setupMode: (window.WEEBARR_SETUP || {}).defaultMode || "local",
 };
 
 const authEls = {
@@ -13,10 +14,12 @@ const authEls = {
   setupUsername: document.querySelector("#setupUsername"),
   setupPassword: document.querySelector("#setupPassword"),
   setupConfirmPassword: document.querySelector("#setupConfirmPassword"),
-  setupAdminToken: document.querySelector("#setupAdminToken"),
   setupSuccess: document.querySelector("#setupSuccess"),
   setupContinueBtn: document.querySelector("#setupContinueBtn"),
   setupSuccessCopy: document.querySelector("#setupSuccessCopy"),
+  setupPlexPanel: document.querySelector("#setupPlexPanel"),
+  setupPlexBtn: document.querySelector("#setupPlexBtn"),
+  setupModeButtons: Array.from(document.querySelectorAll("[data-setup-mode]")),
 };
 
 function setBanner(message, tone = "error") {
@@ -63,9 +66,29 @@ async function submitLocalLogin(event) {
   window.location.assign(payload.redirectTo || "/seasonal");
 }
 
-function startPlexLogin() {
-  const next = encodeURIComponent((window.WEEBARR_AUTH || {}).nextPath || "/seasonal");
-  window.location.assign(`/auth/plex/start?next=${next}`);
+function startPlexLogin({ setup = false } = {}) {
+  const params = new URLSearchParams();
+  if (setup) {
+    params.set("setup", "1");
+  } else {
+    params.set("next", (window.WEEBARR_AUTH || {}).nextPath || "/seasonal");
+  }
+  window.location.assign(`/auth/plex/start?${params.toString()}`);
+}
+
+function setSetupMode(mode) {
+  authState.setupMode = mode === "plex" ? "plex" : "local";
+  authEls.setupModeButtons.forEach((button) => {
+    const active = button.dataset.setupMode === authState.setupMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  if (authEls.setupForm) {
+    authEls.setupForm.hidden = authState.setupMode !== "local";
+  }
+  if (authEls.setupPlexPanel) {
+    authEls.setupPlexPanel.hidden = authState.setupMode !== "plex";
+  }
 }
 
 async function submitSetup(event) {
@@ -79,7 +102,6 @@ async function submitSetup(event) {
       username: authEls.setupUsername?.value.trim() || "",
       password: authEls.setupPassword?.value || "",
       confirmPassword: authEls.setupConfirmPassword?.value || "",
-      adminToken: authEls.setupAdminToken?.value.trim() || null,
     }),
   });
 
@@ -93,13 +115,13 @@ async function submitSetup(event) {
   if (authEls.setupSuccess) authEls.setupSuccess.hidden = false;
   if (authEls.setupSuccessCopy) {
     authEls.setupSuccessCopy.textContent =
-      "The admin account is ready. Continue into Weebarr or come back to the login screen later to use Plex.";
+      "The admin account is ready. Continue to the sign-in screen.";
   }
-  authEls.setupContinueBtn.dataset.redirectTo = payload.redirectTo || "/seasonal";
+  authEls.setupContinueBtn.dataset.redirectTo = payload.redirectTo || "/login";
 }
 
 function continueAfterSetup() {
-  const redirectTo = authEls.setupContinueBtn.dataset.redirectTo || "/seasonal";
+  const redirectTo = authEls.setupContinueBtn.dataset.redirectTo || "/login";
   window.location.assign(redirectTo);
 }
 
@@ -110,13 +132,30 @@ if (authEls.localLoginForm) {
 }
 
 if (authEls.plexLoginBtn) {
-  authEls.plexLoginBtn.addEventListener("click", startPlexLogin);
+  authEls.plexLoginBtn.addEventListener("click", () => {
+    startPlexLogin();
+  });
 }
 
 if (authEls.setupForm) {
   authEls.setupForm.addEventListener("submit", (event) => {
     void submitSetup(event);
   });
+}
+
+if (authEls.setupPlexBtn) {
+  authEls.setupPlexBtn.addEventListener("click", () => {
+    startPlexLogin({ setup: true });
+  });
+}
+
+if (authEls.setupModeButtons.length) {
+  authEls.setupModeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setSetupMode(button.dataset.setupMode || "local");
+    });
+  });
+  setSetupMode(authState.setupMode);
 }
 
 if (authEls.setupContinueBtn) {

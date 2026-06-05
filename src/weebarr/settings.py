@@ -184,7 +184,7 @@ class Settings:
 
     @property
     def plex_login_enabled(self) -> bool:
-        return self.auth_enabled and self.auth_configured
+        return self.uses_plex_auth and self.auth_configured
 
     @property
     def api_key_enabled(self) -> bool:
@@ -199,7 +199,7 @@ class Settings:
         if self.local_auth_configured:
             return True
         if self.uses_plex_auth:
-            return True
+            return bool(self.plex_allowed_users)
         return False
 
     @property

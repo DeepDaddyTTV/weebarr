@@ -12,25 +12,28 @@
     <main class="auth-screen">
       <section class="auth-panel auth-panel-setup">
         <div class="auth-brand">
-          <img class="auth-wordmark" src="/static/img/weebarr-wordmark.svg" alt="Weebarr" />
-          <p>Create the admin account for this Weebarr instance. After setup, you can sign in with this password or use the Plex button on the login screen.</p>
+          <img class="auth-wordmark" src="/static/img/weebarr-wordmark.svg?v={{ asset_version }}" alt="Weebarr" />
+          <p>First-run setup is only available from a local or private-network address. Choose whether this single-admin instance should use a local password or a Plex-only sign-in.</p>
         </div>
 
         <div id="setupBanner" class="auth-banner" hidden></div>
+
+        <div class="setup-mode-grid" role="tablist" aria-label="Setup mode">
+          <button id="setupModeLocal" class="setup-mode active" type="button" data-setup-mode="local" aria-pressed="true">
+            <strong>Create Account</strong>
+            <span>Use a local username and password for the single admin account.</span>
+          </button>
+          <button id="setupModePlex" class="setup-mode" type="button" data-setup-mode="plex" aria-pressed="false">
+            <strong>Use Plex Auth</strong>
+            <span>Claim this instance to one Plex account and sign in with Plex only.</span>
+          </button>
+        </div>
 
         <form id="setupForm" class="auth-form setup-form" novalidate>
           <div class="auth-section-head">
             <h2>Create Account</h2>
             <p>This account becomes the local admin sign-in for Weebarr.</p>
           </div>
-
-          {% if admin_protected %}
-          <label>
-            <span>Setup Token</span>
-            <input id="setupAdminToken" type="password" placeholder="Enter the configured admin/setup token" />
-            <small>This instance requires the admin token before first-run setup can be completed.</small>
-          </label>
-          {% endif %}
 
           <div id="localSetupFields" class="setup-fields">
             <label>
@@ -50,9 +53,23 @@
           <button class="refresh-btn auth-submit" type="submit">Create Account</button>
         </form>
 
+        <section id="setupPlexPanel" class="setup-api-panel" hidden>
+          <div class="auth-section-head">
+            <h2>Use Plex Auth</h2>
+            <p>The first successful Plex sign-in becomes the only Plex account allowed to access this Weebarr instance.</p>
+          </div>
+          <button id="setupPlexBtn" class="plex-auth-btn" type="button">
+            <span class="plex-auth-mark" aria-hidden="true">
+              <img src="/static/img/Plex_logo_2022.svg?v={{ asset_version }}" alt="" />
+            </span>
+            <span>Continue with Plex</span>
+          </button>
+          <p class="auth-alt-copy">Plex will return to this same Weebarr URL automatically and finish setup.</p>
+        </section>
+
         <section id="setupSuccess" class="setup-success" hidden>
           <h2>Account created</h2>
-          <p id="setupSuccessCopy">The admin account is ready. Continue into Weebarr.</p>
+          <p id="setupSuccessCopy">The admin account is ready. Continue to the sign-in screen.</p>
           <button id="setupContinueBtn" class="refresh-btn auth-submit" type="button">Continue</button>
         </section>
       </section>
@@ -60,7 +77,7 @@
 
     <script>
       window.WEEBARR_SETUP = {
-        adminProtected: {{ "true" if admin_protected else "false" }},
+        defaultMode: "local",
       };
     </script>
     <script src="/static/js/auth.js?v={{ asset_version }}"></script>
