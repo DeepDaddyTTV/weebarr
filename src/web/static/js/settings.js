@@ -6,6 +6,11 @@ const state = {
   connection: window.WEEBARR_CONNECTION || {},
 };
 
+const contentFilterLabels = {
+  hide_nsfw: "Hide NSFW",
+  show_all: "Show all",
+};
+
 const els = {
   toast: document.querySelector("#toast"),
   banner: document.querySelector("#settingsBanner"),
@@ -15,6 +20,7 @@ const els = {
   baseUrl: document.querySelector("#settingsBaseUrl"),
   apiKey: document.querySelector("#settingsApiKey"),
   requestSeasons: document.querySelector("#settingsRequestSeasons"),
+  contentFilterMode: document.querySelector("#settingsContentFilterMode"),
   sonarrServerId: document.querySelector("#settingsSonarrServerId"),
   profileId: document.querySelector("#settingsProfileId"),
   rootFolder: document.querySelector("#settingsRootFolder"),
@@ -27,6 +33,7 @@ const els = {
   currentBaseUrl: document.querySelector("#currentBaseUrl"),
   currentApiKey: document.querySelector("#currentApiKey"),
   currentRequestSeasons: document.querySelector("#currentRequestSeasons"),
+  currentContentFilter: document.querySelector("#currentContentFilter"),
   currentProfileSummary: document.querySelector("#currentProfileSummary"),
   currentRootFolder: document.querySelector("#currentRootFolder"),
   currentTags: document.querySelector("#currentTags"),
@@ -99,6 +106,7 @@ function payloadFromForm() {
   return {
     baseUrl: els.baseUrl.value.trim(),
     requestSeasons: els.requestSeasons.value,
+    contentFilterMode: els.contentFilterMode.value,
     sonarrServerId: parseOptionalInt(els.sonarrServerId.value),
     profileId: parseOptionalInt(els.profileId.value),
     rootFolder: els.rootFolder.value.trim() || null,
@@ -114,6 +122,8 @@ function updateSummary(connection) {
   els.currentBaseUrl.textContent = connection.baseUrl || "Not set";
   els.currentApiKey.textContent = connection.apiKeyPreview || "Not set";
   els.currentRequestSeasons.textContent = connection.requestSeasons || "all";
+  els.currentContentFilter.textContent =
+    contentFilterLabels[connection.contentFilterMode] || "Hide NSFW";
   els.currentProfileSummary.textContent = `${connection.sonarrServerId || "Default"} / ${connection.profileId || "Default"}`;
   els.currentRootFolder.textContent = connection.rootFolder || "Default";
   els.currentTags.textContent = connection.tags?.length ? connection.tags.join(", ") : "None";
@@ -123,6 +133,9 @@ function updateSummary(connection) {
   els.apiKey.placeholder = connection.hasApiKey
     ? `Stored ${connection.apiKeyPreview} (leave blank to keep)`
     : "Paste a Seerr API key";
+  if (connection.contentFilterMode) {
+    els.contentFilterMode.value = connection.contentFilterMode;
+  }
 }
 
 async function refreshConnection() {

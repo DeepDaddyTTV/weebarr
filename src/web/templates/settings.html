@@ -93,6 +93,15 @@
                 </label>
 
                 <label>
+                  <span>Content Filter</span>
+                  <select id="settingsContentFilterMode" name="contentFilterMode">
+                    <option value="hide_nsfw" {{ 'selected' if connection.contentFilterMode == 'hide_nsfw' else '' }}>Hide NSFW</option>
+                    <option value="show_all" {{ 'selected' if connection.contentFilterMode == 'show_all' else '' }}>Show all</option>
+                  </select>
+                  <small><code>hide_nsfw</code> follows AniList's adult-only flag. Weebarr automatically treats old <code>adult_only</code> values as the same mode.</small>
+                </label>
+
+                <label>
                   <span>Sonarr Server ID</span>
                   <input id="settingsSonarrServerId" name="sonarrServerId" type="number" min="1" placeholder="Use Seerr default" value="{{ connection.sonarrServerId or '' }}" />
                   <small>Optional override. Leave blank to use Seerr’s default Sonarr server.</small>
@@ -168,6 +177,10 @@
                 <div class="pill-card">
                   <span>Request Seasons</span>
                   <strong id="currentRequestSeasons">{{ connection.requestSeasons }}</strong>
+                </div>
+                <div class="pill-card">
+                  <span>Content Filter</span>
+                  <strong id="currentContentFilter">{{ connection.contentFilterMode }}</strong>
                 </div>
                 <div class="pill-card">
                   <span>Server/Profile</span>

@@ -71,7 +71,7 @@ ANILIST_QUERY = """
 query SeasonalAnime($season: MediaSeason!, $year: Int!, $page: Int!, $perPage: Int!) {
   Page(page: $page, perPage: $perPage) {
     pageInfo { currentPage hasNextPage total }
-    media(type: ANIME, season: $season, seasonYear: $year, sort: POPULARITY_DESC, isAdult: false) {
+    media(type: ANIME, season: $season, seasonYear: $year, sort: POPULARITY_DESC) {
       id
       idMal
       siteUrl
@@ -84,6 +84,7 @@ query SeasonalAnime($season: MediaSeason!, $year: Int!, $page: Int!, $perPage: I
       meanScore
       favourites
       countryOfOrigin
+      isAdult
       season
       seasonYear
       title { romaji english native }
@@ -342,9 +343,7 @@ class WeebarrService:
     async def seasonal_anime(
         self, season: str, year: int, per_page: int
     ) -> dict[str, Any]:
-        cache_key = (
-            f"seasonal:{season}:{year}:{per_page}:{self.settings.seerr_configured}"
-        )
+        cache_key = f"seasonal:{season}:{year}:{per_page}:{self.settings.seerr_configured}:{self.settings.content_filter_mode}"
         cached = self.cache.get(cache_key)
         if cached:
             return cast(dict[str, Any], cached)
@@ -414,9 +413,20 @@ class WeebarrService:
                 raise RuntimeError(body["errors"][0].get("message", "AniList error"))
 
         media = body["data"]["Page"]["media"]
-        return [
-            self._shape_anime(item, rank) for rank, item in enumerate(media, start=1)
+        filtered_media = [
+            item
+            for item in media
+            if self._passes_content_filter(cast(dict[str, Any], item))
         ]
+        return [
+            self._shape_anime(item, rank)
+            for rank, item in enumerate(filtered_media, start=1)
+        ]
+
+    def _passes_content_filter(self, item: dict[str, Any]) -> bool:
+        return self.settings.content_filter_mode == "show_all" or not bool(
+            item.get("isAdult")
+        )
 
     def _shape_anime(self, item: dict[str, Any], rank: int) -> dict[str, Any]:
         titles = item.get("title") or {}
@@ -453,6 +463,7 @@ class WeebarrService:
             "averageScore": item.get("averageScore") or item.get("meanScore"),
             "favourites": item.get("favourites") or 0,
             "countryOfOrigin": item.get("countryOfOrigin"),
+            "isAdult": bool(item.get("isAdult")),
             "season": item.get("season"),
             "seasonYear": item.get("seasonYear"),
             "seasonLabel": _season_window_label(

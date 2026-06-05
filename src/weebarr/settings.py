@@ -55,6 +55,17 @@ def _normalize_tags(value: Any) -> list[int] | None:
     raise ValueError("tags must be a list or comma-separated string")
 
 
+def _normalize_content_filter_mode(value: Any) -> str:
+    if value is None:
+        return "hide_nsfw"
+    normalized = str(value).strip().lower()
+    if normalized in ("", "hide_nsfw", "show_all"):
+        return normalized or "hide_nsfw"
+    if normalized == "adult_only":
+        return "hide_nsfw"
+    raise ValueError("content_filter_mode must be one of hide_nsfw or show_all")
+
+
 def _normalize_request_record(value: Any) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
@@ -116,6 +127,7 @@ class Settings:
     audio_lookup_enabled: bool = True
     audio_cache_ttl_seconds: int = 86400
     audio_lookup_timeout_seconds: float = 6.0
+    content_filter_mode: str = "hide_nsfw"
     admin_token: str = ""
     config_path: str = DEFAULT_CONFIG_PATH
 
@@ -165,6 +177,9 @@ class Settings:
             audio_cache_ttl_seconds=int(os.getenv("AUDIO_CACHE_TTL_SECONDS", "86400")),
             audio_lookup_timeout_seconds=float(
                 os.getenv("AUDIO_LOOKUP_TIMEOUT_SECONDS", "6")
+            ),
+            content_filter_mode=_normalize_content_filter_mode(
+                os.getenv("WEEBARR_CONTENT_FILTER_MODE", "hide_nsfw")
             ),
             admin_token=os.getenv("WEEBARR_ADMIN_TOKEN", ""),
             config_path=os.getenv("WEEBARR_CONFIG_PATH", DEFAULT_CONFIG_PATH),
@@ -271,6 +286,7 @@ class SettingsStore:
             "languageProfileId": current.seerr_language_profile_id,
             "requestUserId": current.seerr_request_user_id,
             "tags": current.seerr_tags or [],
+            "contentFilterMode": current.content_filter_mode,
             "adminProtected": current.admin_protected,
         }
 
@@ -333,5 +349,10 @@ class SettingsStore:
                 _normalize_tags(seerr.get("tags"))
                 if "tags" in seerr
                 else self._base.seerr_tags
+            ),
+            content_filter_mode=(
+                _normalize_content_filter_mode(seerr.get("content_filter_mode"))
+                if "content_filter_mode" in seerr
+                else self._base.content_filter_mode
             ),
         )

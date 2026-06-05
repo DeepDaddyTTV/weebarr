@@ -1753,7 +1753,14 @@ body[data-page="requests"] .spotlight {
 }
 
 .detail-list .dot-status {
+  justify-self: start;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 0;
+  padding: 8px 12px;
   font-weight: 1000;
+  line-height: 1.2;
+  white-space: normal;
 }
 
 .spotlight > .request-btn {

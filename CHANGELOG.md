@@ -2,6 +2,17 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.15] - 2026-06-05
+
+### Added
+
+- Added a persisted `Hide NSFW` setting in the Weebarr Settings page so seasonal discovery can either hide AniList adult-only anime or show the full feed.
+
+### Fixed
+
+- Simplified content filtering to a two-state model: `hide_nsfw` now directly follows AniList's adult-only flag, and older `adult_only` config values are automatically treated as the same mode for backwards compatibility.
+- Fixed the spotlight and inline-detail status chips so the bubble wraps the status text instead of stretching awkwardly across the whole detail value column.
+
 ## [0.1.14] - 2026-06-05
 
 ### Fixed

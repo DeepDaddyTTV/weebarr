@@ -75,6 +75,7 @@ def test_settings_page_renders():
 
     assert response.status_code == 200
     assert "Manage Seerr" in response.text
+    assert "Content Filter" in response.text
 
 
 def test_settings_store_persists_overrides(tmp_path):
@@ -87,12 +88,14 @@ def test_settings_store_persists_overrides(tmp_path):
             "api_key": "secret-value",
             "request_seasons": "latest",
             "tags": [12, 34],
+            "content_filter_mode": "hide_nsfw",
         }
     )
 
     assert updated.seerr_base_url == "http://seerr.internal:5055"
     assert updated.seerr_request_seasons == "latest"
     assert updated.seerr_tags == [12, 34]
+    assert updated.content_filter_mode == "hide_nsfw"
     assert config_path.exists()
 
 
@@ -107,6 +110,7 @@ def test_settings_endpoint_saves_connection(tmp_path):
             "apiKey": "abc123",
             "requestSeasons": "first",
             "tags": [9, 11],
+            "contentFilterMode": "show_all",
         },
     )
 
@@ -117,6 +121,7 @@ def test_settings_endpoint_saves_connection(tmp_path):
     assert payload["connection"]["hasApiKey"] is True
     assert payload["connection"]["requestSeasons"] == "first"
     assert payload["connection"]["tags"] == [9, 11]
+    assert payload["connection"]["contentFilterMode"] == "show_all"
 
 
 def test_settings_store_persists_weebarr_request_history(tmp_path):
@@ -208,6 +213,28 @@ def test_shape_anime_includes_installment_and_airing_labels():
 
     assert shaped["installmentLabel"] == "Season 2"
     assert shaped["seasonLabel"] == "Spring 2026"
+
+
+def test_content_filter_modes_hide_adult_and_nsfw_titles():
+    adult_item = {
+        "isAdult": True,
+        "genres": ["Hentai"],
+    }
+    ecchi_item = {
+        "isAdult": False,
+        "genres": ["Ecchi"],
+    }
+
+    hide_nsfw_service = WeebarrService(
+        Settings(audio_lookup_enabled=False, content_filter_mode="hide_nsfw")
+    )
+    show_all_service = WeebarrService(
+        Settings(audio_lookup_enabled=False, content_filter_mode="show_all")
+    )
+
+    assert hide_nsfw_service._passes_content_filter(adult_item) is False
+    assert hide_nsfw_service._passes_content_filter(ecchi_item) is True
+    assert show_all_service._passes_content_filter(adult_item) is True
 
 
 def test_seasonal_page_includes_hide_requested_toggle():

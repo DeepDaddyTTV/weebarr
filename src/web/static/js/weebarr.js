@@ -559,7 +559,7 @@ function inlineDetailTemplate(item) {
         <div><span>Overview</span><strong>${plainDescription(item.description, 520)}</strong></div>
         <div><span>Start Date</span><strong>${formatDate(item.startDate)}</strong></div>
         <div><span>Seerr Match</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
-        <div><span>Status</span><strong class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</strong></div>
+        <div><span>Status</span><strong><span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
       </div>
       ${inlineActionsTemplate(item)}
     </div>
@@ -748,7 +748,7 @@ function renderSpotlight(item) {
       <div><span>Overview</span><strong>${plainDescription(item.description)}</strong></div>
       <div><span>Start Date</span><strong>${formatDate(item.startDate)}</strong></div>
       <div><span>Seerr Match</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
-      <div><span>Status</span><strong class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</strong></div>
+      <div><span>Status</span><strong><span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
     </div>
     ${actionButtonTemplate(item, true)}
   `;

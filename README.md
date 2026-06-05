@@ -60,6 +60,7 @@ Weebarr is configured with environment variables so it works cleanly in Docker C
 | `WEEBARR_LOG_LEVEL` | `INFO` | Uvicorn/application log level. |
 | `WEEBARR_CONFIG_PATH` | auto | Override the persisted JSON settings path. Defaults to `/config/weebarr.json` when writable. |
 | `WEEBARR_ADMIN_TOKEN` | none | Optional token required to save or test Seerr settings from the UI. |
+| `WEEBARR_CONTENT_FILTER_MODE` | `hide_nsfw` | Seasonal content filter. Supports `hide_nsfw` (AniList adult-only titles hidden) or `show_all`. |
 | `SEERR_BASE_URL` | none | Internal Seerr URL, for example `http://seerr:5055`. |
 | `SEERR_API_KEY` | none | Seerr API key. Required for request/status integration. |
 | `SEERR_REQUEST_SEASONS` | `all` | Request mode for unmatched season-specific titles. Supports `all`, `first`, or `latest`, and Weebarr resolves that into real season numbers before calling Seerr. |
@@ -94,6 +95,7 @@ pytest tests/unit
 ## Notes
 
 - AniList powers seasonal metadata and popularity sorting.
+- The `Hide NSFW` setting follows AniList's adult-only flag. Weebarr also treats older `adult_only` config values as `hide_nsfw` so existing installs keep working.
 - Seerr powers TV matching, request status, and request creation.
 - Jikan/MAL voice-actor data powers the best-effort `EN Dub` badge. If no English voice actors are found, Weebarr falls back to origin labels like `JA only` or `CH only`.
 - If Weebarr cannot confidently match a title through Seerr search, it will show the title as missing mapping instead of creating a risky request.

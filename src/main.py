@@ -57,6 +57,7 @@ class ConnectionPayload(BaseModel):
     language_profile_id: Optional[int] = Field(default=None, alias="languageProfileId")
     request_user_id: Optional[int] = Field(default=None, alias="requestUserId")
     tags: Optional[list[int]] = None
+    content_filter_mode: Optional[str] = Field(default=None, alias="contentFilterMode")
     admin_token: Optional[str] = Field(default=None, alias="adminToken")
 
 
@@ -208,6 +209,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "hasApiKey": summary["hasApiKey"],
             "apiKeyPreview": summary["apiKeyPreview"],
             "requestSeasons": summary["requestSeasons"],
+            "contentFilterMode": summary["contentFilterMode"],
             "adminProtected": summary["adminProtected"],
         }
 
@@ -265,6 +267,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             overrides["request_user_id"] = payload.request_user_id
         if payload.tags is not None:
             overrides["tags"] = payload.tags
+        if (
+            payload.content_filter_mode is not None
+            and payload.content_filter_mode.strip()
+        ):
+            overrides["content_filter_mode"] = payload.content_filter_mode.strip()
 
         updated = settings_store.save_seerr(overrides)
         service.clear_cache()
