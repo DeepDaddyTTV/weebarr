@@ -151,9 +151,11 @@
             <div class="ui-select" data-ui-select="status">
               <select id="statusFilter">
                 <option value="all">All</option>
-                <option value="requestable">Requestable</option>
+                <option value="missing">Missing</option>
                 <option value="requested">Requested</option>
+                <option value="partial">Partially Available</option>
                 <option value="available">Available</option>
+                <option value="season_missing">Season Missing</option>
                 <option value="missing_mapping">Missing mapping</option>
               </select>
               <button id="statusFilterTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="statusFilterMenu">
@@ -205,7 +207,7 @@
           <div class="filter-actions">
             <button id="filterBtn" class="filter-btn" type="button" aria-expanded="false" aria-controls="filterMenu"><span aria-hidden="true">▽</span>Filters</button>
             <div id="filterMenu" class="filter-menu" role="menu" hidden>
-              <button type="button" data-quick-filter="requestable">Requestable only</button>
+              <button type="button" data-quick-filter="needs_action">Needs action</button>
               <button type="button" data-quick-filter="en_dubbed">English dubbed</button>
               <button type="button" data-quick-filter="source_only">JA/CH only</button>
               <button type="button" data-quick-filter="missing_mapping">Missing mapping</button>

@@ -94,10 +94,12 @@ def test_settings_page_renders(tmp_path):
     response = client.get("/settings")
 
     assert response.status_code == 200
-    assert "Manage Seerr" in response.text
-    assert "Local Account" in response.text
-    assert "Weebarr Admin Token" in response.text
+    assert "App Behavior" in response.text
+    assert "Single-Admin Access" in response.text
+    assert "Seerr Integration" in response.text
+    assert "Strict Monitoring" in response.text
     assert "Content Filter" in response.text
+    assert "Weebarr Admin Token" not in response.text
     assert 'data-ui-select="settingsRequestSeasons"' in response.text
     assert 'data-ui-select="settingsContentFilterMode"' in response.text
 
@@ -106,20 +108,15 @@ def test_settings_store_persists_overrides(tmp_path):
     config_path = tmp_path / "weebarr.json"
     store = SettingsStore(Settings(config_path=str(config_path)))
 
-    updated = store.save_seerr(
+    updated = store.save_weebarr(
         {
-            "base_url": "http://seerr.internal:5055",
-            "api_key": "secret-value",
-            "request_seasons": "latest",
-            "tags": [12, 34],
             "content_filter_mode": "hide_nsfw",
+            "strict_monitoring": True,
         }
     )
 
-    assert updated.seerr_base_url == "http://seerr.internal:5055"
-    assert updated.seerr_request_seasons == "latest"
-    assert updated.seerr_tags == [12, 34]
     assert updated.content_filter_mode == "hide_nsfw"
+    assert updated.strict_monitoring is True
     assert config_path.exists()
 
 
@@ -133,7 +130,6 @@ def test_settings_endpoint_saves_connection(tmp_path):
             "apiKey": "abc123",
             "requestSeasons": "first",
             "tags": [9, 11],
-            "contentFilterMode": "show_all",
         },
     )
 
@@ -144,7 +140,24 @@ def test_settings_endpoint_saves_connection(tmp_path):
     assert payload["connection"]["hasApiKey"] is True
     assert payload["connection"]["requestSeasons"] == "first"
     assert payload["connection"]["tags"] == [9, 11]
-    assert payload["connection"]["contentFilterMode"] == "show_all"
+
+
+def test_weebarr_settings_endpoint_saves_app_preferences(tmp_path):
+    client = authenticated_client(tmp_path)
+
+    response = client.put(
+        "/api/settings/weebarr",
+        json={
+            "contentFilterMode": "show_all",
+            "strictMonitoring": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["weebarr"]["contentFilterMode"] == "show_all"
+    assert payload["weebarr"]["strictMonitoring"] is True
 
 
 def test_settings_store_persists_weebarr_request_history(tmp_path):
@@ -338,6 +351,51 @@ def test_classify_seerr_state_treats_partial_target_season_as_tracked():
     result = service._classify_seerr_state(anime, best, details, best_score=95)
 
     assert result["state"] == "partial"
+
+
+def test_classify_seerr_state_marks_all_required_seasons_available():
+    service = WeebarrService(Settings())
+    anime = {"installment": {"seasonNumber": 2, "label": "Season 2"}}
+    best = {
+        "id": 123,
+        "name": "Example Show",
+        "mediaInfo": {
+            "status": 5,
+            "seasons": [
+                {"seasonNumber": 1, "status": 5},
+                {"seasonNumber": 2, "status": 5},
+            ],
+            "requests": [],
+        },
+    }
+    details = {
+        "seasons": [{"seasonNumber": 0}, {"seasonNumber": 1}, {"seasonNumber": 2}]
+    }
+
+    result = service._classify_seerr_state(anime, best, details, best_score=105)
+
+    assert result["state"] == "available"
+    assert result["requestable"] is False
+
+
+def test_classify_seerr_state_marks_first_season_missing_without_request_trace():
+    service = WeebarrService(Settings())
+    anime = {"installment": {"seasonNumber": 1, "label": "Season 1"}}
+    best = {
+        "id": 123,
+        "name": "Example Show",
+        "mediaInfo": {
+            "status": 1,
+            "seasons": [],
+            "requests": [],
+        },
+    }
+    details = {"seasons": [{"seasonNumber": 0}, {"seasonNumber": 1}]}
+
+    result = service._classify_seerr_state(anime, best, details, best_score=70)
+
+    assert result["state"] == "missing"
+    assert result["requestable"] is True
 
 
 def test_unconfigured_app_redirects_to_setup(tmp_path):
@@ -619,7 +677,7 @@ def test_public_host_does_not_redirect_to_setup(tmp_path):
     assert response.status_code == 403
 
 
-def test_classify_seerr_state_marks_missing_target_season_when_absent():
+def test_classify_seerr_state_marks_later_season_as_partial_when_monitored():
     service = WeebarrService(Settings())
     anime = {"installment": {"seasonNumber": 4, "label": "Season 4"}}
     best = {
@@ -645,9 +703,41 @@ def test_classify_seerr_state_marks_missing_target_season_when_absent():
 
     result = service._classify_seerr_state(anime, best, details, best_score=95)
 
-    assert result["state"] == "requestable"
+    assert result["state"] == "partial"
+    assert result["requestable"] is False
+    assert result["label"] == "Partially Available"
+    assert result["requestSeasons"] == [4]
+
+
+def test_classify_seerr_state_strict_monitoring_marks_later_season_missing():
+    service = WeebarrService(Settings(strict_monitoring=True))
+    anime = {"installment": {"seasonNumber": 4, "label": "Season 4"}}
+    best = {
+        "id": 65942,
+        "name": "Re:ZERO -Starting Life in Another World-",
+        "mediaInfo": {
+            "status": 4,
+            "seasons": [
+                {"seasonNumber": 1, "status": 5},
+            ],
+            "requests": [],
+        },
+    }
+    details = {
+        "seasons": [
+            {"seasonNumber": 0},
+            {"seasonNumber": 1},
+            {"seasonNumber": 2},
+            {"seasonNumber": 3},
+            {"seasonNumber": 4},
+        ]
+    }
+
+    result = service._classify_seerr_state(anime, best, details, best_score=95)
+
+    assert result["state"] == "season_missing"
     assert result["requestable"] is True
-    assert result["label"] == "Missing Season 4"
+    assert result["label"] == "Season Missing"
     assert result["requestSeasons"] == [4]
 
 

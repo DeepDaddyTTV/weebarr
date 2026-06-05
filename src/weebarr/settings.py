@@ -61,6 +61,19 @@ def _normalize_tags(value: Any) -> list[int] | None:
     raise ValueError("tags must be a list or comma-separated string")
 
 
+def _normalize_bool(value: Any, *, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off", ""}:
+        return False
+    return default
+
+
 def _normalize_content_filter_mode(value: Any) -> str:
     if value is None:
         return "hide_nsfw"
@@ -141,6 +154,7 @@ class Settings:
     audio_cache_ttl_seconds: int = 86400
     audio_lookup_timeout_seconds: float = 6.0
     content_filter_mode: str = "hide_nsfw"
+    strict_monitoring: bool = False
     auth_mode: str = "disabled"
     auth_username: str = ""
     auth_password: str = ""
@@ -157,7 +171,6 @@ class Settings:
     plex_product_version: str = "0.0.0"
     plex_platform: str = "Web"
     plex_allowed_users: list[str] | None = None
-    admin_token: str = ""
     config_path: str = DEFAULT_CONFIG_PATH
 
     @property
@@ -189,10 +202,6 @@ class Settings:
     @property
     def api_key_enabled(self) -> bool:
         return bool(self.app_api_key or self.app_api_key_hash)
-
-    @property
-    def admin_protected(self) -> bool:
-        return bool(self.admin_token)
 
     @property
     def auth_configured(self) -> bool:
@@ -265,6 +274,10 @@ class Settings:
             content_filter_mode=_normalize_content_filter_mode(
                 os.getenv("WEEBARR_CONTENT_FILTER_MODE", "hide_nsfw")
             ),
+            strict_monitoring=_normalize_bool(
+                os.getenv("WEEBARR_STRICT_MONITORING"),
+                default=False,
+            ),
             auth_mode=_normalize_auth_mode(os.getenv("WEEBARR_AUTH_MODE", "disabled")),
             auth_username=os.getenv("WEEBARR_AUTH_USERNAME", ""),
             auth_password=os.getenv("WEEBARR_AUTH_PASSWORD", ""),
@@ -288,7 +301,6 @@ class Settings:
                 os.getenv("WEEBARR_PLEX_ALLOWED_USERS")
             )
             or None,
-            admin_token=os.getenv("WEEBARR_ADMIN_TOKEN", ""),
             config_path=os.getenv("WEEBARR_CONFIG_PATH", DEFAULT_CONFIG_PATH),
         )
 
@@ -321,6 +333,19 @@ class SettingsStore:
                     seerr.pop(key, None)
                 else:
                     seerr[key] = value
+            self._write_payload(payload)
+            self._current = self._build_settings(payload)
+            return self._current
+
+    def save_weebarr(self, overrides: dict[str, Any]) -> Settings:
+        with self._lock:
+            payload = self._load_payload()
+            weebarr = payload.setdefault("weebarr", {})
+            for key, value in overrides.items():
+                if value is None:
+                    weebarr.pop(key, None)
+                else:
+                    weebarr[key] = value
             self._write_payload(payload)
             self._current = self._build_settings(payload)
             return self._current
@@ -406,8 +431,13 @@ class SettingsStore:
             "languageProfileId": current.seerr_language_profile_id,
             "requestUserId": current.seerr_request_user_id,
             "tags": current.seerr_tags or [],
+        }
+
+    def weebarr_summary(self) -> dict[str, Any]:
+        current = self.get()
+        return {
             "contentFilterMode": current.content_filter_mode,
-            "adminProtected": current.admin_protected,
+            "strictMonitoring": current.strict_monitoring,
         }
 
     def access_summary(self) -> dict[str, Any]:
@@ -444,6 +474,11 @@ class SettingsStore:
     def _build_settings(self, payload: dict[str, Any]) -> Settings:
         seerr = (
             payload.get("seerr", {}) if isinstance(payload.get("seerr"), dict) else {}
+        )
+        weebarr = (
+            payload.get("weebarr", {})
+            if isinstance(payload.get("weebarr"), dict)
+            else {}
         )
         auth = payload.get("auth", {}) if isinstance(payload.get("auth"), dict) else {}
         return replace(
@@ -487,9 +522,18 @@ class SettingsStore:
                 else self._base.seerr_tags
             ),
             content_filter_mode=(
-                _normalize_content_filter_mode(seerr.get("content_filter_mode"))
-                if "content_filter_mode" in seerr
-                else self._base.content_filter_mode
+                _normalize_content_filter_mode(weebarr.get("content_filter_mode"))
+                if "content_filter_mode" in weebarr
+                else (
+                    _normalize_content_filter_mode(seerr.get("content_filter_mode"))
+                    if "content_filter_mode" in seerr
+                    else self._base.content_filter_mode
+                )
+            ),
+            strict_monitoring=(
+                _normalize_bool(weebarr.get("strict_monitoring"))
+                if "strict_monitoring" in weebarr
+                else self._base.strict_monitoring
             ),
             auth_mode=(
                 _normalize_auth_mode(auth.get("mode"))

@@ -77,8 +77,15 @@ class ConnectionPayload(BaseModel):
     language_profile_id: Optional[int] = Field(default=None, alias="languageProfileId")
     request_user_id: Optional[int] = Field(default=None, alias="requestUserId")
     tags: Optional[list[int]] = None
+
+
+class WeebarrSettingsPayload(BaseModel):
+    """Editable Weebarr-local settings."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
     content_filter_mode: Optional[str] = Field(default=None, alias="contentFilterMode")
-    admin_token: Optional[str] = Field(default=None, alias="adminToken")
+    strict_monitoring: Optional[bool] = Field(default=None, alias="strictMonitoring")
 
 
 class LocalLoginPayload(BaseModel):
@@ -171,6 +178,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def connection_summary() -> dict[str, Any]:
         return settings_store.connection_summary()
 
+    def weebarr_summary() -> dict[str, Any]:
+        return settings_store.weebarr_summary()
+
     def access_summary() -> dict[str, Any]:
         return settings_store.access_summary()
 
@@ -225,14 +235,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         items = []
         for item in payload.get("items", []):
             enriched = dict(item)
-            enriched["weebarrRequest"] = history_by_anilist.get(str(item.get("id")))
+            weebarr_request = history_by_anilist.get(str(item.get("id")))
+            enriched["weebarrRequest"] = weebarr_request
+            if weebarr_request:
+                seerr = dict(enriched.get("seerr") or {})
+                if seerr.get("state") in {
+                    "missing",
+                    "season_missing",
+                    "missing_mapping",
+                }:
+                    seerr["state"] = "requested"
+                    seerr["label"] = "Requested"
+                    seerr["requestable"] = False
+                enriched["seerr"] = seerr
             items.append(enriched)
         return {**payload, "items": items}
-
-    def require_admin(token: Optional[str]) -> None:
-        configured = current_settings().admin_token
-        if configured and token != configured:
-            raise HTTPException(status_code=401, detail="Valid admin token required")
 
     def header_first_value(header_name: str, request: Request) -> str:
         raw_value = request.headers.get(header_name, "")
@@ -729,6 +746,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "request": request,
                 "version": __version__,
                 "asset_version": asset_version,
+                "weebarr": weebarr_summary(),
                 "connection": connection_summary(),
                 "access": access_summary(),
                 **auth_summary(request),
@@ -759,10 +777,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "hasApiKey": summary["hasApiKey"],
             "apiKeyPreview": summary["apiKeyPreview"],
             "requestSeasons": summary["requestSeasons"],
-            "contentFilterMode": summary["contentFilterMode"],
-            "adminProtected": summary["adminProtected"],
+            "weebarr": weebarr_summary(),
             "access": access_summary(),
         }
+
+    @app.get("/api/settings/weebarr")
+    async def app_settings() -> dict[str, Any]:
+        return weebarr_summary()
 
     @app.get("/api/settings/seerr")
     async def seerr_settings() -> dict[str, Any]:
@@ -812,9 +833,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "authMode": updated.effective_auth_mode,
         }
 
+    @app.put("/api/settings/weebarr")
+    async def save_app_settings(payload: WeebarrSettingsPayload) -> dict[str, Any]:
+        overrides: dict[str, Any] = {}
+        if (
+            payload.content_filter_mode is not None
+            and payload.content_filter_mode.strip()
+        ):
+            overrides["content_filter_mode"] = payload.content_filter_mode.strip()
+        if payload.strict_monitoring is not None:
+            overrides["strict_monitoring"] = payload.strict_monitoring
+
+        updated = settings_store.save_weebarr(overrides)
+        service.clear_cache()
+        return {
+            "success": True,
+            "weebarr": settings_store.weebarr_summary(),
+            "strictMonitoring": updated.strict_monitoring,
+        }
+
     @app.post("/api/settings/seerr/test")
     async def test_seerr_settings(payload: ConnectionPayload) -> dict[str, Any]:
-        require_admin(payload.admin_token)
         current = current_settings()
         base_url = (
             payload.base_url.strip().rstrip("/")
@@ -841,8 +880,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.put("/api/settings/seerr")
     async def save_seerr_settings(payload: ConnectionPayload) -> dict[str, Any]:
-        require_admin(payload.admin_token)
-
         overrides: dict[str, Any] = {}
         if payload.base_url is not None and payload.base_url.strip():
             overrides["base_url"] = payload.base_url.strip().rstrip("/")
@@ -862,11 +899,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             overrides["request_user_id"] = payload.request_user_id
         if payload.tags is not None:
             overrides["tags"] = payload.tags
-        if (
-            payload.content_filter_mode is not None
-            and payload.content_filter_mode.strip()
-        ):
-            overrides["content_filter_mode"] = payload.content_filter_mode.strip()
 
         updated = settings_store.save_seerr(overrides)
         service.clear_cache()

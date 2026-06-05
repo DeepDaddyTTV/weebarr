@@ -48,7 +48,6 @@ const customSelects = new Map();
 const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"];
 const themeStorageKey = "weebarr-theme";
 const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
-const requestQueueStates = new Set(["partial", "requested", "available"]);
 const fullyRequestedStates = new Set(["partial", "requested", "available"]);
 
 els.filter.value = state.filter;
@@ -345,10 +344,6 @@ function audioFilterMatches(item) {
   return audio.sourceLanguage === state.audioFilter;
 }
 
-function isRequestQueueItem(item) {
-  return requestQueueStates.has((item.seerr || {}).state);
-}
-
 function hasWeebarrRequest(item) {
   return Boolean(item.weebarrRequest?.requestedAt);
 }
@@ -387,6 +382,9 @@ function visibleItems() {
   if (state.filter !== "all") {
     items = items.filter((item) => {
       const seerr = item.seerr || {};
+      if (state.filter === "needs_action") {
+        return seerr.requestable;
+      }
       if (state.filter === "requestable") {
         return seerr.state === "requestable";
       }
@@ -447,7 +445,7 @@ function renderStats(stats) {
     return airingAt >= Date.now() && airingAt <= soonCutoff;
   }).length;
   const requestedCount = scopedItems.filter((item) =>
-    ["requested", "available"].includes((item.seerr || {}).state),
+    ["requested", "partial", "available"].includes((item.seerr || {}).state),
   ).length;
   const partialCount = scopedItems.filter(
     (item) => (item.seerr || {}).state === "partial",
@@ -583,16 +581,18 @@ function cardTemplate(item) {
           <h3>${escapeHtml(item.title)}</h3>
           <p>${escapeHtml(item.romajiTitle || item.englishTitle || item.title)}</p>
           <div class="meta">${escapeHtml(cardMeta(item))}</div>
-          <div class="score-row">
-            <span>★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
-            <span>♨ ${formatNumber(item.popularity)}</span>
-            <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
-          </div>
-          <div class="next-line"><strong>Next Episode</strong>${formatAiring(item.nextAiring)}</div>
-          <div class="card-foot">
-            <span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span>
-            ${actionButtonTemplate(item)}
-          </div>
+      <div class="score-row">
+        <span>★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
+        <span>♨ ${formatNumber(item.popularity)}</span>
+      </div>
+      <div class="next-line"><strong>Next Episode</strong>${formatAiring(item.nextAiring)}</div>
+      <div class="card-audio-row">
+        <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
+      </div>
+      <div class="card-foot">
+        <span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span>
+        ${actionButtonTemplate(item)}
+      </div>
         </div>
         <div class="card-menu" aria-hidden="true">⋮</div>
       </div>
@@ -938,9 +938,16 @@ els.filterMenu.addEventListener("click", (event) => {
     if (els.hideRequested) {
       els.hideRequested.checked = false;
     }
-  } else if (quickFilter === "requestable" || quickFilter === "missing_mapping") {
+  } else if (
+    quickFilter === "needs_action" ||
+    quickFilter === "missing_mapping"
+  ) {
     state.filter = quickFilter;
-    els.filter.value = quickFilter;
+    if (quickFilter === "missing_mapping") {
+      els.filter.value = quickFilter;
+    } else {
+      els.filter.value = "all";
+    }
   } else {
     state.audioFilter = quickFilter;
   }

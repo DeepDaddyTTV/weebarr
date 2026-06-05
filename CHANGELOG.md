@@ -2,6 +2,20 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.21] - 2026-06-05
+
+### Changed
+
+- Rebuilt Settings into full-width `Weebarr`, `Authentication`, and `Connections` sections, with Weebarr-local controls for content filtering and the new `Strict Monitoring` behavior.
+- Removed the extra `WEEBARR_ADMIN_TOKEN` write gate so authenticated local/Plex sessions are now the only requirement for saving and testing Settings.
+- Renamed the popularity buckets on the seasonal page to `S-Tier`, `Canon`, `Bingeable`, and `Filler`.
+
+### Fixed
+
+- Reworked seasonal availability into `Missing`, `Requested`, `Partially Available`, `Available`, and strict-only `Season Missing` so sequel monitoring behaves the way Sonarr/Seerr actually do in practice.
+- Moved the seasonal card dub chip below the poster/meta area, flattened the stat cards, and corrected the `Airing Soon` icon centering on Seasonal and Requests.
+- Preserved Weebarr request history as a fallback signal for `Requested` when Seerr does not surface the open request cleanly in its media payload.
+
 ## [0.1.20] - 2026-06-05
 
 ### Fixed

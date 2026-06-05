@@ -61,18 +61,18 @@ Weebarr is configured with environment variables so it works cleanly in Docker C
 | `WEEBARR_PORT` | `8888` | Container listen port. |
 | `WEEBARR_LOG_LEVEL` | `INFO` | Uvicorn/application log level. |
 | `WEEBARR_CONFIG_PATH` | auto | Override the persisted JSON settings path. Defaults to `/config/weebarr.json` when writable. |
-| `WEEBARR_ADMIN_TOKEN` | none | Optional token required to save/test Seerr settings and, when auth has not been configured yet, to complete the first-run setup flow safely on a public deployment. |
-| `WEEBARR_AUTH_MODE` | `disabled` | Optional env-first override for access mode. Supports `disabled`, `local`, or `plex`. Most installs can leave this unset and use the first-run setup flow instead. |
+| `WEEBARR_AUTH_MODE` | `disabled` | Optional env-first override for access mode. Supports `disabled`, `local`, `plex`, or `both`. Most installs can leave this unset and use the first-run setup flow instead. |
 | `WEEBARR_AUTH_USERNAME` | none | Local-auth username when bootstrapping through environment variables instead of the first-run setup UI. |
 | `WEEBARR_AUTH_PASSWORD` | none | Local-auth password when bootstrapping through environment variables instead of the first-run setup UI. |
 | `WEEBARR_AUTH_PASSWORD_HASH` | none | Optional hashed alternative to `WEEBARR_AUTH_PASSWORD` for env-managed local auth. |
 | `WEEBARR_SESSION_SECRET` | none | Session signing secret. Required for env-managed local or Plex auth, but generated automatically when you complete the first-run setup flow. |
 | `WEEBARR_PUBLIC_URL` | request host | Optional public URL used for Plex callback redirects. |
-| `WEEBARR_API_KEY` | none | Optional app API key for non-browser automation access to `/api/*`. Generated automatically if you enable it during first-run setup. |
+| `WEEBARR_API_KEY` | none | Optional app API key for non-browser automation access to `/api/*`. |
 | `WEEBARR_API_KEY_HASH` | none | Optional hashed alternative to `WEEBARR_API_KEY` for env-managed automation auth. |
 | `WEEBARR_API_KEY_PREVIEW` | none | Optional masked preview string shown in the UI when using env-managed hashed API keys. |
 | `WEEBARR_PLEX_ALLOWED_USERS` | none | Optional comma-separated Plex username/email allowlist. |
 | `WEEBARR_CONTENT_FILTER_MODE` | `hide_nsfw` | Seasonal content filter. Supports `hide_nsfw` (AniList adult-only titles hidden) or `show_all`. |
+| `WEEBARR_STRICT_MONITORING` | `false` | When enabled, later sequel seasons are treated as `Season Missing` unless that specific season is explicitly present or requested in Seerr. |
 | `SEERR_BASE_URL` | none | Internal Seerr URL, for example `http://seerr:5055`. |
 | `SEERR_API_KEY` | none | Seerr API key. Required for request/status integration. |
 | `SEERR_REQUEST_SEASONS` | `all` | Request mode for unmatched season-specific titles. Supports `all`, `first`, or `latest`, and Weebarr resolves that into real season numbers before calling Seerr. |

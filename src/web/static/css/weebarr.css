@@ -1133,11 +1133,11 @@ h1 {
 .stat-card {
   position: relative;
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) auto;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 14px;
-  min-height: 88px;
-  padding: 14px 16px;
+  gap: 16px;
+  min-height: 78px;
+  padding: 12px 16px;
   overflow: hidden;
   border-radius: var(--radius-md);
 }
@@ -1186,8 +1186,8 @@ h1 {
 .stat-icon {
   position: relative;
   display: flex;
-  width: 56px;
-  height: 56px;
+  width: 58px;
+  height: 58px;
   align-items: center;
   justify-content: center;
   color: var(--cyan);
@@ -1253,11 +1253,13 @@ h1 {
 }
 
 .stat-icon-airing::after {
-  width: 12px;
-  height: 12px;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
   border-top: 2px solid currentColor;
   border-right: 2px solid currentColor;
-  transform: translate(1px, 1px) rotate(-45deg);
+  transform: translate(-50%, -42%) rotate(-45deg);
   transform-origin: center;
 }
 
@@ -1284,7 +1286,7 @@ h1 {
 
 .stat-copy > span {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 900;
   line-height: 1.25;
 }
@@ -1293,7 +1295,7 @@ h1 {
   display: block;
   min-width: 2ch;
   margin-top: 0;
-  font-size: clamp(2.2rem, 2.75vw, 3rem);
+  font-size: clamp(2rem, 2.6vw, 2.85rem);
   font-weight: 900;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -1305,7 +1307,7 @@ h1 {
 .stat-card small {
   display: block;
   margin-top: 0;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   line-height: 1.25;
 }
@@ -1700,7 +1702,7 @@ body[data-page="requests"] .spotlight {
   gap: 0 16px;
   width: 100%;
   min-height: 218px;
-  padding: 14px 14px 58px;
+  padding: 14px 14px 66px;
   color: inherit;
   text-align: left;
   background: transparent;
@@ -1837,7 +1839,7 @@ body[data-page="requests"] .spotlight {
 }
 
 .score-row .audio-chip {
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .audio-chip {
@@ -1899,6 +1901,13 @@ body[data-page="requests"] .spotlight {
   font-size: 11px;
 }
 
+.card-audio-row {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  margin-top: 10px;
+}
+
 .card-foot {
   position: absolute;
   right: 14px;
@@ -1906,7 +1915,7 @@ body[data-page="requests"] .spotlight {
   left: 14px;
   z-index: 2;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
   margin: 0;
@@ -1916,16 +1925,17 @@ body[data-page="requests"] .spotlight {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  max-width: calc(100% - 138px);
-  min-height: 32px;
-  padding: 0 11px;
+  flex: 1 1 auto;
+  min-height: 34px;
+  padding: 7px 11px;
   color: #ff5e9a;
   font-size: 12px;
   font-weight: 1000;
-  line-height: 1;
+  line-height: 1.2;
   background: rgba(255, 60, 125, 0.09);
   border: 1px solid rgba(255, 60, 125, 0.42);
   border-radius: 999px;
+  white-space: normal;
 }
 
 .dot-status i {
@@ -1943,12 +1953,19 @@ body[data-page="requests"] .spotlight {
   border-color: rgba(180, 102, 255, 0.45);
 }
 
+.dot-status.partial {
+  color: var(--cyan);
+  background: rgba(40, 199, 255, 0.1);
+  border-color: rgba(40, 199, 255, 0.42);
+}
+
 .dot-status.available {
   color: var(--green);
   background: rgba(85, 225, 141, 0.11);
   border-color: rgba(85, 225, 141, 0.42);
 }
 
+.dot-status.season_missing,
 .dot-status.missing_mapping {
   color: #f3b661;
   background: rgba(243, 182, 97, 0.11);
@@ -2336,14 +2353,7 @@ body[data-page="requests"] .spotlight {
   margin-bottom: 26px;
 }
 
-.settings-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
-  gap: 24px;
-  align-items: start;
-}
-
-.settings-side {
+.settings-stack {
   display: grid;
   gap: 24px;
 }
@@ -2353,16 +2363,17 @@ body[data-page="requests"] .spotlight {
   border-radius: var(--radius-lg);
 }
 
+.settings-section {
+  display: grid;
+  gap: 18px;
+}
+
 .panel-heading {
   display: flex;
   align-items: start;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
-}
-
-.panel-heading.compact {
-  margin-bottom: 14px;
 }
 
 .panel-eyebrow {
@@ -2379,6 +2390,36 @@ body[data-page="requests"] .spotlight {
   font-size: 28px;
   font-weight: 1000;
   letter-spacing: -0.05em;
+}
+
+.settings-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.settings-subpanel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, rgba(14, 22, 33, 0.96), rgba(12, 19, 30, 0.92));
+  border: 1px solid var(--line);
+}
+
+.settings-subheading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 1000;
+  letter-spacing: -0.03em;
+}
+
+.settings-subheading p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .status-pill {
@@ -2445,8 +2486,7 @@ body[data-page="requests"] .spotlight {
 }
 
 .form-grid label small,
-.settings-note p,
-#settingsAdminHint {
+.settings-note p {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.55;
@@ -2477,15 +2517,49 @@ body[data-page="requests"] .spotlight {
   grid-column: 1 / -1;
 }
 
+.settings-toggle-field {
+  align-content: start;
+}
+
+.settings-toggle-field > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 42px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+}
+
+.settings-toggle-copy {
+  min-width: 0;
+}
+
+.settings-toggle-copy strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 1000;
+  line-height: 1.35;
+}
+
+.settings-toggle-copy small {
+  display: block;
+  margin-top: 6px;
+}
+
 .settings-actions {
   display: flex;
   gap: 12px;
   margin-top: 8px;
-}
-
-.settings-form-compact .form-grid {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
 }
 
 .secondary-btn {
@@ -2498,14 +2572,10 @@ body[data-page="requests"] .spotlight {
   border-radius: var(--radius-sm);
 }
 
-.settings-pill-grid {
+.settings-summary-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-}
-
-.settings-pill-grid.compact {
-  margin-top: 16px;
 }
 
 .pill-card {
@@ -2532,6 +2602,56 @@ body[data-page="requests"] .spotlight {
 .settings-note {
   display: grid;
   gap: 14px;
+}
+
+.settings-theme-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-theme-picker button {
+  display: grid;
+  grid-template-columns: 24px 1fr 13px;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 14px;
+  color: #d0d8e3;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+.settings-theme-picker button span {
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.settings-theme-picker button i {
+  width: 13px;
+  height: 13px;
+  border: 1px solid rgba(147, 164, 183, 0.5);
+  border-radius: 50%;
+}
+
+.settings-theme-picker button.active {
+  color: var(--cyan);
+  border-color: rgba(40, 199, 255, 0.42);
+  box-shadow: 0 0 0 1px rgba(40, 199, 255, 0.12);
+}
+
+.settings-theme-picker button.active i {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px rgba(40, 199, 255, 0.6);
+}
+
+.settings-test-results {
+  margin-top: 8px;
 }
 
 .inline-detail {
@@ -2732,7 +2852,8 @@ body[data-page="requests"] .spotlight {
     justify-self: start;
   }
 
-  .settings-layout {
+  .settings-section-grid,
+  .settings-summary-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2891,9 +3012,18 @@ body[data-page="requests"] .spotlight {
   }
 
   .form-grid,
-  .settings-pill-grid,
+  .settings-summary-grid,
   .inline-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .settings-theme-picker {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-toggle-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .settings-actions {
@@ -2956,7 +3086,8 @@ body.compact-preview .cards-grid,
 body.compact-preview .stats-grid,
 body.compact-preview .filter-panel,
 body.compact-preview .form-grid,
-body.compact-preview .settings-pill-grid,
+body.compact-preview .settings-section-grid,
+body.compact-preview .settings-summary-grid,
 body.compact-preview .inline-detail-grid {
   grid-template-columns: 1fr;
 }

@@ -3,6 +3,7 @@ const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
 
 const state = {
   theme: "dark",
+  weebarr: window.WEEBARR_WEEBARR || {},
   connection: window.WEEBARR_CONNECTION || {},
   access: window.WEEBARR_ACCESS || {},
   openDropdown: null,
@@ -15,37 +16,37 @@ const contentFilterLabels = {
 
 const els = {
   toast: document.querySelector("#toast"),
-  banner: document.querySelector("#settingsBanner"),
-  statusPill: document.querySelector("#settingsStatusPill"),
+  weebarrBanner: document.querySelector("#weebarrSettingsBanner"),
+  connectionBanner: document.querySelector("#settingsBanner"),
+  accessBanner: document.querySelector("#accessSettingsBanner"),
+  connectionStatusPill: document.querySelector("#settingsStatusPill"),
+  localAccountStatusPill: document.querySelector("#localAccountStatusPill"),
   themeButtons: document.querySelectorAll("[data-theme-choice]"),
-  form: document.querySelector("#connectionForm"),
+  weebarrForm: document.querySelector("#weebarrForm"),
+  connectionForm: document.querySelector("#connectionForm"),
   accessForm: document.querySelector("#localAccountForm"),
+  contentFilterMode: document.querySelector("#settingsContentFilterMode"),
+  strictMonitoring: document.querySelector("#settingsStrictMonitoring"),
   baseUrl: document.querySelector("#settingsBaseUrl"),
   apiKey: document.querySelector("#settingsApiKey"),
   requestSeasons: document.querySelector("#settingsRequestSeasons"),
-  contentFilterMode: document.querySelector("#settingsContentFilterMode"),
   sonarrServerId: document.querySelector("#settingsSonarrServerId"),
   profileId: document.querySelector("#settingsProfileId"),
   rootFolder: document.querySelector("#settingsRootFolder"),
   languageProfileId: document.querySelector("#settingsLanguageProfileId"),
   requestUserId: document.querySelector("#settingsRequestUserId"),
   tags: document.querySelector("#settingsTags"),
-  adminToken: document.querySelector("#settingsAdminToken"),
-  accessBanner: document.querySelector("#accessSettingsBanner"),
   localAccountUsername: document.querySelector("#localAccountUsername"),
   localAccountPassword: document.querySelector("#localAccountPassword"),
   localAccountConfirmPassword: document.querySelector(
     "#localAccountConfirmPassword",
   ),
-  localAccountStatusPill: document.querySelector("#localAccountStatusPill"),
-  saveLocalAccountBtn: document.querySelector("#saveLocalAccountBtn"),
   currentAuthSignIn: document.querySelector("#currentAuthSignIn"),
-  testButton: document.querySelector("#testConnectionBtn"),
-  saveButton: document.querySelector("#saveConnectionBtn"),
+  currentContentFilter: document.querySelector("#currentContentFilter"),
+  currentStrictMonitoring: document.querySelector("#currentStrictMonitoring"),
   currentBaseUrl: document.querySelector("#currentBaseUrl"),
   currentApiKey: document.querySelector("#currentApiKey"),
   currentRequestSeasons: document.querySelector("#currentRequestSeasons"),
-  currentContentFilter: document.querySelector("#currentContentFilter"),
   currentProfileSummary: document.querySelector("#currentProfileSummary"),
   currentRootFolder: document.querySelector("#currentRootFolder"),
   currentTags: document.querySelector("#currentTags"),
@@ -53,12 +54,14 @@ const els = {
   testServerName: document.querySelector("#testServerName"),
   testProfileId: document.querySelector("#testProfileId"),
   testRootFolder: document.querySelector("#testRootFolder"),
+  testButton: document.querySelector("#testConnectionBtn"),
 };
 
 const customSelectRoots = [...document.querySelectorAll("[data-ui-select]")];
 const customSelects = new Map();
 
 function toast(message) {
+  if (!els.toast) return;
   els.toast.textContent = message;
   els.toast.classList.add("show");
   window.clearTimeout(toast.timer);
@@ -92,30 +95,18 @@ function applyTheme(choice = localStorage.getItem(themeStorageKey) || "dark") {
   });
 }
 
-function showBanner(message, tone = "info") {
-  els.banner.textContent = message;
-  els.banner.dataset.tone = tone;
-  els.banner.hidden = false;
+function showBanner(element, message, tone = "info") {
+  if (!element) return;
+  element.textContent = message;
+  element.dataset.tone = tone;
+  element.hidden = false;
 }
 
-function clearBanner() {
-  els.banner.hidden = true;
-  els.banner.textContent = "";
-  delete els.banner.dataset.tone;
-}
-
-function showAccessBanner(message, tone = "info") {
-  if (!els.accessBanner) return;
-  els.accessBanner.textContent = message;
-  els.accessBanner.dataset.tone = tone;
-  els.accessBanner.hidden = false;
-}
-
-function clearAccessBanner() {
-  if (!els.accessBanner) return;
-  els.accessBanner.hidden = true;
-  els.accessBanner.textContent = "";
-  delete els.accessBanner.dataset.tone;
+function clearBanner(element) {
+  if (!element) return;
+  element.hidden = true;
+  element.textContent = "";
+  delete element.dataset.tone;
 }
 
 function parseOptionalInt(value) {
@@ -219,29 +210,6 @@ function initializeCustomSelects() {
   });
 }
 
-function payloadFromForm() {
-  return {
-    baseUrl: els.baseUrl.value.trim(),
-    requestSeasons: els.requestSeasons.value,
-    contentFilterMode: els.contentFilterMode.value,
-    sonarrServerId: parseOptionalInt(els.sonarrServerId.value),
-    profileId: parseOptionalInt(els.profileId.value),
-    rootFolder: els.rootFolder.value.trim() || null,
-    languageProfileId: parseOptionalInt(els.languageProfileId.value),
-    requestUserId: parseOptionalInt(els.requestUserId.value),
-    tags: parseTags(els.tags.value),
-    adminToken: els.adminToken.value.trim() || null,
-  };
-}
-
-function localAccountPayload() {
-  return {
-    username: els.localAccountUsername.value.trim(),
-    password: els.localAccountPassword.value,
-    confirmPassword: els.localAccountConfirmPassword.value,
-  };
-}
-
 function signInLabel(access) {
   if (access.localAuthConfigured && access.plexLoginEnabled) {
     return "Username/password or Plex";
@@ -255,31 +223,130 @@ function signInLabel(access) {
   return "Setup required";
 }
 
-function updateSummary(connection) {
-  state.connection = connection;
-  els.currentBaseUrl.textContent = connection.baseUrl || "Not set";
-  els.currentApiKey.textContent = connection.apiKeyPreview || "Not set";
-  els.currentRequestSeasons.textContent = connection.requestSeasons || "all";
-  els.currentContentFilter.textContent =
-    contentFilterLabels[connection.contentFilterMode] || "Hide NSFW";
-  els.currentProfileSummary.textContent = `${connection.sonarrServerId || "Default"} / ${connection.profileId || "Default"}`;
-  els.currentRootFolder.textContent = connection.rootFolder || "Default";
-  els.currentTags.textContent = connection.tags?.length ? connection.tags.join(", ") : "None";
-  els.statusPill.textContent = connection.configured ? "Configured" : "Missing";
-  els.statusPill.classList.toggle("connected", connection.configured);
-  els.statusPill.classList.toggle("missing", !connection.configured);
-  els.apiKey.placeholder = connection.hasApiKey
-    ? `Stored ${connection.apiKeyPreview} (leave blank to keep)`
-    : "Paste a Seerr API key";
-  if (connection.contentFilterMode) {
-    els.contentFilterMode.value = connection.contentFilterMode;
+function weebarrPayload() {
+  return {
+    contentFilterMode: els.contentFilterMode.value,
+    strictMonitoring: Boolean(els.strictMonitoring.checked),
+  };
+}
+
+function connectionPayload() {
+  return {
+    baseUrl: els.baseUrl.value.trim(),
+    requestSeasons: els.requestSeasons.value,
+    sonarrServerId: parseOptionalInt(els.sonarrServerId.value),
+    profileId: parseOptionalInt(els.profileId.value),
+    rootFolder: els.rootFolder.value.trim() || null,
+    languageProfileId: parseOptionalInt(els.languageProfileId.value),
+    requestUserId: parseOptionalInt(els.requestUserId.value),
+    tags: parseTags(els.tags.value),
+  };
+}
+
+function localAccountPayload() {
+  return {
+    username: els.localAccountUsername.value.trim(),
+    password: els.localAccountPassword.value,
+    confirmPassword: els.localAccountConfirmPassword.value,
+  };
+}
+
+function updateWeebarr(summary) {
+  state.weebarr = summary || {};
+  if (els.contentFilterMode && summary.contentFilterMode) {
+    els.contentFilterMode.value = summary.contentFilterMode;
   }
-  syncCustomSelects(["settingsRequestSeasons", "settingsContentFilterMode"]);
+  if (els.strictMonitoring) {
+    els.strictMonitoring.checked = Boolean(summary.strictMonitoring);
+  }
+  if (els.currentContentFilter) {
+    els.currentContentFilter.textContent =
+      contentFilterLabels[summary.contentFilterMode] || "Hide NSFW";
+  }
+  if (els.currentStrictMonitoring) {
+    els.currentStrictMonitoring.textContent = summary.strictMonitoring
+      ? "Enabled"
+      : "Disabled";
+  }
+  syncCustomSelects(["settingsContentFilterMode"]);
+}
+
+function updateConnection(connection) {
+  state.connection = connection || {};
+  if (els.currentBaseUrl) {
+    els.currentBaseUrl.textContent = connection.baseUrl || "Not set";
+  }
+  if (els.currentApiKey) {
+    els.currentApiKey.textContent = connection.apiKeyPreview || "Not set";
+  }
+  if (els.currentRequestSeasons) {
+    els.currentRequestSeasons.textContent = connection.requestSeasons || "all";
+  }
+  if (els.currentProfileSummary) {
+    els.currentProfileSummary.textContent = `${connection.sonarrServerId || "Default"} / ${connection.profileId || "Default"}`;
+  }
+  if (els.currentRootFolder) {
+    els.currentRootFolder.textContent = connection.rootFolder || "Default";
+  }
+  if (els.currentTags) {
+    els.currentTags.textContent = connection.tags?.length
+      ? connection.tags.join(", ")
+      : "None";
+  }
+  if (els.connectionStatusPill) {
+    els.connectionStatusPill.textContent = connection.configured
+      ? "Configured"
+      : "Missing";
+    els.connectionStatusPill.classList.toggle("connected", connection.configured);
+    els.connectionStatusPill.classList.toggle("missing", !connection.configured);
+  }
+  if (els.baseUrl && !document.activeElement?.isSameNode(els.baseUrl)) {
+    els.baseUrl.value = connection.baseUrl || "";
+  }
+  if (els.requestSeasons && connection.requestSeasons) {
+    els.requestSeasons.value = connection.requestSeasons;
+  }
+  if (
+    els.sonarrServerId &&
+    !document.activeElement?.isSameNode(els.sonarrServerId)
+  ) {
+    els.sonarrServerId.value = connection.sonarrServerId || "";
+  }
+  if (els.profileId && !document.activeElement?.isSameNode(els.profileId)) {
+    els.profileId.value = connection.profileId || "";
+  }
+  if (els.rootFolder && !document.activeElement?.isSameNode(els.rootFolder)) {
+    els.rootFolder.value = connection.rootFolder || "";
+  }
+  if (
+    els.languageProfileId &&
+    !document.activeElement?.isSameNode(els.languageProfileId)
+  ) {
+    els.languageProfileId.value = connection.languageProfileId || "";
+  }
+  if (
+    els.requestUserId &&
+    !document.activeElement?.isSameNode(els.requestUserId)
+  ) {
+    els.requestUserId.value = connection.requestUserId || "";
+  }
+  if (els.tags && !document.activeElement?.isSameNode(els.tags)) {
+    els.tags.value = connection.tags?.length ? connection.tags.join(", ") : "";
+  }
+  if (els.apiKey) {
+    els.apiKey.placeholder = connection.hasApiKey
+      ? `Stored ${connection.apiKeyPreview} (leave blank to keep)`
+      : "Paste a Seerr API key";
+  }
+  syncCustomSelects(["settingsRequestSeasons"]);
 }
 
 function updateAccess(access) {
-  state.access = access;
-  if (els.localAccountUsername && !document.activeElement?.isSameNode(els.localAccountUsername)) {
+  state.access = access || {};
+  if (
+    els.localAccountUsername &&
+    !document.activeElement?.isSameNode(els.localAccountUsername)
+  ) {
     els.localAccountUsername.value = access.authUsername || "";
   }
   if (els.currentAuthSignIn) {
@@ -291,24 +358,46 @@ function updateAccess(access) {
     els.localAccountStatusPill.classList.toggle("connected", configured);
     els.localAccountStatusPill.classList.toggle("missing", !configured);
   }
-  if (els.saveLocalAccountBtn) {
-    els.saveLocalAccountBtn.textContent = access.localAuthConfigured
-      ? "Update Local Account"
-      : "Create Local Account";
-  }
 }
 
-async function refreshConnection() {
-  const response = await fetch("/api/settings/seerr");
-  if (!response.ok) throw new Error(await response.text());
-  const connection = await response.json();
-  updateSummary(connection);
-  return connection;
+async function refreshSettings() {
+  const [weebarrResponse, connectionResponse] = await Promise.all([
+    fetch("/api/settings/weebarr"),
+    fetch("/api/settings/seerr"),
+  ]);
+  if (!weebarrResponse.ok) throw new Error(await readError(weebarrResponse));
+  if (!connectionResponse.ok) throw new Error(await readError(connectionResponse));
+  updateWeebarr(await weebarrResponse.json());
+  updateConnection(await connectionResponse.json());
+}
+
+async function saveWeebarr(event) {
+  event.preventDefault();
+  clearBanner(els.weebarrBanner);
+
+  const response = await fetch("/api/settings/weebarr", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(weebarrPayload()),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  const result = await response.json();
+  updateWeebarr(result.weebarr || {});
+  showBanner(
+    els.weebarrBanner,
+    "Weebarr behavior settings saved. Seasonal lookups will use the new filtering and monitoring rules immediately.",
+    "success",
+  );
+  toast("Weebarr settings saved.");
 }
 
 async function saveLocalAccount(event) {
   event.preventDefault();
-  clearAccessBanner();
+  clearBanner(els.accessBanner);
 
   const response = await fetch("/api/settings/access/local", {
     method: "PUT",
@@ -324,7 +413,8 @@ async function saveLocalAccount(event) {
   updateAccess(result.access || {});
   els.localAccountPassword.value = "";
   els.localAccountConfirmPassword.value = "";
-  showAccessBanner(
+  showBanner(
+    els.accessBanner,
     "Local account saved. Login will now offer username/password alongside Plex whenever both are configured.",
     "success",
   );
@@ -332,10 +422,14 @@ async function saveLocalAccount(event) {
 }
 
 async function testConnection() {
-  clearBanner();
-  const payload = payloadFromForm();
+  clearBanner(els.connectionBanner);
+  const payload = connectionPayload();
   if (!payload.baseUrl && !state.connection.baseUrl) {
-    showBanner("Add a Seerr base URL before testing the connection.", "warn");
+    showBanner(
+      els.connectionBanner,
+      "Add a Seerr base URL before testing the connection.",
+      "warn",
+    );
     return;
   }
 
@@ -370,21 +464,24 @@ async function testConnection() {
     els.rootFolder.value = defaults.rootFolder;
   }
 
-  showBanner("Connection test succeeded. Seerr responded and default Sonarr values were detected.", "success");
+  showBanner(
+    els.connectionBanner,
+    "Connection test succeeded. Seerr responded and default Sonarr values were detected.",
+    "success",
+  );
   toast("Seerr connection test passed.");
 }
 
 async function saveConnection(event) {
   event.preventDefault();
-  clearBanner();
+  clearBanner(els.connectionBanner);
 
   const apiKey = els.apiKey.value.trim();
-  const payload = payloadFromForm();
   const response = await fetch("/api/settings/seerr", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      ...payload,
+      ...connectionPayload(),
       apiKey: apiKey || null,
     }),
   });
@@ -394,34 +491,56 @@ async function saveConnection(event) {
   }
 
   const result = await response.json();
-  updateSummary(result.connection);
+  updateConnection(result.connection || {});
   els.apiKey.value = "";
-  showBanner("Connection settings saved. New requests will use the updated Seerr settings immediately.", "success");
+  showBanner(
+    els.connectionBanner,
+    "Connection settings saved. New requests will use the updated Seerr settings immediately.",
+    "success",
+  );
   toast("Connection settings saved.");
 }
 
-els.testButton.addEventListener("click", async () => {
-  try {
-    await testConnection();
-  } catch (error) {
-    showBanner(`Connection test failed. ${error.message}`, "error");
-  }
-});
+if (els.weebarrForm) {
+  els.weebarrForm.addEventListener("submit", async (event) => {
+    try {
+      await saveWeebarr(event);
+    } catch (error) {
+      showBanner(els.weebarrBanner, `Save failed. ${error.message}`, "error");
+    }
+  });
+}
 
-els.form.addEventListener("submit", async (event) => {
-  try {
-    await saveConnection(event);
-  } catch (error) {
-    showBanner(`Save failed. ${error.message}`, "error");
-  }
-});
+if (els.testButton) {
+  els.testButton.addEventListener("click", async () => {
+    try {
+      await testConnection();
+    } catch (error) {
+      showBanner(
+        els.connectionBanner,
+        `Connection test failed. ${error.message}`,
+        "error",
+      );
+    }
+  });
+}
+
+if (els.connectionForm) {
+  els.connectionForm.addEventListener("submit", async (event) => {
+    try {
+      await saveConnection(event);
+    } catch (error) {
+      showBanner(els.connectionBanner, `Save failed. ${error.message}`, "error");
+    }
+  });
+}
 
 if (els.accessForm) {
   els.accessForm.addEventListener("submit", async (event) => {
     try {
       await saveLocalAccount(event);
     } catch (error) {
-      showAccessBanner(`Save failed. ${error.message}`, "error");
+      showBanner(els.accessBanner, `Save failed. ${error.message}`, "error");
     }
   });
 }
@@ -448,7 +567,13 @@ document.addEventListener("keydown", (event) => {
 
 applyTheme();
 initializeCustomSelects();
+updateWeebarr(state.weebarr);
 updateAccess(state.access);
-refreshConnection().catch((error) => {
-  showBanner(`Could not load the saved connection settings. ${error.message}`, "error");
+updateConnection(state.connection);
+refreshSettings().catch((error) => {
+  showBanner(
+    els.connectionBanner,
+    `Could not load the saved settings. ${error.message}`,
+    "error",
+  );
 });

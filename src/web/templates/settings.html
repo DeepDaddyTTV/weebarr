@@ -90,16 +90,192 @@
         <header class="page-header">
           <div class="top-copy">
             <h1>Settings</h1>
-            <p>Configure Seerr once, test it from the UI, and keep those values persisted in the mounted Weebarr config volume.</p>
+            <p>Configure Weebarr behavior, authentication, and Seerr in one place without leaving the dashboard shell.</p>
           </div>
         </header>
 
-        <section class="settings-layout">
-          <section id="connections" class="settings-panel">
+        <section class="settings-stack">
+          <section class="settings-panel settings-section">
+            <div class="panel-heading">
+              <div>
+                <span class="panel-eyebrow">Weebarr</span>
+                <h2>App Behavior</h2>
+              </div>
+            </div>
+            <div id="weebarrSettingsBanner" class="status-banner" hidden></div>
+            <form id="weebarrForm" class="settings-form" novalidate>
+              <div class="settings-section-grid">
+                <div class="settings-subpanel">
+                  <div class="settings-subheading">
+                    <h3>Theme</h3>
+                    <p>Theme changes are stored locally in this browser. The seasonal dashboard updates immediately.</p>
+                  </div>
+                  <div class="settings-theme-picker" aria-label="Theme controls">
+                    <button type="button" class="active" data-theme-choice="dark"><span aria-hidden="true">☼</span>Dark<i></i></button>
+                    <button type="button" data-theme-choice="system"><span aria-hidden="true">▱</span>System<i></i></button>
+                    <button type="button" data-theme-choice="light"><span aria-hidden="true">☾</span>Light<i></i></button>
+                  </div>
+                </div>
+
+                <div class="settings-subpanel">
+                  <div class="settings-subheading">
+                    <h3>Catalog Behavior</h3>
+                    <p>These settings affect what the seasonal page hides and how later seasons are treated when Seerr already has the base show.</p>
+                  </div>
+                  <div class="form-grid">
+                    <label>
+                      <span>Content Filter</span>
+                      <div class="ui-select" data-ui-select="settingsContentFilterMode">
+                        <select id="settingsContentFilterMode" name="contentFilterMode">
+                          <option value="hide_nsfw" {{ 'selected' if weebarr.contentFilterMode == 'hide_nsfw' else '' }}>Hide NSFW</option>
+                          <option value="show_all" {{ 'selected' if weebarr.contentFilterMode == 'show_all' else '' }}>Show all</option>
+                        </select>
+                        <button id="settingsContentFilterModeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="settingsContentFilterModeMenu">
+                          <span class="ui-select-value"></span>
+                          <i class="ui-select-chevron" aria-hidden="true"></i>
+                        </button>
+                        <div id="settingsContentFilterModeMenu" class="ui-select-menu" role="listbox" hidden></div>
+                      </div>
+                      <small>AniList adult-only titles are hidden in <code>Hide NSFW</code> mode.</small>
+                    </label>
+
+                    <div class="full-width settings-toggle-field">
+                      <span>Strict Monitoring</span>
+                      <div class="settings-toggle-row">
+                        <div class="settings-toggle-copy">
+                          <strong>Treat untracked sequel seasons as missing</strong>
+                          <small>When enabled, later seasons only count as tracked if the specific season is explicitly present or requested in Seerr.</small>
+                        </div>
+                        <label class="toggle-switch" for="settingsStrictMonitoring" aria-label="Enable strict monitoring">
+                          <input id="settingsStrictMonitoring" name="strictMonitoring" type="checkbox" {{ 'checked' if weebarr.strictMonitoring else '' }} />
+                          <i aria-hidden="true"></i>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-actions">
+                <button id="saveWeebarrBtn" class="refresh-btn" type="submit">Save Weebarr Settings</button>
+              </div>
+            </form>
+
+            <div class="settings-summary-grid">
+              <div class="pill-card">
+                <span>Content Filter</span>
+                <strong id="currentContentFilter">{{ weebarr.contentFilterMode }}</strong>
+              </div>
+              <div class="pill-card">
+                <span>Strict Monitoring</span>
+                <strong id="currentStrictMonitoring">{{ "Enabled" if weebarr.strictMonitoring else "Disabled" }}</strong>
+              </div>
+              <div class="pill-card">
+                <span>Available Sign-In</span>
+                <strong id="currentAuthSignIn">{{ auth_signin_copy }}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-panel settings-section">
+            <div class="panel-heading">
+              <div>
+                <span class="panel-eyebrow">Authentication</span>
+                <h2>Single-Admin Access</h2>
+              </div>
+              <span id="localAccountStatusPill" class="status-pill {{ 'connected' if access.localAuthConfigured else 'missing' }}">
+                {{ "Configured" if access.localAuthConfigured else "Not set" }}
+              </span>
+            </div>
+
+            <div class="settings-summary-grid">
+              <div class="pill-card">
+                <span>Scope</span>
+                <strong>Single admin</strong>
+              </div>
+              <div class="pill-card">
+                <span>Session</span>
+                <strong>{{ "Plex Auth" if auth_user_mode == "plex" else "Local account" }}</strong>
+              </div>
+              <div class="pill-card">
+                <span>Plex Return URL</span>
+                <strong>{{ access.publicUrl or "Automatic current URL" }}</strong>
+              </div>
+            </div>
+
+            <div id="accessSettingsBanner" class="status-banner" hidden></div>
+            <form id="localAccountForm" class="settings-form" novalidate>
+              <div class="settings-section-grid">
+                <div class="settings-subpanel">
+                  <div class="settings-subheading">
+                    <h3>Local Account</h3>
+                    <p>Create or rotate the fallback local login even if this instance was claimed through Plex first.</p>
+                  </div>
+                  <div class="form-grid">
+                    <label>
+                      <span>Username</span>
+                      <input
+                        id="localAccountUsername"
+                        name="username"
+                        type="text"
+                        autocomplete="username"
+                        placeholder="username"
+                        value="{{ access.authUsername or '' }}"
+                      />
+                      <small>This username appears on the local login form whenever local auth is configured.</small>
+                    </label>
+
+                    <label>
+                      <span>Password</span>
+                      <input
+                        id="localAccountPassword"
+                        name="password"
+                        type="password"
+                        autocomplete="new-password"
+                        placeholder="{{ 'Enter a new password' if access.localAuthConfigured else 'Create a password' }}"
+                      />
+                      <small>Use at least 8 characters. Saving here updates the local account immediately.</small>
+                    </label>
+
+                    <label>
+                      <span>Confirm Password</span>
+                      <input
+                        id="localAccountConfirmPassword"
+                        name="confirmPassword"
+                        type="password"
+                        autocomplete="new-password"
+                        placeholder="Confirm the password"
+                      />
+                      <small>Once saved, the login screen will offer local sign-in alongside Plex whenever both are configured.</small>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="settings-subpanel">
+                  <div class="settings-subheading">
+                    <h3>How Sign-In Works</h3>
+                    <p>Weebarr stays single-admin. Plex is the quick login path, and local auth remains the fallback you can keep enabled in parallel.</p>
+                  </div>
+                  <div class="settings-note">
+                    <p>If both local auth and Plex are configured, the login screen always offers both options. If only one is configured, only that method is shown.</p>
+                    <p>Saving a local account here never removes your claimed Plex user. It only adds or updates the username/password path.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-actions">
+                <button id="saveLocalAccountBtn" class="refresh-btn" type="submit">
+                  {{ "Update Local Account" if access.localAuthConfigured else "Create Local Account" }}
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section id="connections" class="settings-panel settings-section">
             <div class="panel-heading">
               <div>
                 <span class="panel-eyebrow">Connections</span>
-                <h2>Manage Seerr</h2>
+                <h2>Seerr Integration</h2>
               </div>
               <span id="settingsStatusPill" class="status-pill {{ 'connected' if connection.configured else 'missing' }}">
                 {{ "Configured" if connection.configured else "Missing" }}
@@ -107,101 +283,135 @@
             </div>
 
             <div id="settingsBanner" class="status-banner" hidden></div>
-
             <form id="connectionForm" class="settings-form" novalidate>
-              <div class="form-grid">
-                <label>
-                  <span>Seerr Base URL</span>
-                  <input id="settingsBaseUrl" name="baseUrl" type="url" placeholder="http://seerr:5055" value="{{ connection.baseUrl or '' }}" />
-                  <small>Use the internal container URL Weebarr can actually reach.</small>
-                </label>
-
-                <label>
-                  <span>API Key</span>
-                  <input id="settingsApiKey" name="apiKey" type="password" placeholder="{{ 'Stored ' ~ connection.apiKeyPreview if connection.hasApiKey else 'Paste a Seerr API key' }}" />
-                  <small>Leave blank to keep the currently stored key.</small>
-                </label>
-
-                <label>
-                  <span>Request Seasons</span>
-                  <div class="ui-select" data-ui-select="settingsRequestSeasons">
-                    <select id="settingsRequestSeasons" name="requestSeasons">
-                      <option value="all" {{ 'selected' if connection.requestSeasons == 'all' else '' }}>All seasons</option>
-                      <option value="first" {{ 'selected' if connection.requestSeasons == 'first' else '' }}>First season only</option>
-                      <option value="latest" {{ 'selected' if connection.requestSeasons == 'latest' else '' }}>Latest season only</option>
-                    </select>
-                    <button id="settingsRequestSeasonsTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="settingsRequestSeasonsMenu">
-                      <span class="ui-select-value"></span>
-                      <i class="ui-select-chevron" aria-hidden="true"></i>
-                    </button>
-                    <div id="settingsRequestSeasonsMenu" class="ui-select-menu" role="listbox" hidden></div>
+              <div class="settings-section-grid">
+                <div class="settings-subpanel">
+                  <div class="settings-subheading">
+                    <h3>Connection Details</h3>
+                    <p>Use the internal URL and API key Weebarr can reach from inside the container network.</p>
                   </div>
-                  <small>What Weebarr sends to Seerr when you click Request.</small>
-                </label>
+                  <div class="form-grid">
+                    <label>
+                      <span>Seerr Base URL</span>
+                      <input id="settingsBaseUrl" name="baseUrl" type="url" placeholder="http://seerr:5055" value="{{ connection.baseUrl or '' }}" />
+                      <small>Use the internal container URL Weebarr can actually reach.</small>
+                    </label>
 
-                <label>
-                  <span>Content Filter</span>
-                  <div class="ui-select" data-ui-select="settingsContentFilterMode">
-                    <select id="settingsContentFilterMode" name="contentFilterMode">
-                      <option value="hide_nsfw" {{ 'selected' if connection.contentFilterMode == 'hide_nsfw' else '' }}>Hide NSFW</option>
-                      <option value="show_all" {{ 'selected' if connection.contentFilterMode == 'show_all' else '' }}>Show all</option>
-                    </select>
-                    <button id="settingsContentFilterModeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="settingsContentFilterModeMenu">
-                      <span class="ui-select-value"></span>
-                      <i class="ui-select-chevron" aria-hidden="true"></i>
-                    </button>
-                    <div id="settingsContentFilterModeMenu" class="ui-select-menu" role="listbox" hidden></div>
+                    <label>
+                      <span>API Key</span>
+                      <input id="settingsApiKey" name="apiKey" type="password" placeholder="{{ 'Stored ' ~ connection.apiKeyPreview if connection.hasApiKey else 'Paste a Seerr API key' }}" />
+                      <small>Leave blank to keep the currently stored key.</small>
+                    </label>
+
+                    <label>
+                      <span>Request Seasons</span>
+                      <div class="ui-select" data-ui-select="settingsRequestSeasons">
+                        <select id="settingsRequestSeasons" name="requestSeasons">
+                          <option value="all" {{ 'selected' if connection.requestSeasons == 'all' else '' }}>All seasons</option>
+                          <option value="first" {{ 'selected' if connection.requestSeasons == 'first' else '' }}>First season only</option>
+                          <option value="latest" {{ 'selected' if connection.requestSeasons == 'latest' else '' }}>Latest season only</option>
+                        </select>
+                        <button id="settingsRequestSeasonsTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="settingsRequestSeasonsMenu">
+                          <span class="ui-select-value"></span>
+                          <i class="ui-select-chevron" aria-hidden="true"></i>
+                        </button>
+                        <div id="settingsRequestSeasonsMenu" class="ui-select-menu" role="listbox" hidden></div>
+                      </div>
+                      <small>What Weebarr sends to Seerr when you click Request.</small>
+                    </label>
+
+                    <label>
+                      <span>Sonarr Server ID</span>
+                      <input id="settingsSonarrServerId" name="sonarrServerId" type="number" min="1" placeholder="Use Seerr default" value="{{ connection.sonarrServerId or '' }}" />
+                      <small>Optional override. Leave blank to use Seerr’s default Sonarr server.</small>
+                    </label>
+
+                    <label>
+                      <span>Profile ID</span>
+                      <input id="settingsProfileId" name="profileId" type="number" min="1" placeholder="Use anime/default profile" value="{{ connection.profileId or '' }}" />
+                      <small>Optional quality profile override for requests.</small>
+                    </label>
+
+                    <label>
+                      <span>Root Folder</span>
+                      <input id="settingsRootFolder" name="rootFolder" type="text" placeholder="Use Seerr anime/default root" value="{{ connection.rootFolder or '' }}" />
+                      <small>Optional root folder override sent with request payloads.</small>
+                    </label>
+
+                    <label>
+                      <span>Language Profile ID</span>
+                      <input id="settingsLanguageProfileId" name="languageProfileId" type="number" min="1" placeholder="Optional" value="{{ connection.languageProfileId or '' }}" />
+                      <small>Only needed if your Sonarr setup depends on explicit language profiles.</small>
+                    </label>
+
+                    <label>
+                      <span>Request User ID</span>
+                      <input id="settingsRequestUserId" name="requestUserId" type="number" min="1" placeholder="Use API key owner" value="{{ connection.requestUserId or '' }}" />
+                      <small>Optional Seerr user override for created requests.</small>
+                    </label>
+
+                    <label class="full-width">
+                      <span>Tag IDs</span>
+                      <input id="settingsTags" name="tags" type="text" placeholder="12, 34, 56" value="{{ connection.tags | join(', ') if connection.tags else '' }}" />
+                      <small>Optional comma-separated Sonarr tag IDs to attach through Seerr.</small>
+                    </label>
                   </div>
-                  <small><code>hide_nsfw</code> follows AniList's adult-only flag. Weebarr automatically treats old <code>adult_only</code> values as the same mode.</small>
-                </label>
+                </div>
 
-                <label>
-                  <span>Sonarr Server ID</span>
-                  <input id="settingsSonarrServerId" name="sonarrServerId" type="number" min="1" placeholder="Use Seerr default" value="{{ connection.sonarrServerId or '' }}" />
-                  <small>Optional override. Leave blank to use Seerr’s default Sonarr server.</small>
-                </label>
+                <div class="settings-subpanel">
+                  <div class="settings-subheading">
+                    <h3>Live Connection</h3>
+                    <p>Review the currently saved Seerr values and the latest test results without leaving the page.</p>
+                  </div>
+                  <div class="settings-summary-grid">
+                    <div class="pill-card">
+                      <span>Base URL</span>
+                      <strong id="currentBaseUrl">{{ connection.baseUrl or "Not set" }}</strong>
+                    </div>
+                    <div class="pill-card">
+                      <span>API Key</span>
+                      <strong id="currentApiKey">{{ connection.apiKeyPreview or "Not set" }}</strong>
+                    </div>
+                    <div class="pill-card">
+                      <span>Request Seasons</span>
+                      <strong id="currentRequestSeasons">{{ connection.requestSeasons }}</strong>
+                    </div>
+                    <div class="pill-card">
+                      <span>Server/Profile</span>
+                      <strong id="currentProfileSummary">{{ connection.sonarrServerId or "Default" }} / {{ connection.profileId or "Default" }}</strong>
+                    </div>
+                    <div class="pill-card">
+                      <span>Root Folder</span>
+                      <strong id="currentRootFolder">{{ connection.rootFolder or "Default" }}</strong>
+                    </div>
+                    <div class="pill-card">
+                      <span>Tags</span>
+                      <strong id="currentTags">{{ connection.tags | join(', ') if connection.tags else "None" }}</strong>
+                    </div>
+                  </div>
 
-                <label>
-                  <span>Profile ID</span>
-                  <input id="settingsProfileId" name="profileId" type="number" min="1" placeholder="Use anime/default profile" value="{{ connection.profileId or '' }}" />
-                  <small>Optional quality profile override for requests.</small>
-                </label>
-
-                <label>
-                  <span>Root Folder</span>
-                  <input id="settingsRootFolder" name="rootFolder" type="text" placeholder="Use Seerr anime/default root" value="{{ connection.rootFolder or '' }}" />
-                  <small>Optional root folder override sent with request payloads.</small>
-                </label>
-
-                <label>
-                  <span>Language Profile ID</span>
-                  <input id="settingsLanguageProfileId" name="languageProfileId" type="number" min="1" placeholder="Optional" value="{{ connection.languageProfileId or '' }}" />
-                  <small>Only needed if your Sonarr setup depends on explicit language profiles.</small>
-                </label>
-
-                <label>
-                  <span>Request User ID</span>
-                  <input id="settingsRequestUserId" name="requestUserId" type="number" min="1" placeholder="Use API key owner" value="{{ connection.requestUserId or '' }}" />
-                  <small>Optional Seerr user override for created requests.</small>
-                </label>
-
-                <label class="full-width">
-                  <span>Tag IDs</span>
-                  <input id="settingsTags" name="tags" type="text" placeholder="12, 34, 56" value="{{ connection.tags | join(', ') if connection.tags else '' }}" />
-                  <small>Optional comma-separated Sonarr tag IDs to attach through Seerr.</small>
-                </label>
-
-                <label class="full-width">
-                  <span>Weebarr Admin Token</span>
-                  <input id="settingsAdminToken" name="adminToken" type="password" placeholder="{{ 'Required for write actions' if connection.adminProtected else 'Optional unless you enable WEEBARR_ADMIN_TOKEN' }}" />
-                  <small id="settingsAdminHint">
-                    {% if connection.adminProtected %}
-                    This is Weebarr's own extra write-protection secret for this Settings page. It is not a Seerr API key.
-                    {% else %}
-                    Write actions are currently unlocked. Set <code>WEEBARR_ADMIN_TOKEN</code> only if you want this Settings page to require an extra Weebarr-side secret before save/test actions.
-                    {% endif %}
-                  </small>
-                </label>
+                  <div id="testResults" class="settings-note settings-test-results">
+                    <p>Run a connection test to verify the URL and API key, then inspect the Sonarr defaults Seerr reports back.</p>
+                    <div class="settings-summary-grid">
+                      <div class="pill-card">
+                        <span>Server Count</span>
+                        <strong id="testServerCount">--</strong>
+                      </div>
+                      <div class="pill-card">
+                        <span>Default Server</span>
+                        <strong id="testServerName">--</strong>
+                      </div>
+                      <div class="pill-card">
+                        <span>Detected Profile</span>
+                        <strong id="testProfileId">--</strong>
+                      </div>
+                      <div class="pill-card">
+                        <span>Detected Root</span>
+                        <strong id="testRootFolder">--</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div class="settings-actions">
@@ -210,169 +420,13 @@
               </div>
             </form>
           </section>
-
-          <aside class="settings-side">
-            <section class="settings-panel settings-summary-card">
-              <div class="panel-heading compact">
-                <div>
-                  <span class="panel-eyebrow">Access</span>
-                  <h2>Authentication</h2>
-                </div>
-              </div>
-              <div class="settings-pill-grid compact">
-                <div class="pill-card">
-                  <span>Scope</span>
-                  <strong>Single admin</strong>
-                </div>
-                <div class="pill-card">
-                  <span>Session</span>
-                  <strong>{{ "Plex Auth" if auth_user_mode == "plex" else "Local account" }}</strong>
-                </div>
-                <div class="pill-card">
-                  <span>Available Sign-In</span>
-                  <strong id="currentAuthSignIn">{{ auth_signin_copy }}</strong>
-                </div>
-                <div class="pill-card">
-                  <span>Plex Return URL</span>
-                  <strong>{{ access.publicUrl or "Automatic current URL" }}</strong>
-                </div>
-              </div>
-            </section>
-
-            <section class="settings-panel settings-summary-card">
-              <div class="panel-heading compact">
-                <div>
-                  <span class="panel-eyebrow">Access</span>
-                  <h2>Local Account</h2>
-                </div>
-                <span id="localAccountStatusPill" class="status-pill {{ 'connected' if access.localAuthConfigured else 'missing' }}">
-                  {{ "Configured" if access.localAuthConfigured else "Not set" }}
-                </span>
-              </div>
-              <div id="accessSettingsBanner" class="status-banner" hidden></div>
-              <form id="localAccountForm" class="settings-form settings-form-compact" novalidate>
-                <div class="form-grid">
-                  <label>
-                    <span>Username</span>
-                    <input
-                      id="localAccountUsername"
-                      name="username"
-                      type="text"
-                      autocomplete="username"
-                      placeholder="username"
-                      value="{{ access.authUsername or '' }}"
-                    />
-                    <small>Create a local fallback sign-in even if this instance was claimed through Plex first.</small>
-                  </label>
-
-                  <label>
-                    <span>Password</span>
-                    <input
-                      id="localAccountPassword"
-                      name="password"
-                      type="password"
-                      autocomplete="new-password"
-                      placeholder="{{ 'Enter a new password' if access.localAuthConfigured else 'Create a password' }}"
-                    />
-                    <small>Use at least 8 characters. Saving here updates the local account immediately.</small>
-                  </label>
-
-                  <label>
-                    <span>Confirm Password</span>
-                    <input
-                      id="localAccountConfirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      autocomplete="new-password"
-                      placeholder="Confirm the password"
-                    />
-                    <small>Once saved, the login screen will offer local sign-in alongside Plex whenever both are configured.</small>
-                  </label>
-                </div>
-
-                <div class="settings-actions">
-                  <button id="saveLocalAccountBtn" class="refresh-btn" type="submit">
-                    {{ "Update Local Account" if access.localAuthConfigured else "Create Local Account" }}
-                  </button>
-                </div>
-              </form>
-            </section>
-
-            <section class="settings-panel settings-summary-card">
-              <div class="panel-heading compact">
-                <div>
-                  <span class="panel-eyebrow">Live Values</span>
-                  <h2>Current Connection</h2>
-                </div>
-              </div>
-              <div class="settings-pill-grid">
-                <div class="pill-card">
-                  <span>Base URL</span>
-                  <strong id="currentBaseUrl">{{ connection.baseUrl or "Not set" }}</strong>
-                </div>
-                <div class="pill-card">
-                  <span>API Key</span>
-                  <strong id="currentApiKey">{{ connection.apiKeyPreview or "Not set" }}</strong>
-                </div>
-                <div class="pill-card">
-                  <span>Request Seasons</span>
-                  <strong id="currentRequestSeasons">{{ connection.requestSeasons }}</strong>
-                </div>
-                <div class="pill-card">
-                  <span>Content Filter</span>
-                  <strong id="currentContentFilter">{{ connection.contentFilterMode }}</strong>
-                </div>
-                <div class="pill-card">
-                  <span>Server/Profile</span>
-                  <strong id="currentProfileSummary">{{ connection.sonarrServerId or "Default" }} / {{ connection.profileId or "Default" }}</strong>
-                </div>
-                <div class="pill-card">
-                  <span>Root Folder</span>
-                  <strong id="currentRootFolder">{{ connection.rootFolder or "Default" }}</strong>
-                </div>
-                <div class="pill-card">
-                  <span>Tags</span>
-                  <strong id="currentTags">{{ connection.tags | join(', ') if connection.tags else "None" }}</strong>
-                </div>
-              </div>
-            </section>
-
-            <section class="settings-panel settings-summary-card">
-              <div class="panel-heading compact">
-                <div>
-                  <span class="panel-eyebrow">Validation</span>
-                  <h2>Connection Test</h2>
-                </div>
-              </div>
-              <div id="testResults" class="settings-note">
-                <p>Run a connection test to verify the URL and API key, then inspect the Sonarr defaults Seerr reports back.</p>
-                <div class="settings-pill-grid compact">
-                  <div class="pill-card">
-                    <span>Server Count</span>
-                    <strong id="testServerCount">--</strong>
-                  </div>
-                  <div class="pill-card">
-                    <span>Default Server</span>
-                    <strong id="testServerName">--</strong>
-                  </div>
-                  <div class="pill-card">
-                    <span>Detected Profile</span>
-                    <strong id="testProfileId">--</strong>
-                  </div>
-                  <div class="pill-card">
-                    <span>Detected Root</span>
-                    <strong id="testRootFolder">--</strong>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </aside>
         </section>
       </main>
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>
+      window.WEEBARR_WEEBARR = {{ weebarr | tojson }};
       window.WEEBARR_CONNECTION = {{ connection | tojson }};
       window.WEEBARR_ACCESS = {{ access | tojson }};
     </script>

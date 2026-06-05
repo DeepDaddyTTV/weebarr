@@ -382,8 +382,14 @@ class WeebarrService:
             "stats": {
                 "total": len(enriched),
                 "requestable": requestable_count,
-                "requested": stats.get("requested", 0),
+                "requested": (
+                    stats.get("requested", 0)
+                    + stats.get("partial", 0)
+                    + stats.get("available", 0)
+                ),
                 "available": stats.get("available", 0),
+                "partial": stats.get("partial", 0),
+                "seasonMissing": stats.get("season_missing", 0),
                 "missingMapping": stats.get("missing_mapping", 0),
             },
             "items": enriched,
@@ -506,10 +512,12 @@ class WeebarrService:
 
     def _bucket_for_rank(self, rank: int) -> str:
         if rank <= 10:
-            return "Headliners"
+            return "S-Tier"
+        if rank <= 20:
+            return "Canon"
         if rank <= 30:
-            return "Strong Signal"
-        return "Deep Cuts"
+            return "Bingeable"
+        return "Filler"
 
     def _source_audio(self, country: str | None) -> dict[str, Any]:
         source = SOURCE_AUDIO.get(country or "")
@@ -684,13 +692,14 @@ class WeebarrService:
         raw_status_code = media_info.get("status")
         status_code = raw_status_code if isinstance(raw_status_code, int) else None
 
-        state = "requestable"
-        label = "Requestable"
+        state = "missing"
+        label = "Missing"
         requestable = True
         target_season: int | None = None
         target_label: str | None = None
         season_statuses: dict[int, int] = {}
         requested_seasons: set[int] = set()
+        catalog_seasons: set[int] = set()
 
         requests = cast(list[dict[str, Any]], media_info.get("requests") or [])
         open_requests = [
@@ -699,6 +708,14 @@ class WeebarrService:
 
         if details:
             target_season, target_label = self._resolve_target_season(anime, details)
+            catalog_seasons = {
+                season_number
+                for season_number in (
+                    _coerce_int(item.get("seasonNumber"))
+                    for item in cast(list[dict[str, Any]], details.get("seasons") or [])
+                )
+                if season_number not in (None, 0)
+            }
             for season in cast(list[dict[str, Any]], media_info.get("seasons") or []):
                 season_number = _coerce_int(season.get("seasonNumber"))
                 season_status = _coerce_int(season.get("status"))
@@ -711,34 +728,71 @@ class WeebarrService:
                     if season_number:
                         requested_seasons.add(season_number)
 
+        available_seasons = {
+            season_number
+            for season_number, season_status in season_statuses.items()
+            if season_status == 5
+        }
+        tracked_seasons = {
+            season_number
+            for season_number, season_status in season_statuses.items()
+            if season_status in (4, 5)
+        }
+        show_has_existing_episodes = bool(tracked_seasons) or status_code in (4, 5)
+
         if status_code == 6:
             state, label, requestable = "blocklisted", "Blocklisted", False
-        elif target_season and target_season in requested_seasons:
-            state, label, requestable = "requested", "Requested", False
-        elif target_season and season_statuses.get(target_season) == 5:
-            state, label, requestable = "available", "Available", False
-        elif target_season and season_statuses.get(target_season) == 4:
-            state = "partial"
-            label = (
-                f"{target_label} Partial"
-                if target_label
-                else f"Season {target_season} Partial"
-            )
-            requestable = False
         elif target_season:
-            state = "requestable"
-            label = (
-                f"Missing {target_label}"
-                if target_label
-                else f"Missing Season {target_season}"
+            required_seasons = list(range(1, target_season + 1))
+            explicit_coverage = tracked_seasons | requested_seasons
+            all_required_available = all(
+                season_number in available_seasons for season_number in required_seasons
             )
-            requestable = True
+            all_required_covered = all(
+                season_number in explicit_coverage for season_number in required_seasons
+            )
+            any_required_available = any(
+                season_number in tracked_seasons for season_number in required_seasons
+            )
+            any_previous_available = any(
+                season_number in tracked_seasons
+                for season_number in required_seasons
+                if season_number != target_season
+            )
+            any_required_request = any(
+                season_number in requested_seasons for season_number in required_seasons
+            )
+            target_has_explicit_coverage = target_season in explicit_coverage
+            implicit_later_season = (
+                target_season > 1
+                and show_has_existing_episodes
+                and not target_has_explicit_coverage
+            )
+
+            if all_required_available:
+                state, label, requestable = "available", "Available", False
+            elif implicit_later_season and self.settings.strict_monitoring:
+                state, label, requestable = "season_missing", "Season Missing", True
+            elif any_required_request and not any_previous_available:
+                state, label, requestable = "requested", "Requested", False
+            elif (
+                target_season > 1
+                and show_has_existing_episodes
+                and any_required_available
+            ):
+                state, label, requestable = "partial", "Partially Available", False
+            elif all_required_covered and any_required_available:
+                state, label, requestable = "partial", "Partially Available", False
+            else:
+                state, label, requestable = "missing", "Missing", True
         elif open_requests or status_code in (2, 3):
             state, label, requestable = "requested", "Requested", False
         elif status_code == 5:
             state, label, requestable = "available", "Available", False
         elif status_code == 4:
             state, label, requestable = "partial", "Partially Available", False
+        else:
+            state, label, requestable = "missing", "Missing", True
 
         return {
             "state": state,
@@ -761,6 +815,7 @@ class WeebarrService:
             "mediaStatus": status_code,
             "targetSeason": target_season,
             "targetSeasonLabel": target_label,
+            "catalogSeasons": sorted(catalog_seasons),
             "requestSeasons": (
                 [target_season]
                 if target_season is not None
