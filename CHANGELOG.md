@@ -2,6 +2,14 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.10] - 2026-06-05
+
+### Fixed
+
+- Rebalanced the seasonal stat cards so each metric value sits in a consistent centered lane instead of drifting based on label length.
+- Restored full width to the stat titles and supporting text while keeping the metric emphasis visually aligned across all four cards.
+- Changed seasonal section grouping so `Score` now creates star-based rating bands and `Next airing` now creates day/date headers instead of reusing the popularity buckets.
+
 ## [0.1.9] - 2026-06-05
 
 ### Fixed

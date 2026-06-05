@@ -101,6 +101,14 @@ function formatAiring(nextAiring) {
   return `Ep ${nextAiring.episode} • ${when}`;
 }
 
+function formatBucketDate(value) {
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(value));
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -203,6 +211,38 @@ function titleCaseSeason(season) {
 
 function resetPage() {
   state.page = 1;
+}
+
+function countLabel(count) {
+  return `${count} ${count === 1 ? "title" : "titles"}`;
+}
+
+function scoreBucket(item) {
+  const score = Number(item.averageScore || 0);
+  if (!Number.isFinite(score) || score <= 0) return "Unrated";
+  const stars = Math.max(1, Math.min(5, Math.ceil(score / 20)));
+  return `${stars} Star${stars === 1 ? "" : "s"}`;
+}
+
+function airingBucket(item) {
+  if (!item.nextAiring?.airingAt) return "No Airing Date";
+  return formatBucketDate(item.nextAiring.airingAt);
+}
+
+function bucketLabel(item) {
+  if (state.sort === "score") return scoreBucket(item);
+  if (state.sort === "airing") return airingBucket(item);
+  return item.bucket || "Seasonal";
+}
+
+function bucketMeta(bucketItems) {
+  if (state.sort === "score") {
+    return `${countLabel(bucketItems.length)} • grouped by rating`;
+  }
+  if (state.sort === "airing") {
+    return `${countLabel(bucketItems.length)} • grouped by next airing`;
+  }
+  return `${countLabel(bucketItems.length)} • sorted by popularity`;
 }
 
 function totalPagesForCount(visibleCount) {
@@ -565,7 +605,7 @@ function renderSections(allItems) {
   }
   const groups = new Map();
   for (const item of items) {
-    const bucket = item.bucket || "Seasonal";
+    const bucket = bucketLabel(item);
     if (!groups.has(bucket)) groups.set(bucket, []);
     groups.get(bucket).push(item);
   }
@@ -575,7 +615,7 @@ function renderSections(allItems) {
     <section>
       <div class="bucket-heading">
         <h2>${escapeHtml(bucket)}</h2>
-        <span class="meta">${bucketItems.length} titles • sorted by ${escapeHtml(state.sort)}</span>
+        <span class="meta">${escapeHtml(bucketMeta(bucketItems))}</span>
       </div>
       <div class="cards-grid">
         ${bucketItems.map(cardTemplate).join("")}
