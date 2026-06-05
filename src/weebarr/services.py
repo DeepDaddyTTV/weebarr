@@ -18,6 +18,7 @@ from src.weebarr.settings import Settings
 
 ANILIST_URL = "https://graphql.anilist.co"
 JIKAN_CHARACTERS_URL = "https://api.jikan.moe/v4/anime/{mal_id}/characters"
+TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p"
 SEASONS = ("WINTER", "SPRING", "SUMMER", "FALL")
 MEDIA_STATUS = {
     1: "Unknown",
@@ -112,6 +113,15 @@ def _next_airing(next_airing: dict[str, Any] | None) -> dict[str, Any] | None:
         "airingAt": iso,
         "timeUntilAiring": next_airing.get("timeUntilAiring"),
     }
+
+
+def tmdb_image_url(path: str | None, size: str) -> str | None:
+    """Return a public TMDb image URL when a poster or backdrop path is present."""
+
+    if not path:
+        return None
+    normalized = path if path.startswith("/") else f"/{path}"
+    return f"{TMDB_IMAGE_BASE_URL}/{size}{normalized}"
 
 
 def candidate_score(
@@ -263,7 +273,7 @@ class WeebarrService:
                 resolve_seerr(),
                 resolve_audio(),
             )
-            return item
+            return self._apply_seerr_art(item)
 
         enriched = await asyncio.gather(*(enrich(item) for item in anime))
         stats = Counter(item["seerr"]["state"] for item in enriched)
@@ -312,6 +322,10 @@ class WeebarrService:
     def _shape_anime(self, item: dict[str, Any], rank: int) -> dict[str, Any]:
         titles = item.get("title") or {}
         start_year = (item.get("startDate") or {}).get("year")
+        anilist_cover = (item.get("coverImage") or {}).get("extraLarge") or (
+            item.get("coverImage") or {}
+        ).get("large")
+        anilist_banner = item.get("bannerImage")
         return {
             "id": item.get("id"),
             "malId": item.get("idMal"),
@@ -335,10 +349,13 @@ class WeebarrService:
             "startDate": _date_from_parts(item.get("startDate")),
             "startYear": start_year,
             "nextAiring": _next_airing(item.get("nextAiringEpisode")),
-            "cover": (item.get("coverImage") or {}).get("extraLarge")
-            or (item.get("coverImage") or {}).get("large"),
+            "anilistCover": anilist_cover,
+            "anilistBanner": anilist_banner,
+            "cover": anilist_cover,
             "coverColor": (item.get("coverImage") or {}).get("color") or "#83e8ff",
-            "banner": item.get("bannerImage"),
+            "banner": anilist_banner,
+            "coverSource": "anilist",
+            "bannerSource": "anilist",
             "genres": item.get("genres") or [],
             "description": strip_description(item.get("description")),
             "studios": [
@@ -347,6 +364,20 @@ class WeebarrService:
                 if node.get("name")
             ],
         }
+
+    def _apply_seerr_art(self, anime: dict[str, Any]) -> dict[str, Any]:
+        """Prefer Seerr/TMDb art when a confident match exposes it."""
+
+        seerr = anime.get("seerr") or {}
+        poster_url = seerr.get("posterUrl")
+        backdrop_url = seerr.get("backdropUrl")
+        if poster_url:
+            anime["cover"] = poster_url
+            anime["coverSource"] = "tmdb"
+        if backdrop_url:
+            anime["banner"] = backdrop_url
+            anime["bannerSource"] = "tmdb"
+        return anime
 
     def _bucket_for_rank(self, rank: int) -> str:
         if rank <= 10:
@@ -524,6 +555,10 @@ class WeebarrService:
             "tvdbId": (best.get("externalIds") or {}).get("tvdbId"),
             "title": best.get("name") or best.get("title"),
             "firstAirDate": best.get("firstAirDate") or best.get("first_air_date"),
+            "posterPath": best.get("posterPath"),
+            "backdropPath": best.get("backdropPath"),
+            "posterUrl": tmdb_image_url(best.get("posterPath"), "w500"),
+            "backdropUrl": tmdb_image_url(best.get("backdropPath"), "w780"),
             "matchScore": best_score,
             "mediaStatus": status_code,
         }

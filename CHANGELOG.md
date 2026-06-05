@@ -2,6 +2,17 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.3] - 2026-06-04
+
+### Added
+
+- Seerr/TMDb artwork preference for matched anime cards and spotlight art, with AniList art kept as fallback.
+- A `Hide Requested` switch on the Seasonal page for trimming fully requested or available titles from discovery browsing.
+
+### Changed
+
+- The Requests page now focuses on anime for the selected season that are already requested, partially requested, or fully available in Seerr instead of mirroring the generic seasonal feed.
+
 ## [0.1.2] - 2026-06-04
 
 ### Fixed

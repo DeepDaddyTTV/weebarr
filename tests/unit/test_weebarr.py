@@ -1,7 +1,12 @@
 from fastapi.testclient import TestClient
 
 from src.main import create_app
-from src.weebarr.services import WeebarrService, candidate_score, normalize_title
+from src.weebarr.services import (
+    WeebarrService,
+    candidate_score,
+    normalize_title,
+    tmdb_image_url,
+)
 from src.weebarr.settings import Settings, SettingsStore
 
 
@@ -34,7 +39,8 @@ def test_requests_page_renders():
     response = client.get("/requests")
 
     assert response.status_code == 200
-    assert "Requests" in response.text
+    assert "Requested Anime" in response.text
+    assert "Hide Requested" not in response.text
 
 
 def test_settings_page_renders():
@@ -114,3 +120,32 @@ def test_shape_anime_includes_audio_origin_fallback():
     assert (
         service._source_audio(shaped["countryOfOrigin"])["fallbackLabel"] == "JA only"
     )
+
+
+def test_seasonal_page_includes_hide_requested_toggle():
+    app = create_app(Settings())
+    client = TestClient(app)
+
+    response = client.get("/seasonal")
+
+    assert response.status_code == 200
+    assert "Hide Requested" in response.text
+
+
+def test_tmdb_image_url_and_seerr_art_override():
+    service = WeebarrService(Settings())
+    shaped = {
+        "cover": "https://anilist.example/cover.jpg",
+        "banner": "https://anilist.example/banner.jpg",
+        "seerr": {
+            "posterUrl": tmdb_image_url("/poster.jpg", "w500"),
+            "backdropUrl": tmdb_image_url("backdrop.jpg", "w780"),
+        },
+    }
+
+    updated = service._apply_seerr_art(shaped)
+
+    assert updated["cover"] == "https://image.tmdb.org/t/p/w500/poster.jpg"
+    assert updated["banner"] == "https://image.tmdb.org/t/p/w780/backdrop.jpg"
+    assert updated["coverSource"] == "tmdb"
+    assert updated["bannerSource"] == "tmdb"

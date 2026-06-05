@@ -137,9 +137,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             context=dashboard_context(
                 request,
                 page_name="requests",
-                page_title="Requests",
-                page_subtitle="Work the actionable queue first, then review what is already requested or fully available in Seerr.",
-                initial_filter="requestable",
+                page_title="Requested Anime",
+                page_subtitle="Review the titles this season that are already requested, partially requested, or fully available in Seerr.",
+                initial_filter="all",
             ),
         )
 

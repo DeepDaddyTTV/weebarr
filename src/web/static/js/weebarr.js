@@ -12,6 +12,7 @@ const state = {
   pageSize: 12,
   theme: "dark",
   filterOpen: false,
+  hideRequested: false,
 };
 
 const els = {
@@ -26,6 +27,7 @@ const els = {
   search: document.querySelector("#searchInput"),
   filter: document.querySelector("#statusFilter"),
   sort: document.querySelector("#sortSelect"),
+  hideRequested: document.querySelector("#hideRequestedToggle"),
   sections: document.querySelector("#animeSections"),
   spotlight: document.querySelector("#spotlight"),
   toast: document.querySelector("#toast"),
@@ -43,6 +45,8 @@ const forceCompactPreview = new URLSearchParams(window.location.search).get("com
 const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"];
 const themeStorageKey = "weebarr-theme";
 const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
+const requestQueueStates = new Set(["partial", "requested", "available"]);
+const fullyRequestedStates = new Set(["requested", "available"]);
 
 els.filter.value = state.filter;
 
@@ -206,9 +210,23 @@ function audioFilterMatches(item) {
   return audio.sourceLanguage === state.audioFilter;
 }
 
+function isRequestQueueItem(item) {
+  return requestQueueStates.has((item.seerr || {}).state);
+}
+
+function isHiddenByRequestedToggle(item) {
+  return fullyRequestedStates.has((item.seerr || {}).state);
+}
+
 function visibleItems() {
   const query = state.query.trim().toLowerCase();
   let items = [...state.items];
+  if (state.view === "requests") {
+    items = items.filter(isRequestQueueItem);
+  }
+  if (state.view === "seasonal" && state.hideRequested) {
+    items = items.filter((item) => !isHiddenByRequestedToggle(item));
+  }
   if (query) {
     items = items.filter((item) => {
       const audio = audioState(item);
@@ -281,15 +299,29 @@ function syncSelectedItem(items) {
 }
 
 function renderStats(stats) {
+  const scopedItems =
+    state.view === "requests" ? state.items.filter(isRequestQueueItem) : state.items;
   const soonCutoff = Date.now() + 7 * 24 * 60 * 60 * 1000;
-  const airingSoon = state.items.filter((item) => {
+  const airingSoon = scopedItems.filter((item) => {
     if (!item.nextAiring?.airingAt) return false;
     const airingAt = new Date(item.nextAiring.airingAt).getTime();
     return airingAt >= Date.now() && airingAt <= soonCutoff;
   }).length;
-  els.stats.total.textContent = formatNumber(stats.total);
-  els.stats.requestable.textContent = formatNumber(stats.requestable);
-  els.stats.requested.textContent = formatNumber(stats.requested);
+  const requestedCount = scopedItems.filter((item) =>
+    ["requested", "available"].includes((item.seerr || {}).state),
+  ).length;
+  const partialCount = scopedItems.filter(
+    (item) => (item.seerr || {}).state === "partial",
+  ).length;
+  els.stats.total.textContent = formatNumber(
+    state.view === "requests" ? scopedItems.length : stats.total,
+  );
+  els.stats.requestable.textContent = formatNumber(
+    state.view === "requests" ? partialCount : stats.requestable,
+  );
+  els.stats.requested.textContent = formatNumber(
+    state.view === "requests" ? requestedCount : stats.requested,
+  );
   els.stats.airingSoon.textContent = formatNumber(airingSoon);
 }
 
@@ -411,7 +443,11 @@ function renderSections(allItems) {
   const start = (state.page - 1) * state.pageSize;
   const items = allItems.slice(start, start + state.pageSize);
   if (!items.length) {
-    els.sections.innerHTML = `<div class="empty-state">No anime match the current filters.</div>${renderPager(0)}`;
+    const message =
+      state.view === "requests"
+        ? "No requested anime match the current season and filters."
+        : "No anime match the current filters.";
+    els.sections.innerHTML = `<div class="empty-state">${message}</div>${renderPager(0)}`;
     return;
   }
   const groups = new Map();
@@ -624,6 +660,14 @@ els.sort.addEventListener("change", (event) => {
   renderAll();
 });
 
+if (els.hideRequested) {
+  els.hideRequested.addEventListener("change", (event) => {
+    state.hideRequested = event.target.checked;
+    resetPage();
+    renderAll();
+  });
+}
+
 els.filterButton.addEventListener("click", (event) => {
   event.stopPropagation();
   setFilterOpen(!state.filterOpen);
@@ -634,11 +678,15 @@ els.filterMenu.addEventListener("click", (event) => {
   if (!button) return;
   const quickFilter = button.dataset.quickFilter;
   if (quickFilter === "clear") {
-    state.filter = state.view === "requests" ? "requestable" : "all";
+    state.filter = "all";
     state.audioFilter = "all";
+    state.hideRequested = false;
     state.query = "";
     els.filter.value = state.filter;
     els.search.value = "";
+    if (els.hideRequested) {
+      els.hideRequested.checked = false;
+    }
   } else if (quickFilter === "requestable" || quickFilter === "missing_mapping") {
     state.filter = quickFilter;
     els.filter.value = quickFilter;
@@ -713,4 +761,7 @@ window.weebarrToggleSelect = toggleSelectedItem;
 applyTheme();
 document.body.classList.toggle("compact-preview", forceCompactPreview);
 updateSeasonControls();
+if (els.hideRequested) {
+  els.hideRequested.checked = state.hideRequested;
+}
 loadSeason();

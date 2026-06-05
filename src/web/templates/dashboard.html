@@ -72,25 +72,25 @@
           <article class="stat-card stat-cyan">
             <span class="stat-icon" aria-hidden="true">▣</span>
             <div>
-              <span>Anime This Season</span>
+              <span>{{ "Requested This Season" if page_name == "requests" else "Anime This Season" }}</span>
               <strong id="statTotal">--</strong>
-              <small>Total shows</small>
+              <small>{{ "Tracked in Seerr" if page_name == "requests" else "Total shows" }}</small>
             </div>
           </article>
           <article class="stat-card stat-pink">
             <span class="stat-icon" aria-hidden="true">☷</span>
             <div>
-              <span>Requestable</span>
+              <span>{{ "Missing Seasons" if page_name == "requests" else "Requestable" }}</span>
               <strong id="statRequestable">--</strong>
-              <small>Actionable titles</small>
+              <small>{{ "Partial requests" if page_name == "requests" else "Actionable titles" }}</small>
             </div>
           </article>
           <article class="stat-card stat-purple">
             <span class="stat-icon" aria-hidden="true">⌕</span>
             <div>
-              <span>Already Requested</span>
+              <span>{{ "Already Requested" if page_name == "requests" else "Already Requested" }}</span>
               <strong id="statRequested">--</strong>
-              <small>Tracked in Seerr</small>
+              <small>{{ "Fully tracked" if page_name == "requests" else "Tracked in Seerr" }}</small>
             </div>
           </article>
           <article class="stat-card stat-blue">
@@ -103,7 +103,7 @@
           </article>
         </section>
 
-        <section class="filter-panel">
+        <section class="filter-panel{{ ' has-hide-toggle' if page_name == 'seasonal' else '' }}">
           <label class="search-wrap">
             <span class="sr-only">Search</span>
             <input id="searchInput" type="search" placeholder="Title, studio, genre..." />
@@ -134,6 +134,15 @@
               {% endfor %}
             </select>
           </label>
+          {% if page_name == "seasonal" %}
+          <div class="filter-toggle">
+            <span>Hide Requested</span>
+            <label class="toggle-switch" for="hideRequestedToggle" aria-label="Hide requested anime">
+              <input id="hideRequestedToggle" type="checkbox" />
+              <i aria-hidden="true"></i>
+            </label>
+          </div>
+          {% endif %}
           <div class="filter-actions">
             <button id="filterBtn" class="filter-btn" type="button" aria-expanded="false" aria-controls="filterMenu"><span aria-hidden="true">▽</span>Filters</button>
             <div id="filterMenu" class="filter-menu" role="menu" hidden>
