@@ -111,6 +111,12 @@ def normalize_title(value: str | None) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def compact_title(value: str | None) -> str:
+    """Collapse a title down to bare alphanumerics for spacing-insensitive matches."""
+
+    return re.sub(r"[^a-z0-9]+", "", (value or "").lower())
+
+
 def strip_description(value: str | None) -> str:
     if not value:
         return ""
@@ -183,13 +189,25 @@ def candidate_score(
     best = 0
     for title in titles:
         normalized_title = normalize_title(title)
+        compact_candidate = compact_title(candidate_title)
+        compact_match = compact_title(title)
         if not normalized_title:
             continue
         if normalized_title == normalized_candidate:
             best = max(best, 100)
+        elif compact_match and compact_match == compact_candidate:
+            best = max(best, 100)
         elif (
             normalized_title in normalized_candidate
             or normalized_candidate in normalized_title
+        ):
+            best = max(best, 85)
+        elif (
+            compact_match
+            and compact_candidate
+            and (
+                compact_match in compact_candidate or compact_candidate in compact_match
+            )
         ):
             best = max(best, 85)
         else:

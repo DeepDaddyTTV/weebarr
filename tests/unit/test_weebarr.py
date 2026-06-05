@@ -6,6 +6,7 @@ from src.main import create_app
 from src.weebarr.services import (
     WeebarrService,
     candidate_score,
+    compact_title,
     extract_installment_info,
     normalize_title,
     tmdb_image_url,
@@ -146,7 +147,14 @@ def test_title_normalization_and_candidate_score():
     candidate = {"name": "Witch Hat Atelier", "firstAirDate": "2026-04-06"}
 
     assert normalize_title("Witch Hat Atelier!!") == "witch hat atelier"
+    assert compact_title("Marriage Toxin") == "marriagetoxin"
     assert candidate_score(["Witch Hat Atelier"], candidate, 2026) >= 100
+
+
+def test_candidate_score_handles_collapsed_titles():
+    candidate = {"name": "Marriage Toxin", "firstAirDate": "2026-04-07"}
+
+    assert candidate_score(["MARRIAGETOXIN"], candidate, 2026) >= 100
 
 
 def test_extract_installment_info_handles_suffixes():

@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.14] - 2026-06-05
+
+### Fixed
+
+- Improved Seerr title scoring for spacing-insensitive anime names so collapsed titles like `MARRIAGETOXIN` correctly match spaced TMDb/Seerr titles like `Marriage Toxin`.
+- Restored `MARRIAGETOXIN` from a false `No Seerr match` failure to a real requestable series mapping in the live seasonal feed.
+
 ## [0.1.13] - 2026-06-05
 
 ### Fixed
