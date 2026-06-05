@@ -64,16 +64,6 @@
           <button type="button" data-theme-choice="system"><span aria-hidden="true">▱</span>System<i></i></button>
           <button type="button" data-theme-choice="light"><span aria-hidden="true">☾</span>Light<i></i></button>
         </div>
-        <div class="access-card">
-          <div class="connection-head">
-            <span class="pulse"></span>
-            <strong>{{ auth_user_name or "Authenticated" }}</strong>
-          </div>
-          <hr />
-          <span class="connection-label">{{ "Plex session" if auth_user_mode == "plex" else "Local session" }}</span>
-          <span class="connection-host">{{ auth_access_copy }}</span>
-          <a class="connection-cta" href="/logout">Sign Out</a>
-        </div>
         <div class="connection-card">
           <div class="connection-head">
             <span class="pulse"></span>
@@ -83,6 +73,7 @@
           <span class="connection-label">Seerr</span>
           <span class="connection-host">{{ seerr_base_url if seerr_base_url else "Add your Seerr base URL and API key in Settings." }}</span>
           <a class="connection-cta" href="/settings#connections">Manage Connections</a>
+          <a class="connection-cta connection-cta-subtle" href="/logout">Sign Out</a>
         </div>
       </aside>
 

@@ -192,13 +192,13 @@
                 </label>
 
                 <label class="full-width">
-                  <span>Admin Token</span>
+                  <span>Weebarr Admin Token</span>
                   <input id="settingsAdminToken" name="adminToken" type="password" placeholder="{{ 'Required for write actions' if connection.adminProtected else 'Optional unless you enable WEEBARR_ADMIN_TOKEN' }}" />
                   <small id="settingsAdminHint">
                     {% if connection.adminProtected %}
-                    This instance requires the configured admin token before test/save actions can succeed.
+                    This is Weebarr's own extra write-protection secret for this Settings page. It is not a Seerr API key.
                     {% else %}
-                    Write actions are currently unlocked. Set <code>WEEBARR_ADMIN_TOKEN</code> before exposing Settings publicly.
+                    Write actions are currently unlocked. Set <code>WEEBARR_ADMIN_TOKEN</code> only if you want this Settings page to require an extra Weebarr-side secret before save/test actions.
                     {% endif %}
                   </small>
                 </label>
@@ -221,7 +221,7 @@
               </div>
               <div class="settings-pill-grid compact">
                 <div class="pill-card">
-                  <span>Mode</span>
+                  <span>Scope</span>
                   <strong>Single admin</strong>
                 </div>
                 <div class="pill-card">
@@ -229,14 +229,73 @@
                   <strong>{{ "Plex Auth" if auth_user_mode == "plex" else "Local account" }}</strong>
                 </div>
                 <div class="pill-card">
-                  <span>Sign-In</span>
-                  <strong>{{ auth_signin_copy }}</strong>
+                  <span>Available Sign-In</span>
+                  <strong id="currentAuthSignIn">{{ auth_signin_copy }}</strong>
                 </div>
                 <div class="pill-card">
                   <span>Plex Return URL</span>
                   <strong>{{ access.publicUrl or "Automatic current URL" }}</strong>
                 </div>
               </div>
+            </section>
+
+            <section class="settings-panel settings-summary-card">
+              <div class="panel-heading compact">
+                <div>
+                  <span class="panel-eyebrow">Access</span>
+                  <h2>Local Account</h2>
+                </div>
+                <span id="localAccountStatusPill" class="status-pill {{ 'connected' if access.localAuthConfigured else 'missing' }}">
+                  {{ "Configured" if access.localAuthConfigured else "Not set" }}
+                </span>
+              </div>
+              <div id="accessSettingsBanner" class="status-banner" hidden></div>
+              <form id="localAccountForm" class="settings-form settings-form-compact" novalidate>
+                <div class="form-grid">
+                  <label>
+                    <span>Username</span>
+                    <input
+                      id="localAccountUsername"
+                      name="username"
+                      type="text"
+                      autocomplete="username"
+                      placeholder="deepdaddy"
+                      value="{{ access.authUsername or '' }}"
+                    />
+                    <small>Create a local fallback sign-in even if this instance was claimed through Plex first.</small>
+                  </label>
+
+                  <label>
+                    <span>Password</span>
+                    <input
+                      id="localAccountPassword"
+                      name="password"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="{{ 'Enter a new password' if access.localAuthConfigured else 'Create a password' }}"
+                    />
+                    <small>Use at least 8 characters. Saving here updates the local account immediately.</small>
+                  </label>
+
+                  <label>
+                    <span>Confirm Password</span>
+                    <input
+                      id="localAccountConfirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Confirm the password"
+                    />
+                    <small>Once saved, the login screen will offer local sign-in alongside Plex whenever both are configured.</small>
+                  </label>
+                </div>
+
+                <div class="settings-actions">
+                  <button id="saveLocalAccountBtn" class="refresh-btn" type="submit">
+                    {{ "Update Local Account" if access.localAuthConfigured else "Create Local Account" }}
+                  </button>
+                </div>
+              </form>
             </section>
 
             <section class="settings-panel settings-summary-card">
@@ -315,6 +374,7 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>
       window.WEEBARR_CONNECTION = {{ connection | tojson }};
+      window.WEEBARR_ACCESS = {{ access | tojson }};
     </script>
     <script src="/static/js/settings.js?v={{ asset_version }}"></script>
   </body>

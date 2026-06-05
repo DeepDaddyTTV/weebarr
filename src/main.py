@@ -99,6 +99,16 @@ class AccessSetupPayload(BaseModel):
     confirm_password: str = Field(default="", alias="confirmPassword")
 
 
+class LocalAccountPayload(BaseModel):
+    """Payload for creating or updating the local account from Settings."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    username: str = ""
+    password: str = ""
+    confirm_password: str = Field(default="", alias="confirmPassword")
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Create the FastAPI app."""
 
@@ -112,14 +122,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ):
         raise RuntimeError(
             "A session secret is required when Weebarr authentication is enabled."
-        )
-    if (
-        initial_settings.auth_mode == "local"
-        and not initial_settings.local_auth_configured
-        and not initial_settings.setup_required
-    ):
-        raise RuntimeError(
-            "A username and password are required when local auth is enabled."
         )
     service = WeebarrService(settings_store.get)
     asset_version = str(int(time()))
@@ -175,7 +177,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def auth_summary(request: Request) -> dict[str, Any]:
         user = current_auth_user(request)
         settings_now = current_settings()
-        if settings_now.uses_plex_auth:
+        if settings_now.uses_local_auth and settings_now.uses_plex_auth:
+            access_copy = (
+                "Single-admin access allows either the configured local account or "
+                "the claimed Plex account."
+            )
+            signin_copy = "Username/password or Plex"
+        elif settings_now.uses_plex_auth:
             access_copy = "Single-admin access is locked to the claimed Plex account."
             signin_copy = "Plex only"
         elif settings_now.uses_local_auth:
@@ -187,9 +195,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             access_copy = "Authentication has not been configured yet."
             signin_copy = "Setup required"
         return {
-            "auth_enabled": current_settings().auth_enabled,
-            "auth_mode": current_settings().auth_mode,
-            "plex_login_enabled": current_settings().plex_login_enabled,
+            "auth_enabled": settings_now.auth_enabled,
+            "auth_mode": settings_now.effective_auth_mode,
+            "plex_login_enabled": settings_now.plex_login_enabled,
+            "local_login_enabled": settings_now.uses_local_auth,
             "auth_user_name": user.display_name if user else None,
             "auth_user_mode": user.mode if user else None,
             "auth_access_copy": access_copy,
@@ -385,7 +394,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "request": request,
             "version": __version__,
             "asset_version": asset_version,
-            "auth_mode": settings_now.auth_mode,
+            "auth_mode": settings_now.effective_auth_mode,
             "local_login_enabled": settings_now.uses_local_auth,
             "plex_login_enabled": settings_now.plex_login_enabled,
             "next_path": sanitize_next_path(request.query_params.get("next")),
@@ -539,7 +548,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         return {
             "success": True,
-            "mode": updated.auth_mode,
+            "mode": updated.effective_auth_mode,
             "redirectTo": "/login",
         }
 
@@ -758,6 +767,50 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/settings/seerr")
     async def seerr_settings() -> dict[str, Any]:
         return connection_summary()
+
+    @app.put("/api/settings/access/local")
+    async def save_local_account(
+        request: Request,
+        payload: LocalAccountPayload,
+    ) -> dict[str, Any]:
+        username = payload.username.strip()
+        password = payload.password
+        if not username:
+            raise HTTPException(status_code=400, detail="Username is required.")
+        if len(password) < 8:
+            raise HTTPException(
+                status_code=400,
+                detail="Password must be at least 8 characters.",
+            )
+        if password != payload.confirm_password:
+            raise HTTPException(status_code=400, detail="Passwords do not match.")
+
+        settings_now = current_settings()
+        next_mode = "both" if settings_now.uses_plex_auth else "local"
+        updated = settings_store.save_auth(
+            {
+                "mode": next_mode,
+                "username": username,
+                "password_hash": hash_secret(password),
+                "session_secret": settings_now.session_secret
+                or generate_session_secret(),
+            }
+        )
+        active_user = current_auth_user(request)
+        if active_user and active_user.mode == "local":
+            set_auth_user(
+                request,
+                AuthUser(
+                    mode="local",
+                    username=username,
+                    display_name=username,
+                ),
+            )
+        return {
+            "success": True,
+            "access": settings_store.access_summary(),
+            "authMode": updated.effective_auth_mode,
+        }
 
     @app.post("/api/settings/seerr/test")
     async def test_seerr_settings(payload: ConnectionPayload) -> dict[str, Any]:

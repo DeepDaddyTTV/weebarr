@@ -4,6 +4,7 @@ const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
 const state = {
   theme: "dark",
   connection: window.WEEBARR_CONNECTION || {},
+  access: window.WEEBARR_ACCESS || {},
   openDropdown: null,
 };
 
@@ -18,6 +19,7 @@ const els = {
   statusPill: document.querySelector("#settingsStatusPill"),
   themeButtons: document.querySelectorAll("[data-theme-choice]"),
   form: document.querySelector("#connectionForm"),
+  accessForm: document.querySelector("#localAccountForm"),
   baseUrl: document.querySelector("#settingsBaseUrl"),
   apiKey: document.querySelector("#settingsApiKey"),
   requestSeasons: document.querySelector("#settingsRequestSeasons"),
@@ -29,6 +31,15 @@ const els = {
   requestUserId: document.querySelector("#settingsRequestUserId"),
   tags: document.querySelector("#settingsTags"),
   adminToken: document.querySelector("#settingsAdminToken"),
+  accessBanner: document.querySelector("#accessSettingsBanner"),
+  localAccountUsername: document.querySelector("#localAccountUsername"),
+  localAccountPassword: document.querySelector("#localAccountPassword"),
+  localAccountConfirmPassword: document.querySelector(
+    "#localAccountConfirmPassword",
+  ),
+  localAccountStatusPill: document.querySelector("#localAccountStatusPill"),
+  saveLocalAccountBtn: document.querySelector("#saveLocalAccountBtn"),
+  currentAuthSignIn: document.querySelector("#currentAuthSignIn"),
   testButton: document.querySelector("#testConnectionBtn"),
   saveButton: document.querySelector("#saveConnectionBtn"),
   currentBaseUrl: document.querySelector("#currentBaseUrl"),
@@ -91,6 +102,20 @@ function clearBanner() {
   els.banner.hidden = true;
   els.banner.textContent = "";
   delete els.banner.dataset.tone;
+}
+
+function showAccessBanner(message, tone = "info") {
+  if (!els.accessBanner) return;
+  els.accessBanner.textContent = message;
+  els.accessBanner.dataset.tone = tone;
+  els.accessBanner.hidden = false;
+}
+
+function clearAccessBanner() {
+  if (!els.accessBanner) return;
+  els.accessBanner.hidden = true;
+  els.accessBanner.textContent = "";
+  delete els.accessBanner.dataset.tone;
 }
 
 function parseOptionalInt(value) {
@@ -209,6 +234,27 @@ function payloadFromForm() {
   };
 }
 
+function localAccountPayload() {
+  return {
+    username: els.localAccountUsername.value.trim(),
+    password: els.localAccountPassword.value,
+    confirmPassword: els.localAccountConfirmPassword.value,
+  };
+}
+
+function signInLabel(access) {
+  if (access.localAuthConfigured && access.plexLoginEnabled) {
+    return "Username/password or Plex";
+  }
+  if (access.localAuthConfigured) {
+    return "Username/password";
+  }
+  if (access.plexLoginEnabled) {
+    return "Plex only";
+  }
+  return "Setup required";
+}
+
 function updateSummary(connection) {
   state.connection = connection;
   els.currentBaseUrl.textContent = connection.baseUrl || "Not set";
@@ -231,12 +277,58 @@ function updateSummary(connection) {
   syncCustomSelects(["settingsRequestSeasons", "settingsContentFilterMode"]);
 }
 
+function updateAccess(access) {
+  state.access = access;
+  if (els.localAccountUsername && !document.activeElement?.isSameNode(els.localAccountUsername)) {
+    els.localAccountUsername.value = access.authUsername || "";
+  }
+  if (els.currentAuthSignIn) {
+    els.currentAuthSignIn.textContent = signInLabel(access);
+  }
+  if (els.localAccountStatusPill) {
+    const configured = Boolean(access.localAuthConfigured);
+    els.localAccountStatusPill.textContent = configured ? "Configured" : "Not set";
+    els.localAccountStatusPill.classList.toggle("connected", configured);
+    els.localAccountStatusPill.classList.toggle("missing", !configured);
+  }
+  if (els.saveLocalAccountBtn) {
+    els.saveLocalAccountBtn.textContent = access.localAuthConfigured
+      ? "Update Local Account"
+      : "Create Local Account";
+  }
+}
+
 async function refreshConnection() {
   const response = await fetch("/api/settings/seerr");
   if (!response.ok) throw new Error(await response.text());
   const connection = await response.json();
   updateSummary(connection);
   return connection;
+}
+
+async function saveLocalAccount(event) {
+  event.preventDefault();
+  clearAccessBanner();
+
+  const response = await fetch("/api/settings/access/local", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(localAccountPayload()),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  const result = await response.json();
+  updateAccess(result.access || {});
+  els.localAccountPassword.value = "";
+  els.localAccountConfirmPassword.value = "";
+  showAccessBanner(
+    "Local account saved. Login will now offer username/password alongside Plex whenever both are configured.",
+    "success",
+  );
+  toast("Local account saved.");
 }
 
 async function testConnection() {
@@ -324,6 +416,16 @@ els.form.addEventListener("submit", async (event) => {
   }
 });
 
+if (els.accessForm) {
+  els.accessForm.addEventListener("submit", async (event) => {
+    try {
+      await saveLocalAccount(event);
+    } catch (error) {
+      showAccessBanner(`Save failed. ${error.message}`, "error");
+    }
+  });
+}
+
 els.themeButtons.forEach((button) => {
   button.addEventListener("click", () => applyTheme(button.dataset.themeChoice));
 });
@@ -346,6 +448,7 @@ document.addEventListener("keydown", (event) => {
 
 applyTheme();
 initializeCustomSelects();
+updateAccess(state.access);
 refreshConnection().catch((error) => {
   showBanner(`Could not load the saved connection settings. ${error.message}`, "error");
 });

@@ -74,9 +74,9 @@ def _normalize_content_filter_mode(value: Any) -> str:
 
 def _normalize_auth_mode(value: Any) -> str:
     normalized = str(value or "disabled").strip().lower()
-    if normalized in {"disabled", "local", "plex"}:
+    if normalized in {"disabled", "local", "plex", "both"}:
         return normalized
-    raise ValueError("auth_mode must be one of disabled, local, or plex")
+    raise ValueError("auth_mode must be one of disabled, local, plex, or both")
 
 
 def _normalize_request_record(value: Any) -> dict[str, Any] | None:
@@ -166,7 +166,7 @@ class Settings:
 
     @property
     def auth_enabled(self) -> bool:
-        return self.auth_mode != "disabled"
+        return self.auth_configured
 
     @property
     def local_auth_configured(self) -> bool:
@@ -176,15 +176,15 @@ class Settings:
 
     @property
     def uses_local_auth(self) -> bool:
-        return self.auth_mode == "local" or self.local_auth_configured
+        return self.local_auth_configured
 
     @property
     def uses_plex_auth(self) -> bool:
-        return self.auth_mode == "plex"
+        return bool(self.plex_allowed_users)
 
     @property
     def plex_login_enabled(self) -> bool:
-        return self.uses_plex_auth and self.auth_configured
+        return self.uses_plex_auth
 
     @property
     def api_key_enabled(self) -> bool:
@@ -196,15 +196,21 @@ class Settings:
 
     @property
     def auth_configured(self) -> bool:
-        if self.local_auth_configured:
-            return True
-        if self.uses_plex_auth:
-            return bool(self.plex_allowed_users)
-        return False
+        return self.local_auth_configured or self.uses_plex_auth
 
     @property
     def setup_required(self) -> bool:
         return not self.auth_configured
+
+    @property
+    def effective_auth_mode(self) -> str:
+        if self.local_auth_configured and self.uses_plex_auth:
+            return "both"
+        if self.local_auth_configured:
+            return "local"
+        if self.uses_plex_auth:
+            return "plex"
+        return "disabled"
 
     @property
     def api_key_preview(self) -> str:
@@ -409,10 +415,10 @@ class SettingsStore:
         return {
             "setupRequired": current.setup_required,
             "configured": current.auth_configured,
-            "authMode": current.auth_mode,
+            "authMode": current.effective_auth_mode,
             "authUsername": current.auth_username,
             "localAuthConfigured": current.local_auth_configured,
-            "plexLoginEnabled": current.plex_login_enabled,
+            "plexLoginEnabled": current.uses_plex_auth,
             "publicUrl": current.public_url,
             "plexAllowedUsers": current.plex_allowed_users or [],
             "apiKeyEnabled": current.api_key_enabled,

@@ -74,6 +74,8 @@ def test_seasonal_page_renders(tmp_path):
     assert "Seasonal Anime" in response.text
     assert 'data-ui-select="season"' in response.text
     assert "ui-select-trigger" in response.text
+    assert 'class="access-card"' not in response.text
+    assert "Sign Out" in response.text
 
 
 def test_requests_page_renders(tmp_path):
@@ -93,6 +95,8 @@ def test_settings_page_renders(tmp_path):
 
     assert response.status_code == 200
     assert "Manage Seerr" in response.text
+    assert "Local Account" in response.text
+    assert "Weebarr Admin Token" in response.text
     assert "Content Filter" in response.text
     assert 'data-ui-select="settingsRequestSeasons"' in response.text
     assert 'data-ui-select="settingsContentFilterMode"' in response.text
@@ -460,6 +464,48 @@ def test_plex_only_login_page_hides_local_form(tmp_path):
     assert "Continue with Plex" in login_page.text
     assert "Username" not in login_page.text
     assert "Password" not in login_page.text
+
+
+def test_plex_first_can_add_local_account_and_offer_both_login_paths(tmp_path):
+    config_path = tmp_path / "weebarr.json"
+    store = SettingsStore(
+        Settings(config_path=str(config_path), app_api_key="automation-token")
+    )
+    store.save_auth(
+        {
+            "mode": "plex",
+            "session_secret": "plex-session-secret",
+            "plex_allowed_users": ["deepdaddy@example.com"],
+        }
+    )
+    client = TestClient(
+        create_app(
+            Settings(config_path=str(config_path), app_api_key="automation-token")
+        )
+    )
+
+    response = client.put(
+        "/api/settings/access/local",
+        headers={"X-API-Key": "automation-token"},
+        json={
+            "username": "deepdaddy",
+            "password": "supersafe123",
+            "confirmPassword": "supersafe123",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["authMode"] == "both"
+    assert payload["access"]["localAuthConfigured"] is True
+    assert payload["access"]["plexLoginEnabled"] is True
+
+    login_page = client.get("/login")
+    assert login_page.status_code == 200
+    assert "Continue with Plex" in login_page.text
+    assert "Username" in login_page.text
+    assert "Password" in login_page.text
 
 
 def test_plex_setup_start_uses_current_request_origin_for_callback(

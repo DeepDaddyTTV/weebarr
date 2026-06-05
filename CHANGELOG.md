@@ -4,17 +4,28 @@ All notable changes to Weebarr will be documented in this file.
 
 ## [0.1.18] - 2026-06-05
 
+## [0.1.19] - 2026-06-05
+
+### Fixed
+
+- Applied the new `Weebarr-Login.webp` artwork to the auth background with a dark neon scrim so the login and setup pages use the added image without sacrificing readability.
+- Centered the login-page Weebarr wordmark and intro copy so the auth panel feels balanced instead of left-weighted.
+- Re-verified that the live login screen serves the exact `src/web/static/img/weebarr-wordmark.svg` asset rather than a fallback logo file.
+
 ### Changed
 
 - First-run setup is now restricted to local/private addresses instead of relying on a setup token, so the initial claim flow is only available from local URLs like `localhost` or `192.168.x.x`.
 - Setup now offers a true either-or admin choice: create a local username/password account or claim the instance to a single Plex account.
 - The main sidebar brand now uses the real Weebarr SVG wordmark instead of reconstructing the logo from a separate mark and text.
+- Plex-first setups can now add a local username/password later from Settings without losing Plex sign-in, and login automatically offers both methods whenever both are configured.
+- The home dashboard sidebar no longer exposes the signed-in identity card; it keeps only the connection card plus a neutral sign-out action.
 
 ### Fixed
 
 - Removed the old auto-login behavior after local account creation; local setup now lands on `/login` so the configured auth mode is actually respected.
 - Added a real Plex setup path to the first-run screen, including a one-time Plex account claim that persists the allowed admin identity.
 - Updated the login screen so local auth shows only username/password while Plex-only auth shows only the Plex button, matching the configured mode.
+- Clarified the Settings-page `Weebarr Admin Token` copy so it is no longer confused with a Seerr credential.
 
 ## [0.1.17] - 2026-06-05
 
