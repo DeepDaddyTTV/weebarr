@@ -1805,6 +1805,10 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .filter-panel.has-hide-toggle {
+    grid-template-columns: 1fr;
+  }
+
   .anime-card {
     grid-template-columns: 104px minmax(0, 1fr);
   }

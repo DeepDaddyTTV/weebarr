@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "weebarr"
-version = "0.1.4"
+version = "0.1.5"
 description = "Seasonal anime discovery and Seerr request dashboard"
 readme = "README.md"
 license = {text = "GPL-3.0"}

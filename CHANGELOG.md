@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.5] - 2026-06-04
+
+### Fixed
+
+- Forced the Seasonal `has-hide-toggle` filter variant to collapse to a single column on smaller screens so the filter row no longer overflows horizontally on mobile widths.
+
 ## [0.1.4] - 2026-06-04
 
 ### Fixed
