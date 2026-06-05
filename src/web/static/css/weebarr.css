@@ -197,10 +197,6 @@ body[data-theme="light"] .connection-head {
   color: #1f9e64;
 }
 
-body[data-theme="light"] .toggle-switch {
-  background: rgba(255, 255, 255, 0.82);
-}
-
 body[data-theme="light"] .toggle-switch i {
   background: rgba(31, 48, 65, 0.08);
 }
@@ -638,7 +634,7 @@ h1 {
 }
 
 .filter-panel.has-hide-toggle {
-  grid-template-columns: minmax(220px, 1.25fr) 145px 175px 170px 132px 108px;
+  grid-template-columns: minmax(220px, 1.15fr) 145px 175px 160px max-content 108px;
 }
 
 .filter-panel label {
@@ -664,26 +660,30 @@ h1 {
 }
 
 .filter-toggle {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-self: end;
+  align-self: end;
 }
 
 .filter-toggle > span {
   color: var(--muted);
   font-size: 12px;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .toggle-switch {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  min-height: 40px;
-  padding: 0 12px;
+  justify-content: center;
+  min-height: auto;
+  padding: 0;
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.055);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 }
 
 .toggle-switch input {
@@ -1708,9 +1708,17 @@ h1 {
     grid-template-columns: minmax(220px, 1fr) 150px 170px;
   }
 
+  .filter-panel.has-hide-toggle {
+    grid-template-columns: minmax(220px, 1fr) 150px 170px;
+  }
+
   .filter-panel .filter-actions,
   .filter-panel label:nth-of-type(4) {
     grid-column: auto;
+  }
+
+  .filter-panel.has-hide-toggle .filter-toggle {
+    justify-self: start;
   }
 
   .settings-layout {

@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.4] - 2026-06-04
+
+### Fixed
+
+- Prevented the Seasonal filter row from overflowing into the spotlight panel at desktop widths by tightening the `Hide Requested` control footprint and adding a matching breakpoint override.
+
 ## [0.1.3] - 2026-06-04
 
 ### Added
