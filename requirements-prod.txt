@@ -11,3 +11,4 @@ httpx>=0.25.0
 
 # Configuration and validation
 pydantic>=2.4.0
+itsdangerous>=2.2.0

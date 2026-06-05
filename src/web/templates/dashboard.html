@@ -67,6 +67,16 @@
           <button type="button" data-theme-choice="system"><span aria-hidden="true">▱</span>System<i></i></button>
           <button type="button" data-theme-choice="light"><span aria-hidden="true">☾</span>Light<i></i></button>
         </div>
+        <div class="access-card">
+          <div class="connection-head">
+            <span class="pulse"></span>
+            <strong>{{ auth_user_name or "Authenticated" }}</strong>
+          </div>
+          <hr />
+          <span class="connection-label">{{ "Plex Auth" if auth_mode == "plex" else "Local account" }}</span>
+          <span class="connection-host">{{ access.apiKeyPreview if access.apiKeyEnabled else "API key not enabled" }}</span>
+          <a class="connection-cta" href="/logout">Sign Out</a>
+        </div>
         <div class="connection-card">
           <div class="connection-head">
             <span class="pulse"></span>

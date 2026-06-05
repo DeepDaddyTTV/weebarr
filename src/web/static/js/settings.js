@@ -4,6 +4,7 @@ const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
 const state = {
   theme: "dark",
   connection: window.WEEBARR_CONNECTION || {},
+  openDropdown: null,
 };
 
 const contentFilterLabels = {
@@ -42,6 +43,9 @@ const els = {
   testProfileId: document.querySelector("#testProfileId"),
   testRootFolder: document.querySelector("#testRootFolder"),
 };
+
+const customSelectRoots = [...document.querySelectorAll("[data-ui-select]")];
+const customSelects = new Map();
 
 function toast(message) {
   els.toast.textContent = message;
@@ -102,6 +106,94 @@ function parseTags(value) {
     .filter((part) => Number.isFinite(part));
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function syncCustomSelect(configOrId) {
+  const config =
+    typeof configOrId === "string" ? customSelects.get(configOrId) : configOrId;
+  if (!config) return;
+  const { root, select, trigger, value, menu } = config;
+  const selectedOption = select.options[select.selectedIndex];
+  value.textContent = selectedOption ? selectedOption.textContent : "";
+  root.dataset.value = select.value;
+  menu.innerHTML = [...select.options]
+    .map((option) => {
+      const selected = option.value === select.value;
+      return `
+        <button
+          class="ui-select-option ${selected ? "selected" : ""}"
+          type="button"
+          role="option"
+          aria-selected="${String(selected)}"
+          data-select-option="${select.id}"
+          data-value="${escapeHtml(option.value)}"
+        >
+          <span>${escapeHtml(option.textContent)}</span>
+          ${selected ? "<i aria-hidden=\"true\">●</i>" : ""}
+        </button>
+      `;
+    })
+    .join("");
+  trigger.setAttribute("data-value", select.value);
+}
+
+function syncCustomSelects(selectIds) {
+  if (Array.isArray(selectIds) && selectIds.length) {
+    selectIds.forEach((selectId) => syncCustomSelect(selectId));
+    return;
+  }
+  customSelects.forEach((config) => syncCustomSelect(config));
+}
+
+function setCustomSelectOpen(selectId = null) {
+  state.openDropdown = selectId;
+  customSelects.forEach((config, key) => {
+    const open = key === selectId;
+    config.root.classList.toggle("open", open);
+    config.menu.hidden = !open;
+    config.trigger.setAttribute("aria-expanded", String(open));
+  });
+}
+
+function initializeCustomSelects() {
+  customSelectRoots.forEach((root) => {
+    const select = root.querySelector("select");
+    const trigger = root.querySelector(".ui-select-trigger");
+    const value = root.querySelector(".ui-select-value");
+    const menu = root.querySelector(".ui-select-menu");
+    if (!select || !trigger || !value || !menu) return;
+    select.setAttribute("aria-hidden", "true");
+    select.tabIndex = -1;
+    const config = { root, select, trigger, value, menu };
+    customSelects.set(select.id, config);
+    syncCustomSelect(config);
+    trigger.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const nextOpen = state.openDropdown === select.id ? null : select.id;
+      setCustomSelectOpen(nextOpen);
+    });
+    menu.addEventListener("click", (event) => {
+      const option = event.target.closest("[data-select-option]");
+      if (!option) return;
+      const nextValue = option.dataset.value;
+      if (select.value !== nextValue) {
+        select.value = nextValue;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      syncCustomSelect(config);
+      setCustomSelectOpen(null);
+    });
+    select.addEventListener("change", () => syncCustomSelect(config));
+  });
+}
+
 function payloadFromForm() {
   return {
     baseUrl: els.baseUrl.value.trim(),
@@ -136,6 +228,7 @@ function updateSummary(connection) {
   if (connection.contentFilterMode) {
     els.contentFilterMode.value = connection.contentFilterMode;
   }
+  syncCustomSelects(["settingsRequestSeasons", "settingsContentFilterMode"]);
 }
 
 async function refreshConnection() {
@@ -239,7 +332,20 @@ prefersLight.addEventListener("change", () => {
   if (state.theme === "system") applyTheme("system");
 });
 
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".ui-select")) {
+    setCustomSelectOpen(null);
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    setCustomSelectOpen(null);
+  }
+});
+
 applyTheme();
+initializeCustomSelects();
 refreshConnection().catch((error) => {
   showBanner(`Could not load the saved connection settings. ${error.message}`, "error");
 });

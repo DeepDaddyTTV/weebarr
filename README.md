@@ -49,6 +49,8 @@ services:
 
 Open `http://localhost:8898`.
 
+On a brand-new install, Weebarr now starts with a first-run access wizard. You can choose a Sonarr-style local account or Plex Auth, and optionally generate an app API key for automation access to `/api/*`.
+
 ## Configuration
 
 Weebarr is configured with environment variables so it works cleanly in Docker Compose, Portainer, Unraid, and similar self-hosted setups.
@@ -59,7 +61,17 @@ Weebarr is configured with environment variables so it works cleanly in Docker C
 | `WEEBARR_PORT` | `8888` | Container listen port. |
 | `WEEBARR_LOG_LEVEL` | `INFO` | Uvicorn/application log level. |
 | `WEEBARR_CONFIG_PATH` | auto | Override the persisted JSON settings path. Defaults to `/config/weebarr.json` when writable. |
-| `WEEBARR_ADMIN_TOKEN` | none | Optional token required to save or test Seerr settings from the UI. |
+| `WEEBARR_ADMIN_TOKEN` | none | Optional token required to save/test Seerr settings and, when auth has not been configured yet, to complete the first-run setup flow safely on a public deployment. |
+| `WEEBARR_AUTH_MODE` | `disabled` | Optional env-first override for access mode. Supports `disabled`, `local`, or `plex`. Most installs can leave this unset and use the first-run setup flow instead. |
+| `WEEBARR_AUTH_USERNAME` | none | Local-auth username when bootstrapping through environment variables instead of the first-run setup UI. |
+| `WEEBARR_AUTH_PASSWORD` | none | Local-auth password when bootstrapping through environment variables instead of the first-run setup UI. |
+| `WEEBARR_AUTH_PASSWORD_HASH` | none | Optional hashed alternative to `WEEBARR_AUTH_PASSWORD` for env-managed local auth. |
+| `WEEBARR_SESSION_SECRET` | none | Session signing secret. Required for env-managed local or Plex auth, but generated automatically when you complete the first-run setup flow. |
+| `WEEBARR_PUBLIC_URL` | request host | Optional public URL used for Plex callback redirects. |
+| `WEEBARR_API_KEY` | none | Optional app API key for non-browser automation access to `/api/*`. Generated automatically if you enable it during first-run setup. |
+| `WEEBARR_API_KEY_HASH` | none | Optional hashed alternative to `WEEBARR_API_KEY` for env-managed automation auth. |
+| `WEEBARR_API_KEY_PREVIEW` | none | Optional masked preview string shown in the UI when using env-managed hashed API keys. |
+| `WEEBARR_PLEX_ALLOWED_USERS` | none | Optional comma-separated Plex username/email allowlist. |
 | `WEEBARR_CONTENT_FILTER_MODE` | `hide_nsfw` | Seasonal content filter. Supports `hide_nsfw` (AniList adult-only titles hidden) or `show_all`. |
 | `SEERR_BASE_URL` | none | Internal Seerr URL, for example `http://seerr:5055`. |
 | `SEERR_API_KEY` | none | Seerr API key. Required for request/status integration. |
@@ -95,6 +107,8 @@ pytest tests/unit
 ## Notes
 
 - AniList powers seasonal metadata and popularity sorting.
+- Weebarr’s first-run setup writes access settings into the mounted config volume, so you can keep the container image generic and finish auth/API configuration from the UI.
+- Local UI sessions use signed cookies, and non-browser automation can use the generated app API key by sending `X-API-Key: <key>` or `Authorization: Bearer <key>`.
 - The `Hide NSFW` setting follows AniList's adult-only flag. Weebarr also treats older `adult_only` config values as `hide_nsfw` so existing installs keep working.
 - Seerr powers TV matching, request status, and request creation.
 - Jikan/MAL voice-actor data powers the best-effort `EN Dub` badge. If no English voice actors are found, Weebarr falls back to origin labels like `JA only` or `CH only`.

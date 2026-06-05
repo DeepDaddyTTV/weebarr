@@ -2,6 +2,20 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.16] - 2026-06-05
+
+### Added
+
+- Added a guided first-run access flow that blocks the dashboard until you choose either a local account or Plex Auth.
+- Added session-based UI authentication and optional app API key authentication for `/api/*`, including first-run generation of the automation key.
+- Added dedicated login/setup surfaces that use the Weebarr visual language instead of exposing a raw browser auth prompt.
+
+### Fixed
+
+- Converted the Settings page dropdowns to the same in-page `ui-select` system used elsewhere in Weebarr, so `Request Seasons` and `Content Filter` no longer fall back to browser-native selects.
+- Centered the `Hide Requested` control within the lane between the seasonal quick filter and the `Filters` button for a more balanced desktop layout.
+- Declared `itsdangerous` as a runtime dependency so Starlette session support works in clean installs and containers.
+
 ## [0.1.15] - 2026-06-05
 
 ### Added

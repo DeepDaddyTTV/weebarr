@@ -32,6 +32,12 @@ def _optional_csv_int(value: str | None) -> list[int] | None:
     return [int(part.strip()) for part in value.split(",") if part.strip()]
 
 
+def _optional_csv_str(value: str | None) -> list[str]:
+    if value is None or value.strip() == "":
+        return []
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
 def _normalize_optional_str(value: str | None) -> str | None:
     if value is None:
         return None
@@ -64,6 +70,13 @@ def _normalize_content_filter_mode(value: Any) -> str:
     if normalized == "adult_only":
         return "hide_nsfw"
     raise ValueError("content_filter_mode must be one of hide_nsfw or show_all")
+
+
+def _normalize_auth_mode(value: Any) -> str:
+    normalized = str(value or "disabled").strip().lower()
+    if normalized in {"disabled", "local", "plex"}:
+        return normalized
+    raise ValueError("auth_mode must be one of disabled, local, or plex")
 
 
 def _normalize_request_record(value: Any) -> dict[str, Any] | None:
@@ -128,6 +141,22 @@ class Settings:
     audio_cache_ttl_seconds: int = 86400
     audio_lookup_timeout_seconds: float = 6.0
     content_filter_mode: str = "hide_nsfw"
+    auth_mode: str = "disabled"
+    auth_username: str = ""
+    auth_password: str = ""
+    auth_password_hash: str = ""
+    app_api_key: str = ""
+    app_api_key_hash: str = ""
+    app_api_key_preview_value: str = ""
+    session_secret: str = ""
+    session_cookie_name: str = "weebarr_session"
+    session_max_age_seconds: int = 2592000
+    public_url: str | None = None
+    plex_client_id: str = "weebarr-web"
+    plex_product_name: str = "Weebarr"
+    plex_product_version: str = "0.0.0"
+    plex_platform: str = "Web"
+    plex_allowed_users: list[str] | None = None
     admin_token: str = ""
     config_path: str = DEFAULT_CONFIG_PATH
 
@@ -136,11 +165,52 @@ class Settings:
         return bool(self.seerr_base_url and self.seerr_api_key)
 
     @property
+    def auth_enabled(self) -> bool:
+        return self.auth_mode != "disabled"
+
+    @property
+    def uses_local_auth(self) -> bool:
+        return self.auth_mode == "local"
+
+    @property
+    def uses_plex_auth(self) -> bool:
+        return self.auth_mode == "plex"
+
+    @property
+    def api_key_enabled(self) -> bool:
+        return bool(self.app_api_key or self.app_api_key_hash)
+
+    @property
     def admin_protected(self) -> bool:
         return bool(self.admin_token)
 
     @property
+    def auth_configured(self) -> bool:
+        if self.uses_local_auth:
+            return bool(
+                self.auth_username and (self.auth_password_hash or self.auth_password)
+            )
+        if self.uses_plex_auth:
+            return True
+        return False
+
+    @property
+    def setup_required(self) -> bool:
+        return not self.auth_configured
+
+    @property
     def api_key_preview(self) -> str:
+        if self.app_api_key_preview_value:
+            return self.app_api_key_preview_value
+        if self.app_api_key:
+            tail = (
+                self.app_api_key[-4:] if len(self.app_api_key) > 4 else self.app_api_key
+            )
+            return f"••••{tail}"
+        return ""
+
+    @property
+    def seerr_api_key_preview(self) -> str:
         if not self.seerr_api_key:
             return ""
         tail = (
@@ -181,6 +251,29 @@ class Settings:
             content_filter_mode=_normalize_content_filter_mode(
                 os.getenv("WEEBARR_CONTENT_FILTER_MODE", "hide_nsfw")
             ),
+            auth_mode=_normalize_auth_mode(os.getenv("WEEBARR_AUTH_MODE", "disabled")),
+            auth_username=os.getenv("WEEBARR_AUTH_USERNAME", ""),
+            auth_password=os.getenv("WEEBARR_AUTH_PASSWORD", ""),
+            auth_password_hash=os.getenv("WEEBARR_AUTH_PASSWORD_HASH", ""),
+            app_api_key=os.getenv("WEEBARR_API_KEY", ""),
+            app_api_key_hash=os.getenv("WEEBARR_API_KEY_HASH", ""),
+            app_api_key_preview_value=os.getenv("WEEBARR_API_KEY_PREVIEW", ""),
+            session_secret=os.getenv("WEEBARR_SESSION_SECRET", ""),
+            session_cookie_name=os.getenv(
+                "WEEBARR_SESSION_COOKIE_NAME", "weebarr_session"
+            ),
+            session_max_age_seconds=int(
+                os.getenv("WEEBARR_SESSION_MAX_AGE_SECONDS", "2592000")
+            ),
+            public_url=_normalize_optional_str(os.getenv("WEEBARR_PUBLIC_URL")),
+            plex_client_id=os.getenv("WEEBARR_PLEX_CLIENT_ID", "weebarr-web"),
+            plex_product_name=os.getenv("WEEBARR_PLEX_PRODUCT_NAME", "Weebarr"),
+            plex_product_version=os.getenv("WEEBARR_PLEX_PRODUCT_VERSION", "0.0.0"),
+            plex_platform=os.getenv("WEEBARR_PLEX_PLATFORM", "Web"),
+            plex_allowed_users=_optional_csv_str(
+                os.getenv("WEEBARR_PLEX_ALLOWED_USERS")
+            )
+            or None,
             admin_token=os.getenv("WEEBARR_ADMIN_TOKEN", ""),
             config_path=os.getenv("WEEBARR_CONFIG_PATH", DEFAULT_CONFIG_PATH),
         )
@@ -214,6 +307,19 @@ class SettingsStore:
                     seerr.pop(key, None)
                 else:
                     seerr[key] = value
+            self._write_payload(payload)
+            self._current = self._build_settings(payload)
+            return self._current
+
+    def save_auth(self, overrides: dict[str, Any]) -> Settings:
+        with self._lock:
+            payload = self._load_payload()
+            auth = payload.setdefault("auth", {})
+            for key, value in overrides.items():
+                if value is None:
+                    auth.pop(key, None)
+                else:
+                    auth[key] = value
             self._write_payload(payload)
             self._current = self._build_settings(payload)
             return self._current
@@ -278,7 +384,7 @@ class SettingsStore:
             "configured": current.seerr_configured,
             "baseUrl": current.seerr_base_url,
             "hasApiKey": bool(current.seerr_api_key),
-            "apiKeyPreview": current.api_key_preview,
+            "apiKeyPreview": current.seerr_api_key_preview,
             "requestSeasons": current.seerr_request_seasons,
             "sonarrServerId": current.seerr_sonarr_server_id,
             "profileId": current.seerr_profile_id,
@@ -288,6 +394,19 @@ class SettingsStore:
             "tags": current.seerr_tags or [],
             "contentFilterMode": current.content_filter_mode,
             "adminProtected": current.admin_protected,
+        }
+
+    def access_summary(self) -> dict[str, Any]:
+        current = self.get()
+        return {
+            "setupRequired": current.setup_required,
+            "configured": current.auth_configured,
+            "authMode": current.auth_mode,
+            "authUsername": current.auth_username,
+            "publicUrl": current.public_url,
+            "plexAllowedUsers": current.plex_allowed_users or [],
+            "apiKeyEnabled": current.api_key_enabled,
+            "apiKeyPreview": current.api_key_preview,
         }
 
     def _load_payload(self) -> dict[str, Any]:
@@ -310,6 +429,7 @@ class SettingsStore:
         seerr = (
             payload.get("seerr", {}) if isinstance(payload.get("seerr"), dict) else {}
         )
+        auth = payload.get("auth", {}) if isinstance(payload.get("auth"), dict) else {}
         return replace(
             self._base,
             seerr_base_url=(
@@ -355,4 +475,58 @@ class SettingsStore:
                 if "content_filter_mode" in seerr
                 else self._base.content_filter_mode
             ),
+            auth_mode=(
+                _normalize_auth_mode(auth.get("mode"))
+                if "mode" in auth
+                else self._base.auth_mode
+            ),
+            auth_username=(
+                _normalize_optional_str(auth.get("username"))
+                if "username" in auth
+                else self._base.auth_username
+            )
+            or "",
+            auth_password_hash=(
+                _normalize_optional_str(auth.get("password_hash"))
+                if "password_hash" in auth
+                else self._base.auth_password_hash
+            )
+            or "",
+            app_api_key_hash=(
+                _normalize_optional_str(auth.get("api_key_hash"))
+                if "api_key_hash" in auth
+                else self._base.app_api_key_hash
+            )
+            or "",
+            app_api_key_preview_value=(
+                _normalize_optional_str(auth.get("api_key_preview"))
+                if "api_key_preview" in auth
+                else self._base.app_api_key_preview_value
+            )
+            or "",
+            session_secret=(
+                _normalize_optional_str(auth.get("session_secret"))
+                if "session_secret" in auth
+                else self._base.session_secret
+            )
+            or "",
+            public_url=(
+                _normalize_optional_str(auth.get("public_url"))
+                if "public_url" in auth
+                else self._base.public_url
+            ),
+            plex_allowed_users=(
+                _optional_csv_str(auth.get("plex_allowed_users"))
+                if isinstance(auth.get("plex_allowed_users"), str)
+                else (
+                    [
+                        str(value).strip()
+                        for value in auth.get("plex_allowed_users", [])
+                        if str(value).strip()
+                    ]
+                    if "plex_allowed_users" in auth
+                    else self._base.plex_allowed_users
+                )
+            )
+            or None,
         )

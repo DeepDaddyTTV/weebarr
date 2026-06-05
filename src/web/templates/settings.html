@@ -21,9 +21,42 @@
           </span>
         </a>
         <nav class="nav-list">
-          <a class="nav-item muted" href="/seasonal"><span aria-hidden="true">▣</span>Seasonal</a>
-          <a class="nav-item muted" href="/requests"><span aria-hidden="true">☷</span>Requests</a>
-          <a class="nav-item active" href="/settings"><span aria-hidden="true">⚙</span>Settings</a>
+          <a class="nav-item muted" href="/seasonal">
+            <span class="nav-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <rect x="3.5" y="5.5" width="17" height="11" rx="3"></rect>
+                <path d="M9.5 19h5"></path>
+                <path d="M12 16.5v2.5"></path>
+              </svg>
+            </span>
+            Seasonal
+          </a>
+          <a class="nav-item muted" href="/requests">
+            <span class="nav-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <circle cx="12" cy="12" r="6.75"></circle>
+                <circle cx="12" cy="12" r="1.9"></circle>
+                <path d="M17.1 6.8c1.65 1.35 2.65 3.22 2.65 5.2s-1 3.85-2.65 5.2"></path>
+              </svg>
+            </span>
+            Requests
+          </a>
+          <a class="nav-item active" href="/settings">
+            <span class="nav-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <circle cx="12" cy="12" r="2.35"></circle>
+                <path d="M12 4.5v2.1"></path>
+                <path d="M12 17.4v2.1"></path>
+                <path d="M6.7 6.7l1.5 1.5"></path>
+                <path d="M15.8 15.8l1.5 1.5"></path>
+                <path d="M4.5 12h2.1"></path>
+                <path d="M17.4 12h2.1"></path>
+                <path d="M6.7 17.3l1.5-1.5"></path>
+                <path d="M15.8 8.2l1.5-1.5"></path>
+              </svg>
+            </span>
+            Settings
+          </a>
         </nav>
 
         <div class="sidebar-spacer"></div>
@@ -33,6 +66,16 @@
           <button type="button" class="active" data-theme-choice="dark"><span aria-hidden="true">☼</span>Dark<i></i></button>
           <button type="button" data-theme-choice="system"><span aria-hidden="true">▱</span>System<i></i></button>
           <button type="button" data-theme-choice="light"><span aria-hidden="true">☾</span>Light<i></i></button>
+        </div>
+        <div class="access-card">
+          <div class="connection-head">
+            <span class="pulse"></span>
+            <strong>{{ auth_user_name or "Authenticated" }}</strong>
+          </div>
+          <hr />
+          <span class="connection-label">{{ "Plex Auth" if auth_mode == "plex" else "Local account" }}</span>
+          <span class="connection-host">{{ access.apiKeyPreview if access.apiKeyEnabled else "API key not enabled" }}</span>
+          <a class="connection-cta" href="/logout">Sign Out</a>
         </div>
         <div class="connection-card">
           <div class="connection-head">
@@ -84,20 +127,34 @@
 
                 <label>
                   <span>Request Seasons</span>
-                  <select id="settingsRequestSeasons" name="requestSeasons">
-                    <option value="all" {{ 'selected' if connection.requestSeasons == 'all' else '' }}>All seasons</option>
-                    <option value="first" {{ 'selected' if connection.requestSeasons == 'first' else '' }}>First season only</option>
-                    <option value="latest" {{ 'selected' if connection.requestSeasons == 'latest' else '' }}>Latest season only</option>
-                  </select>
+                  <div class="ui-select" data-ui-select="settingsRequestSeasons">
+                    <select id="settingsRequestSeasons" name="requestSeasons">
+                      <option value="all" {{ 'selected' if connection.requestSeasons == 'all' else '' }}>All seasons</option>
+                      <option value="first" {{ 'selected' if connection.requestSeasons == 'first' else '' }}>First season only</option>
+                      <option value="latest" {{ 'selected' if connection.requestSeasons == 'latest' else '' }}>Latest season only</option>
+                    </select>
+                    <button id="settingsRequestSeasonsTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="settingsRequestSeasonsMenu">
+                      <span class="ui-select-value"></span>
+                      <i class="ui-select-chevron" aria-hidden="true"></i>
+                    </button>
+                    <div id="settingsRequestSeasonsMenu" class="ui-select-menu" role="listbox" hidden></div>
+                  </div>
                   <small>What Weebarr sends to Seerr when you click Request.</small>
                 </label>
 
                 <label>
                   <span>Content Filter</span>
-                  <select id="settingsContentFilterMode" name="contentFilterMode">
-                    <option value="hide_nsfw" {{ 'selected' if connection.contentFilterMode == 'hide_nsfw' else '' }}>Hide NSFW</option>
-                    <option value="show_all" {{ 'selected' if connection.contentFilterMode == 'show_all' else '' }}>Show all</option>
-                  </select>
+                  <div class="ui-select" data-ui-select="settingsContentFilterMode">
+                    <select id="settingsContentFilterMode" name="contentFilterMode">
+                      <option value="hide_nsfw" {{ 'selected' if connection.contentFilterMode == 'hide_nsfw' else '' }}>Hide NSFW</option>
+                      <option value="show_all" {{ 'selected' if connection.contentFilterMode == 'show_all' else '' }}>Show all</option>
+                    </select>
+                    <button id="settingsContentFilterModeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="settingsContentFilterModeMenu">
+                      <span class="ui-select-value"></span>
+                      <i class="ui-select-chevron" aria-hidden="true"></i>
+                    </button>
+                    <div id="settingsContentFilterModeMenu" class="ui-select-menu" role="listbox" hidden></div>
+                  </div>
                   <small><code>hide_nsfw</code> follows AniList's adult-only flag. Weebarr automatically treats old <code>adult_only</code> values as the same mode.</small>
                 </label>
 
@@ -158,6 +215,33 @@
           </section>
 
           <aside class="settings-side">
+            <section class="settings-panel settings-summary-card">
+              <div class="panel-heading compact">
+                <div>
+                  <span class="panel-eyebrow">Access</span>
+                  <h2>Authentication</h2>
+                </div>
+              </div>
+              <div class="settings-pill-grid compact">
+                <div class="pill-card">
+                  <span>Mode</span>
+                  <strong>{{ "Plex Auth" if access.authMode == "plex" else "Local account" }}</strong>
+                </div>
+                <div class="pill-card">
+                  <span>User</span>
+                  <strong>{{ access.authUsername or auth_user_name or "Current session" }}</strong>
+                </div>
+                <div class="pill-card">
+                  <span>Automation Key</span>
+                  <strong>{{ access.apiKeyPreview if access.apiKeyEnabled else "Disabled" }}</strong>
+                </div>
+                <div class="pill-card">
+                  <span>Public URL</span>
+                  <strong>{{ access.publicUrl or "Request host fallback" }}</strong>
+                </div>
+              </div>
+            </section>
+
             <section class="settings-panel settings-summary-card">
               <div class="panel-heading compact">
                 <div>

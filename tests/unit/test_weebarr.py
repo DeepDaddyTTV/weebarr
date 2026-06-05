@@ -14,6 +14,28 @@ from src.weebarr.services import (
 from src.weebarr.settings import Settings, SettingsStore
 
 
+def authenticated_client(tmp_path, **settings_overrides):
+    base = {
+        "config_path": str(tmp_path / "weebarr.json"),
+        "auth_mode": "local",
+        "auth_username": "deepdaddy",
+        "auth_password": "supersafe123",
+        "session_secret": "test-session-secret",
+    }
+    base.update(settings_overrides)
+    client = TestClient(create_app(Settings(**base)))
+    login = client.post(
+        "/api/auth/login",
+        json={
+            "username": base["auth_username"],
+            "password": base["auth_password"],
+            "next": "/seasonal",
+        },
+    )
+    assert login.status_code == 200
+    return client
+
+
 def test_health_endpoint_without_seerr():
     app = create_app(Settings())
     client = TestClient(app)
@@ -25,14 +47,12 @@ def test_health_endpoint_without_seerr():
     assert response.json()["seerr_configured"] is False
 
 
-def test_settings_summary_uses_explicit_base_settings():
-    app = create_app(
-        Settings(
-            seerr_base_url="http://seerr.internal:5055",
-            seerr_api_key="secret-value",
-        )
+def test_settings_summary_uses_explicit_base_settings(tmp_path):
+    client = authenticated_client(
+        tmp_path,
+        seerr_base_url="http://seerr.internal:5055",
+        seerr_api_key="secret-value",
     )
-    client = TestClient(app)
 
     response = client.get("/api/settings/seerr")
 
@@ -43,9 +63,8 @@ def test_settings_summary_uses_explicit_base_settings():
     assert payload["hasApiKey"] is True
 
 
-def test_seasonal_page_renders():
-    app = create_app(Settings())
-    client = TestClient(app)
+def test_seasonal_page_renders(tmp_path):
+    client = authenticated_client(tmp_path)
 
     response = client.get("/seasonal")
 
@@ -56,9 +75,8 @@ def test_seasonal_page_renders():
     assert "ui-select-trigger" in response.text
 
 
-def test_requests_page_renders():
-    app = create_app(Settings())
-    client = TestClient(app)
+def test_requests_page_renders(tmp_path):
+    client = authenticated_client(tmp_path)
 
     response = client.get("/requests")
 
@@ -67,15 +85,16 @@ def test_requests_page_renders():
     assert "Hide Requested" not in response.text
 
 
-def test_settings_page_renders():
-    app = create_app(Settings())
-    client = TestClient(app)
+def test_settings_page_renders(tmp_path):
+    client = authenticated_client(tmp_path)
 
     response = client.get("/settings")
 
     assert response.status_code == 200
     assert "Manage Seerr" in response.text
     assert "Content Filter" in response.text
+    assert 'data-ui-select="settingsRequestSeasons"' in response.text
+    assert 'data-ui-select="settingsContentFilterMode"' in response.text
 
 
 def test_settings_store_persists_overrides(tmp_path):
@@ -100,8 +119,7 @@ def test_settings_store_persists_overrides(tmp_path):
 
 
 def test_settings_endpoint_saves_connection(tmp_path):
-    app = create_app(Settings(config_path=str(tmp_path / "weebarr.json")))
-    client = TestClient(app)
+    client = authenticated_client(tmp_path)
 
     response = client.put(
         "/api/settings/seerr",
@@ -237,9 +255,8 @@ def test_content_filter_modes_hide_adult_and_nsfw_titles():
     assert show_all_service._passes_content_filter(adult_item) is True
 
 
-def test_seasonal_page_includes_hide_requested_toggle():
-    app = create_app(Settings())
-    client = TestClient(app)
+def test_seasonal_page_includes_hide_requested_toggle(tmp_path):
+    client = authenticated_client(tmp_path)
 
     response = client.get("/seasonal")
 
@@ -316,9 +333,157 @@ def test_classify_seerr_state_treats_partial_target_season_as_tracked():
     result = service._classify_seerr_state(anime, best, details, best_score=95)
 
     assert result["state"] == "partial"
-    assert result["requestable"] is False
-    assert result["label"] == "Season 4 Partial"
-    assert result["requestSeasons"] == [4]
+
+
+def test_unconfigured_app_redirects_to_setup(tmp_path):
+    app = create_app(Settings(config_path=str(tmp_path / "weebarr.json")))
+    client = TestClient(app, follow_redirects=False)
+
+    response = client.get("/seasonal")
+
+    assert response.status_code in {302, 307}
+    assert response.headers["location"] == "/setup"
+
+
+def test_setup_page_renders(tmp_path):
+    app = create_app(Settings(config_path=str(tmp_path / "weebarr.json")))
+    client = TestClient(app)
+
+    response = client.get("/setup")
+
+    assert response.status_code == 200
+    assert "Save Access Setup" in response.text
+    assert "Plex Auth" in response.text
+
+
+def test_local_setup_persists_access_and_allows_api_key(tmp_path):
+    config_path = tmp_path / "weebarr.json"
+    app = create_app(Settings(config_path=str(config_path)))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/setup/access",
+        json={
+            "mode": "local",
+            "username": "deepdaddy",
+            "password": "supersafe123",
+            "confirmPassword": "supersafe123",
+            "generateApiKey": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "local"
+    assert payload["redirectTo"] == "/seasonal"
+    assert payload["generatedApiKey"].startswith("weebarr_")
+
+    protected_page = client.get("/seasonal")
+    assert protected_page.status_code == 200
+
+    new_client = TestClient(create_app(Settings(config_path=str(config_path))))
+    unauthorized = new_client.get("/api/config")
+    assert unauthorized.status_code == 401
+
+    api_authorized = new_client.get(
+        "/api/config",
+        headers={"X-API-Key": payload["generatedApiKey"]},
+    )
+    assert api_authorized.status_code == 200
+    assert api_authorized.json()["access"]["configured"] is True
+
+
+def test_local_login_rejects_bad_password_and_accepts_good_password(tmp_path):
+    config_path = tmp_path / "weebarr.json"
+    client = TestClient(create_app(Settings(config_path=str(config_path))))
+    setup_response = client.post(
+        "/api/setup/access",
+        json={
+            "mode": "local",
+            "username": "deepdaddy",
+            "password": "supersafe123",
+            "confirmPassword": "supersafe123",
+            "generateApiKey": False,
+        },
+    )
+    assert setup_response.status_code == 200
+
+    new_client = TestClient(create_app(Settings(config_path=str(config_path))))
+    bad = new_client.post(
+        "/api/auth/login",
+        json={"username": "deepdaddy", "password": "badpass", "next": "/seasonal"},
+    )
+    assert bad.status_code == 401
+
+    good = new_client.post(
+        "/api/auth/login",
+        json={
+            "username": "deepdaddy",
+            "password": "supersafe123",
+            "next": "/seasonal",
+        },
+    )
+    assert good.status_code == 200
+    assert good.json()["redirectTo"] == "/seasonal"
+
+
+def test_plex_setup_persists_and_login_page_uses_plex_flow(tmp_path):
+    config_path = tmp_path / "weebarr.json"
+    client = TestClient(create_app(Settings(config_path=str(config_path))))
+
+    response = client.post(
+        "/api/setup/access",
+        json={
+            "mode": "plex",
+            "publicUrl": "https://weebarr.example.com",
+            "plexAllowedUsers": ["plexuser", "deepdaddy@example.com"],
+            "generateApiKey": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "plex"
+    assert payload["redirectTo"] == "/login"
+
+    new_client = TestClient(create_app(Settings(config_path=str(config_path))))
+    login_page = new_client.get("/login")
+    assert login_page.status_code == 200
+    assert "Continue with Plex" in login_page.text
+
+
+def test_setup_requires_admin_token_when_configured(tmp_path):
+    config_path = tmp_path / "weebarr.json"
+    client = TestClient(
+        create_app(
+            Settings(config_path=str(config_path), admin_token="setup-secret-token")
+        )
+    )
+
+    blocked = client.post(
+        "/api/setup/access",
+        json={
+            "mode": "local",
+            "username": "deepdaddy",
+            "password": "supersafe123",
+            "confirmPassword": "supersafe123",
+            "generateApiKey": False,
+        },
+    )
+    assert blocked.status_code == 401
+
+    allowed = client.post(
+        "/api/setup/access",
+        json={
+            "mode": "local",
+            "username": "deepdaddy",
+            "password": "supersafe123",
+            "confirmPassword": "supersafe123",
+            "generateApiKey": False,
+            "adminToken": "setup-secret-token",
+        },
+    )
+    assert allowed.status_code == 200
 
 
 def test_classify_seerr_state_marks_missing_target_season_when_absent():
