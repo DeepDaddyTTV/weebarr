@@ -257,6 +257,16 @@ function sanitizePage(value, visibleCount = state.items.length) {
   return Math.min(parsed, totalPagesForCount(visibleCount));
 }
 
+function seasonSummary(item) {
+  return [item.installmentLabel, item.seasonLabel].filter(Boolean).join(" • ");
+}
+
+function cardMeta(item) {
+  const seasonInfo = seasonSummary(item);
+  if (seasonInfo) return seasonInfo;
+  return item.format || "TV";
+}
+
 function resolvedTheme(choice) {
   if (choice === "system") {
     return prefersLight.matches ? "light" : "dark";
@@ -452,7 +462,6 @@ function renderStats(stats) {
 
 function statusLabel(item) {
   const seerr = item.seerr || {};
-  if (seerr.state === "partial") return "Request Missing";
   return seerr.label || "Unknown";
 }
 
@@ -505,6 +514,7 @@ function inlineDetailTemplate(item) {
       </div>
       <div class="genre-row">${(item.genres || []).slice(0, 3).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
       <div class="detail-list inline-detail-list">
+        <div><span>Season</span><strong>${escapeHtml(seasonSummary(item) || "Current season")}</strong></div>
         <div><span>Next Episode</span><strong>${formatAiring(item.nextAiring)}</strong></div>
         <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audioState(item).state)}">${escapeHtml(audioState(item).label)}</span></strong></div>
         <div><span>Overview</span><strong>${plainDescription(item.description, 520)}</strong></div>
@@ -522,11 +532,10 @@ function cardTemplate(item) {
   const audio = audioState(item);
   const compact = isCompactDetails();
   const isSelected = String(state.selectedId) === String(item.id);
-  const collapsedAction = compact ? "" : actionButtonTemplate(item);
   const selectLabel = compact && isSelected ? `Collapse details for ${item.title}` : `Open details for ${item.title}`;
   return `
     <article class="anime-card ${isSelected ? "selected" : ""} ${compact && isSelected ? "inline-selected" : ""}" data-id="${item.id}" aria-expanded="${compact ? String(isSelected) : "false"}">
-      <button class="card-surface" type="button" data-select="${item.id}" aria-label="${escapeHtml(selectLabel)}" aria-expanded="${compact ? String(isSelected) : "false"}">
+      <div class="card-surface" data-select="${item.id}" role="button" tabindex="0" aria-label="${escapeHtml(selectLabel)}" aria-expanded="${compact ? String(isSelected) : "false"}">
         <div class="poster">
           ${item.cover ? `<img src="${item.cover}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
           <span class="rank">#${item.rank}</span>
@@ -534,7 +543,7 @@ function cardTemplate(item) {
         <div class="card-body">
           <h3>${escapeHtml(item.title)}</h3>
           <p>${escapeHtml(item.romajiTitle || item.englishTitle || item.title)}</p>
-          <div class="meta">${(item.genres || []).slice(0, 3).map(escapeHtml).join(", ") || escapeHtml(item.format || "TV")}</div>
+          <div class="meta">${escapeHtml(cardMeta(item))}</div>
           <div class="score-row">
             <span>★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
             <span>♨ ${formatNumber(item.popularity)}</span>
@@ -543,12 +552,11 @@ function cardTemplate(item) {
           <div class="next-line"><strong>Next Episode</strong>${formatAiring(item.nextAiring)}</div>
           <div class="card-foot">
             <span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span>
-            ${seerr.state === "requested" || seerr.state === "available" ? "<span class=\"checkmark\">⌄</span>" : ""}
+            ${actionButtonTemplate(item)}
           </div>
         </div>
         <div class="card-menu" aria-hidden="true">⋮</div>
-      </button>
-      ${collapsedAction}
+      </div>
       ${compact && isSelected ? inlineDetailTemplate(item) : ""}
     </article>
   `;
@@ -630,6 +638,12 @@ function renderSections(allItems) {
       event.stopPropagation();
       toggleSelectedItem(String(button.dataset.select));
     });
+    button.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation();
+      toggleSelectedItem(String(button.dataset.select));
+    });
   });
   els.sections.querySelectorAll("[data-inline-close]").forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -676,6 +690,7 @@ function renderSpotlight(item) {
     </div>
     <div class="genre-row">${(item.genres || []).slice(0, 3).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
     <div class="detail-list">
+      <div><span>Season</span><strong>${escapeHtml(seasonSummary(item) || "Current season")}</strong></div>
       <div><span>Next Episode</span><strong>${formatAiring(item.nextAiring)}</strong></div>
       <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audio.state)}">${escapeHtml(audio.label)}</span></strong></div>
       <div><span>Overview</span><strong>${plainDescription(item.description)}</strong></div>
@@ -744,6 +759,7 @@ async function requestItem(id) {
         mediaId: item.seerr.tmdbId,
         tvdbId: item.seerr.tvdbId,
         title: item.title,
+        seasons: item.seerr.requestSeasons,
       }),
     });
     if (!response.ok) {

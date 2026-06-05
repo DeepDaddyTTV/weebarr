@@ -36,6 +36,34 @@ SOURCE_AUDIO = {
     "HK": {"language": "zh", "label": "CH", "state": "ch_only"},
     "KR": {"language": "ko", "label": "KO", "state": "ko_only"},
 }
+TITLE_SUFFIX_PATTERNS = (
+    (
+        re.compile(r"\s+(season|cour|part)\s+\d+\s*$", flags=re.IGNORECASE),
+        None,
+    ),
+    (
+        re.compile(r"\s+\d+(st|nd|rd|th)\s+season\s*$", flags=re.IGNORECASE),
+        None,
+    ),
+    (
+        re.compile(
+            r"(?P<base>.*?)(?P<number>\d+)(?P<label>st|nd|rd|th)\s+season\s*$",
+            flags=re.IGNORECASE,
+        ),
+        "Season {number}",
+    ),
+    (
+        re.compile(
+            r"(?P<base>.*?)(?P<label>season|cour|part)\s*(?P<number>\d+)\s*$",
+            flags=re.IGNORECASE,
+        ),
+        "{label} {number}",
+    ),
+    (
+        re.compile(r"(?P<base>.*?)(?P<number>\d+)\s*$", flags=re.IGNORECASE),
+        "Season {number}",
+    ),
+)
 
 ANILIST_QUERY = """
 query SeasonalAnime($season: MediaSeason!, $year: Int!, $page: Int!, $perPage: Int!) {
@@ -115,6 +143,20 @@ def _next_airing(next_airing: dict[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
+def _season_window_label(season: str | None, year: int | None) -> str | None:
+    if not season or not year:
+        return None
+    return f"{season.title()} {year}"
+
+
+def _coerce_int(value: Any) -> int | None:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return None
+
+
 def tmdb_image_url(path: str | None, size: str) -> str | None:
     """Return a public TMDb image URL when a poster or backdrop path is present."""
 
@@ -162,22 +204,56 @@ def candidate_score(
     return min(best, 110)
 
 
+def extract_installment_info(titles: list[str]) -> dict[str, Any]:
+    """Infer the franchise installment from AniList titles when present."""
+
+    for title in titles:
+        if not title:
+            continue
+        stripped = title.strip()
+        for pattern, template in TITLE_SUFFIX_PATTERNS:
+            match = pattern.match(stripped)
+            if not match:
+                continue
+            number = _coerce_int(match.groupdict().get("number"))
+            base = (match.groupdict().get("base") or "").strip(" :-")
+            if not number or not base:
+                continue
+            raw_label = match.groupdict().get("label")
+            if template:
+                label = template.format(
+                    label=(raw_label or "Season").title(),
+                    number=number,
+                )
+            else:
+                label = None
+            return {
+                "seasonNumber": number,
+                "label": label or f"Season {number}",
+                "baseTitle": base,
+            }
+    return {"seasonNumber": None, "label": None, "baseTitle": None}
+
+
+def strip_installment_suffix(title: str) -> str:
+    """Remove season/cour/part suffixes so franchise titles search cleanly."""
+
+    stripped = title.strip()
+    for pattern, _template in TITLE_SUFFIX_PATTERNS:
+        match = pattern.match(stripped)
+        if not match:
+            continue
+        base = (match.groupdict().get("base") or "").strip(" :-")
+        if base:
+            return base
+    return stripped
+
+
 def title_search_variants(title: str) -> list[str]:
     """Generate safe Seerr search fallbacks for titles with season suffixes."""
 
     variants = [title]
-    cleaned = re.sub(
-        r"\s+(season|cour|part)\s+\d+\s*$",
-        "",
-        title,
-        flags=re.IGNORECASE,
-    ).strip()
-    cleaned = re.sub(
-        r"\s+\d+(st|nd|rd|th)\s+season\s*$",
-        "",
-        cleaned,
-        flags=re.IGNORECASE,
-    ).strip()
+    cleaned = strip_installment_suffix(title)
     if cleaned and cleaned != title:
         variants.append(cleaned)
     return list(dict.fromkeys(variants))
@@ -321,6 +397,16 @@ class WeebarrService:
 
     def _shape_anime(self, item: dict[str, Any], rank: int) -> dict[str, Any]:
         titles = item.get("title") or {}
+        title_candidates = [
+            candidate
+            for candidate in (
+                titles.get("english"),
+                titles.get("romaji"),
+                titles.get("native"),
+            )
+            if isinstance(candidate, str) and candidate
+        ]
+        installment = extract_installment_info(title_candidates)
         start_year = (item.get("startDate") or {}).get("year")
         anilist_cover = (item.get("coverImage") or {}).get("extraLarge") or (
             item.get("coverImage") or {}
@@ -346,6 +432,11 @@ class WeebarrService:
             "countryOfOrigin": item.get("countryOfOrigin"),
             "season": item.get("season"),
             "seasonYear": item.get("seasonYear"),
+            "seasonLabel": _season_window_label(
+                item.get("season"), item.get("seasonYear")
+            ),
+            "installment": installment,
+            "installmentLabel": installment.get("label"),
             "startDate": _date_from_parts(item.get("startDate")),
             "startYear": start_year,
             "nextAiring": _next_airing(item.get("nextAiringEpisode")),
@@ -477,6 +568,144 @@ class WeebarrService:
         self.cache.set(cache_key, result, self.settings.audio_cache_ttl_seconds)
         return result
 
+    async def _seerr_tv_details(self, tmdb_id: int) -> dict[str, Any]:
+        cache_key = f"seerr-tv:{tmdb_id}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cast(dict[str, Any], cached)
+
+        async with httpx.AsyncClient(
+            timeout=self.settings.request_timeout_seconds
+        ) as client:
+            response = await client.get(
+                f"{self.settings.seerr_base_url}/api/v1/tv/{tmdb_id}",
+                headers={"X-Api-Key": self.settings.seerr_api_key},
+            )
+            response.raise_for_status()
+            payload = cast(dict[str, Any], response.json())
+
+        self.cache.set(cache_key, payload, self.settings.seerr_cache_ttl_seconds)
+        return payload
+
+    def _resolve_target_season(
+        self,
+        anime: dict[str, Any],
+        details: dict[str, Any],
+    ) -> tuple[int | None, str | None]:
+        installment = cast(dict[str, Any], anime.get("installment") or {})
+        target_season = _coerce_int(installment.get("seasonNumber"))
+        target_label = cast(str | None, installment.get("label"))
+
+        catalog_seasons = [
+            _coerce_int(item.get("seasonNumber"))
+            for item in details.get("seasons", [])
+            if _coerce_int(item.get("seasonNumber")) not in (None, 0)
+        ]
+        catalog_seasons = [value for value in catalog_seasons if value is not None]
+
+        if target_season and target_season in catalog_seasons:
+            return target_season, target_label or f"Season {target_season}"
+        if len(catalog_seasons) == 1:
+            only_season = catalog_seasons[0]
+            return only_season, target_label or f"Season {only_season}"
+        if target_season:
+            return target_season, target_label or f"Season {target_season}"
+        return None, None
+
+    def _classify_seerr_state(
+        self,
+        anime: dict[str, Any],
+        best: dict[str, Any],
+        details: dict[str, Any] | None,
+        best_score: int,
+    ) -> dict[str, Any]:
+        details_media_info = (
+            cast(dict[str, Any], details.get("mediaInfo"))
+            if isinstance(details, dict) and isinstance(details.get("mediaInfo"), dict)
+            else {}
+        )
+        media_info = details_media_info or cast(
+            dict[str, Any], best.get("mediaInfo") or {}
+        )
+        raw_status_code = media_info.get("status")
+        status_code = raw_status_code if isinstance(raw_status_code, int) else None
+
+        state = "requestable"
+        label = "Requestable"
+        requestable = True
+        target_season: int | None = None
+        target_label: str | None = None
+        season_statuses: dict[int, int] = {}
+        requested_seasons: set[int] = set()
+
+        requests = cast(list[dict[str, Any]], media_info.get("requests") or [])
+        open_requests = [
+            req for req in requests if _coerce_int(req.get("status")) not in (5, 7)
+        ]
+
+        if details:
+            target_season, target_label = self._resolve_target_season(anime, details)
+            for season in cast(list[dict[str, Any]], media_info.get("seasons") or []):
+                season_number = _coerce_int(season.get("seasonNumber"))
+                season_status = _coerce_int(season.get("status"))
+                if season_number and season_status:
+                    season_statuses[season_number] = season_status
+
+            for request in open_requests:
+                for season in cast(list[dict[str, Any]], request.get("seasons") or []):
+                    season_number = _coerce_int(season.get("seasonNumber"))
+                    if season_number:
+                        requested_seasons.add(season_number)
+
+        if status_code == 6:
+            state, label, requestable = "blocklisted", "Blocklisted", False
+        elif target_season and target_season in requested_seasons:
+            state, label, requestable = "requested", "Requested", False
+        elif target_season and season_statuses.get(target_season) == 5:
+            state, label, requestable = "available", "Available", False
+        elif target_season and season_statuses.get(target_season) == 4:
+            state = "partial"
+            label = (
+                f"Missing {target_label}"
+                if target_label
+                else f"Missing Season {target_season}"
+            )
+            requestable = True
+        elif open_requests or status_code in (2, 3):
+            state, label, requestable = "requested", "Requested", False
+        elif status_code == 5:
+            state, label, requestable = "available", "Available", False
+        elif status_code == 4:
+            state, label, requestable = "partial", "Request Missing", True
+
+        return {
+            "state": state,
+            "label": label,
+            "requestable": requestable,
+            "tmdbId": best.get("id"),
+            "tvdbId": (best.get("externalIds") or {}).get("tvdbId")
+            or media_info.get("tvdbId"),
+            "title": (
+                details.get("name")
+                if isinstance(details, dict) and details.get("name")
+                else best.get("name") or best.get("title")
+            ),
+            "firstAirDate": best.get("firstAirDate") or best.get("first_air_date"),
+            "posterPath": best.get("posterPath"),
+            "backdropPath": best.get("backdropPath"),
+            "posterUrl": tmdb_image_url(best.get("posterPath"), "w500"),
+            "backdropUrl": tmdb_image_url(best.get("backdropPath"), "w780"),
+            "matchScore": best_score,
+            "mediaStatus": status_code,
+            "targetSeason": target_season,
+            "targetSeasonLabel": target_label,
+            "requestSeasons": (
+                [target_season]
+                if target_season is not None
+                else self.settings.seerr_request_seasons
+            ),
+        }
+
     async def _resolve_seerr(self, anime: dict[str, Any]) -> dict[str, Any]:
         if not self.settings.seerr_configured:
             return {
@@ -492,6 +721,16 @@ class WeebarrService:
             anime.get("nativeTitle"),
         ]
         titles = [title for title in raw_titles if isinstance(title, str) and title]
+        score_titles = list(
+            dict.fromkeys(
+                titles
+                + [
+                    variant
+                    for title in titles
+                    for variant in title_search_variants(title)
+                ]
+            )
+        )
         raw_start_year = anime.get("startYear")
         start_year = raw_start_year if isinstance(raw_start_year, int) else None
         best: dict[str, Any] | None = None
@@ -507,7 +746,7 @@ class WeebarrService:
                 media_type = candidate.get("mediaType") or candidate.get("media_type")
                 if media_type != "tv":
                     continue
-                score = candidate_score(titles, candidate, start_year)
+                score = candidate_score(score_titles, candidate, start_year)
                 if score > best_score:
                     best = candidate
                     best_score = score
@@ -521,47 +760,14 @@ class WeebarrService:
                 "requestable": False,
                 "matchScore": best_score,
             }
-
-        media_info = best.get("mediaInfo") or {}
-        requests = [
-            req
-            for req in media_info.get("requests", [])
-            if req.get("status") not in (3, 5)
-        ]
-        raw_status_code = media_info.get("status")
-        status_code = raw_status_code if isinstance(raw_status_code, int) else None
-        state = "requestable"
-        label = "Requestable"
-        requestable = True
-
-        if status_code == 5:
-            state, label, requestable = "available", "Available", False
-        elif status_code == 6:
-            state, label, requestable = "blocklisted", "Blocklisted", False
-        elif requests or status_code in (2, 3):
-            state, label, requestable = (
-                "requested",
-                MEDIA_STATUS.get(status_code or 0, "Requested"),
-                False,
-            )
-        elif status_code == 4:
-            state, label, requestable = "partial", "Request Missing", True
-
-        return {
-            "state": state,
-            "label": label,
-            "requestable": requestable,
-            "tmdbId": best.get("id"),
-            "tvdbId": (best.get("externalIds") or {}).get("tvdbId"),
-            "title": best.get("name") or best.get("title"),
-            "firstAirDate": best.get("firstAirDate") or best.get("first_air_date"),
-            "posterPath": best.get("posterPath"),
-            "backdropPath": best.get("backdropPath"),
-            "posterUrl": tmdb_image_url(best.get("posterPath"), "w500"),
-            "backdropUrl": tmdb_image_url(best.get("backdropPath"), "w780"),
-            "matchScore": best_score,
-            "mediaStatus": status_code,
-        }
+        details = None
+        tmdb_id = _coerce_int(best.get("id"))
+        if tmdb_id is not None:
+            try:
+                details = await self._seerr_tv_details(tmdb_id)
+            except httpx.HTTPError:
+                details = None
+        return self._classify_seerr_state(anime, best, details, best_score)
 
     async def _seerr_search(self, query: str) -> list[dict[str, Any]]:
         cache_key = f"seerr-search:{query}"
@@ -662,6 +868,42 @@ class WeebarrService:
             "defaults": defaults,
         }
 
+    async def _resolve_request_seasons(
+        self,
+        media_id: int,
+        seasons: list[int] | str,
+    ) -> list[int]:
+        if isinstance(seasons, list):
+            normalized = sorted(
+                {
+                    season
+                    for season in (_coerce_int(value) for value in seasons)
+                    if season is not None and season > 0
+                }
+            )
+            return normalized
+
+        details = await self._seerr_tv_details(media_id)
+        available_seasons = sorted(
+            {
+                season_number
+                for season_number in (
+                    _coerce_int(item.get("seasonNumber"))
+                    for item in details.get("seasons", [])
+                )
+                if season_number is not None and season_number > 0
+            }
+        )
+        if not available_seasons:
+            return []
+
+        choice = seasons.strip().lower()
+        if choice == "first":
+            return [available_seasons[0]]
+        if choice == "latest":
+            return [available_seasons[-1]]
+        return available_seasons
+
     async def request_in_seerr(
         self,
         media_id: int,
@@ -670,11 +912,12 @@ class WeebarrService:
         seasons: list[int] | str,
     ) -> dict[str, Any]:
         defaults = await self._sonarr_defaults()
+        request_seasons = await self._resolve_request_seasons(media_id, seasons)
         payload: dict[str, Any] = {
             "mediaType": "tv",
             "mediaId": media_id,
             "is4k": False,
-            "seasons": seasons,
+            "seasons": request_seasons,
             "serverId": (
                 self.settings.seerr_sonarr_server_id
                 if self.settings.seerr_sonarr_server_id is not None
@@ -710,6 +953,7 @@ class WeebarrService:
                 "success": True,
                 "statusCode": response.status_code,
                 "title": title,
+                "sentSeasons": request_seasons,
                 "response": response.json() if response.content else {},
             }
         if response.status_code == 409:

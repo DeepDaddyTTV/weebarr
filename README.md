@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="docs/weebarr-logo.svg" alt="Weebarr logo" width="420"/>
+<img src="src/web/static/img/weebarr-wordmark.svg" alt="Weebarr wordmark" width="420"/>
 
 **Seasonal anime discovery and Seerr request management**
 
@@ -15,7 +15,7 @@
 
 Weebarr helps self-hosted anime libraries stay ahead of each release season. It pulls seasonal anime from AniList, ranks and groups shows by popularity, resolves titles against Seerr/TMDB, and lets you request TV anime directly into Seerr.
 
-![Weebarr dashboard concept](docs/weebarr-dashboard-concept.png)
+![Weebarr dashboard screenshot](docs/weebarr-dashboard-live.png)
 
 ## Why Weebarr?
 
@@ -52,21 +52,26 @@ Weebarr is configured with environment variables so it works cleanly in Docker C
 
 | Variable | Default | Description |
 | --- | --- | --- |
+| `WEEBARR_HOST` | `0.0.0.0` | Host interface Weebarr binds to inside the container. |
+| `WEEBARR_PORT` | `8888` | Container listen port. |
+| `WEEBARR_LOG_LEVEL` | `INFO` | Uvicorn/application log level. |
+| `WEEBARR_CONFIG_PATH` | auto | Override the persisted JSON settings path. Defaults to `/config/weebarr.json` when writable. |
+| `WEEBARR_ADMIN_TOKEN` | none | Optional token required to save or test Seerr settings from the UI. |
 | `SEERR_BASE_URL` | none | Internal Seerr URL, for example `http://seerr:5055`. |
 | `SEERR_API_KEY` | none | Seerr API key. Required for request/status integration. |
-| `SEERR_REQUEST_SEASONS` | `all` | Seasons sent to Seerr. `all` requests all requestable seasons. |
+| `SEERR_REQUEST_SEASONS` | `all` | Request mode for unmatched season-specific titles. Supports `all`, `first`, or `latest`, and Weebarr resolves that into real season numbers before calling Seerr. |
 | `SEERR_SONARR_SERVER_ID` | Seerr default | Optional Sonarr server override. |
 | `SEERR_PROFILE_ID` | Seerr anime/default profile | Optional Sonarr quality/profile override. |
-| `SEERR_ROOT_FOLDER` | Seerr anime/default root | Optional Sonarr root-folder override. |
+| `SEERR_ROOT_FOLDER` | Seerr anime/default root | Optional root-folder override sent with request payloads. |
 | `SEERR_LANGUAGE_PROFILE_ID` | none | Optional language profile override for older Sonarr setups. |
-| `SEERR_TAGS` | none | Optional comma-separated Seerr/Sonarr tag IDs. |
 | `SEERR_REQUEST_USER_ID` | API key user | Optional Seerr user ID to request as. |
+| `SEERR_TAGS` | none | Optional comma-separated Seerr/Sonarr tag IDs. |
+| `SEERR_CACHE_TTL_SECONDS` | `900` | Seerr search/details/settings cache TTL. |
+| `REQUEST_TIMEOUT_SECONDS` | `20` | HTTP timeout for AniList, Seerr, and Jikan calls. |
 | `ANILIST_CACHE_TTL_SECONDS` | `21600` | AniList seasonal cache TTL. |
-| `SEERR_CACHE_TTL_SECONDS` | `900` | Seerr search/settings cache TTL. |
 | `AUDIO_LOOKUP_ENABLED` | `true` | Enables cached Jikan lookups for English voice-actor/dub detection. |
 | `AUDIO_CACHE_TTL_SECONDS` | `86400` | Audio lookup cache TTL. |
 | `AUDIO_LOOKUP_TIMEOUT_SECONDS` | `6` | Per-title timeout for Jikan audio metadata lookups. |
-| `WEEBARR_PORT` | `8888` | Container listen port. |
 
 ## Local Development
 

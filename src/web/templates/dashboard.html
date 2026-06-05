@@ -77,7 +77,7 @@
 
         <section class="stats-grid" aria-label="Season stats">
           <article class="stat-card stat-cyan">
-            <span class="stat-icon" aria-hidden="true">▣</span>
+            <span class="stat-icon stat-icon-total" aria-hidden="true"></span>
             <div>
               <span>{{ "Requested This Season" if page_name == "requests" else "Anime This Season" }}</span>
               <strong id="statTotal">--</strong>
@@ -85,7 +85,7 @@
             </div>
           </article>
           <article class="stat-card stat-pink">
-            <span class="stat-icon" aria-hidden="true">☷</span>
+            <span class="stat-icon stat-icon-requestable" aria-hidden="true"></span>
             <div>
               <span>{{ "Missing Seasons" if page_name == "requests" else "Requestable" }}</span>
               <strong id="statRequestable">--</strong>
@@ -93,7 +93,7 @@
             </div>
           </article>
           <article class="stat-card stat-purple">
-            <span class="stat-icon" aria-hidden="true">⌕</span>
+            <span class="stat-icon stat-icon-requested" aria-hidden="true"></span>
             <div>
               <span>{{ "Already Requested" if page_name == "requests" else "Already Requested" }}</span>
               <strong id="statRequested">--</strong>
@@ -101,7 +101,7 @@
             </div>
           </article>
           <article class="stat-card stat-blue">
-            <span class="stat-icon" aria-hidden="true">◴</span>
+            <span class="stat-icon stat-icon-airing" aria-hidden="true"></span>
             <div>
               <span>Airing Soon</span>
               <strong id="statAiringSoon">--</strong>

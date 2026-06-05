@@ -2,6 +2,21 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.11] - 2026-06-05
+
+### Fixed
+
+- Switched Seerr matching to resolve against the show itself while still preserving season-specific labels like `Season 4`, which prevents false non-matches on sequel anime.
+- Made Seerr state classification season-aware so already requested titles like `Witch Hat Atelier` no longer show up as missing, while true sequel gaps like `Re:ZERO ... Season 4` stay requestable as missing specific seasons.
+- Converted request season modes such as `all`, `first`, and `latest` into real season-number lists before calling Seerr, so those settings are genuinely usable in live requests.
+- Reworked the seasonal card footer so requested/requestable actions are real standalone controls instead of being nested inside the card trigger.
+- Replaced the stat-card glyph text icons with centered CSS-drawn icons and kept the metric lane alignment consistent across the top summary row.
+
+### Changed
+
+- The seasonal cards and spotlight now surface franchise installment labels alongside the airing season window, for example `Season 4 • Spring 2026`.
+- README now uses the real Weebarr wordmark, a live dashboard screenshot, and a configuration table that matches the actual environment variables in `src/weebarr/settings.py`.
+
 ## [0.1.10] - 2026-06-05
 
 ### Fixed

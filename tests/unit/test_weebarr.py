@@ -1,9 +1,12 @@
+import asyncio
+
 from fastapi.testclient import TestClient
 
 from src.main import create_app
 from src.weebarr.services import (
     WeebarrService,
     candidate_score,
+    extract_installment_info,
     normalize_title,
     tmdb_image_url,
 )
@@ -104,6 +107,19 @@ def test_title_normalization_and_candidate_score():
     assert candidate_score(["Witch Hat Atelier"], candidate, 2026) >= 100
 
 
+def test_extract_installment_info_handles_suffixes():
+    info = extract_installment_info(
+        [
+            "Re:ZERO -Starting Life in Another World- Season 4",
+            "Re:ZERO kara Hajimeru Isekai Seikatsu 4th Season",
+        ]
+    )
+
+    assert info["seasonNumber"] == 4
+    assert info["label"] == "Season 4"
+    assert info["baseTitle"] == "Re:ZERO -Starting Life in Another World"
+
+
 def test_shape_anime_includes_audio_origin_fallback():
     service = WeebarrService(Settings(audio_lookup_enabled=False))
     shaped = service._shape_anime(
@@ -122,6 +138,26 @@ def test_shape_anime_includes_audio_origin_fallback():
     assert (
         service._source_audio(shaped["countryOfOrigin"])["fallbackLabel"] == "JA only"
     )
+
+
+def test_shape_anime_includes_installment_and_airing_labels():
+    service = WeebarrService(Settings(audio_lookup_enabled=False))
+    shaped = service._shape_anime(
+        {
+            "id": 1,
+            "idMal": 2,
+            "countryOfOrigin": "JP",
+            "season": "SPRING",
+            "seasonYear": 2026,
+            "title": {"english": "Example Anime Season 2", "romaji": "Example Anime 2"},
+            "coverImage": {},
+            "studios": {"nodes": []},
+        },
+        rank=1,
+    )
+
+    assert shaped["installmentLabel"] == "Season 2"
+    assert shaped["seasonLabel"] == "Spring 2026"
 
 
 def test_seasonal_page_includes_hide_requested_toggle():
@@ -151,3 +187,78 @@ def test_tmdb_image_url_and_seerr_art_override():
     assert updated["banner"] == "https://image.tmdb.org/t/p/w780/backdrop.jpg"
     assert updated["coverSource"] == "tmdb"
     assert updated["bannerSource"] == "tmdb"
+
+
+def test_classify_seerr_state_prefers_requested_target_season():
+    service = WeebarrService(Settings())
+    anime = {"installment": {"seasonNumber": None, "label": None}}
+    best = {
+        "id": 196950,
+        "name": "Witch Hat Atelier",
+        "mediaInfo": {
+            "status": 4,
+            "seasons": [{"seasonNumber": 1, "status": 4}],
+            "requests": [{"status": 2, "seasons": [{"seasonNumber": 1, "status": 2}]}],
+        },
+    }
+    details = {"seasons": [{"seasonNumber": 0}, {"seasonNumber": 1}]}
+
+    result = service._classify_seerr_state(anime, best, details, best_score=110)
+
+    assert result["state"] == "requested"
+    assert result["requestable"] is False
+    assert result["targetSeason"] == 1
+    assert result["requestSeasons"] == [1]
+
+
+def test_classify_seerr_state_marks_specific_missing_season():
+    service = WeebarrService(Settings())
+    anime = {"installment": {"seasonNumber": 4, "label": "Season 4"}}
+    best = {
+        "id": 65942,
+        "name": "Re:ZERO -Starting Life in Another World-",
+        "mediaInfo": {
+            "status": 4,
+            "seasons": [
+                {"seasonNumber": 1, "status": 5},
+                {"seasonNumber": 4, "status": 4},
+            ],
+            "requests": [],
+        },
+    }
+    details = {
+        "seasons": [
+            {"seasonNumber": 0},
+            {"seasonNumber": 1},
+            {"seasonNumber": 2},
+            {"seasonNumber": 3},
+            {"seasonNumber": 4},
+        ]
+    }
+
+    result = service._classify_seerr_state(anime, best, details, best_score=95)
+
+    assert result["state"] == "partial"
+    assert result["requestable"] is True
+    assert result["label"] == "Missing Season 4"
+    assert result["requestSeasons"] == [4]
+
+
+def test_resolve_request_seasons_converts_string_modes():
+    service = WeebarrService(Settings())
+
+    async def fake_details(_tmdb_id: int) -> dict:
+        return {
+            "seasons": [
+                {"seasonNumber": 0},
+                {"seasonNumber": 1},
+                {"seasonNumber": 2},
+                {"seasonNumber": 4},
+            ]
+        }
+
+    service._seerr_tv_details = fake_details  # type: ignore[method-assign]
+
+    assert asyncio.run(service._resolve_request_seasons(1, "all")) == [1, 2, 4]
+    assert asyncio.run(service._resolve_request_seasons(1, "first")) == [1]
+    assert asyncio.run(service._resolve_request_seasons(1, "latest")) == [4]
