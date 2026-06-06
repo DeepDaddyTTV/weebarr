@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.26] - 2026-06-05
+
+### Fixed
+
+- Decoupled the desktop seasonal and requests content scroll from the sidebar so the bucket list and pager now use their own scroll region instead of stretching the full page shell.
+- Restored normal document scrolling on smaller breakpoints so mobile and tablet layouts do not inherit the desktop overflow lock.
+
 ## [0.1.25] - 2026-06-05
 
 ### Added

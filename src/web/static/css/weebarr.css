@@ -1588,6 +1588,40 @@ body[data-page="seasonal"] .stat-card small {
   z-index: 1;
 }
 
+body[data-page="seasonal"],
+body[data-page="requests"] {
+  overflow: hidden;
+}
+
+body[data-page="seasonal"] .app-shell,
+body[data-page="requests"] .app-shell {
+  height: 100vh;
+}
+
+body[data-page="seasonal"] .main-panel,
+body[data-page="requests"] .main-panel {
+  height: 100vh;
+  overflow: hidden;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
+body[data-page="seasonal"] .anime-sections,
+body[data-page="requests"] .anime-sections {
+  min-height: 0;
+  height: 100%;
+  padding-right: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-content: start;
+}
+
+body[data-page="seasonal"] .spotlight {
+  max-height: calc(100vh - 68px);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 body[data-page="requests"] .main-panel {
   grid-template-areas:
     "top"
@@ -3232,6 +3266,11 @@ body[data-page="requests"] .spotlight {
 }
 
 @media (max-width: 1240px) {
+  body[data-page="seasonal"],
+  body[data-page="requests"] {
+    overflow: auto;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
   }
@@ -3272,7 +3311,9 @@ body[data-page="requests"] .spotlight {
     display: none;
   }
 
-  .main-panel {
+  .main-panel,
+  body[data-page="seasonal"] .main-panel,
+  body[data-page="requests"] .main-panel {
     grid-template-areas:
       "top"
       "stats"
@@ -3280,13 +3321,26 @@ body[data-page="requests"] .spotlight {
       "detail"
       "list";
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
     padding: 28px;
   }
 
-  .spotlight {
+  .anime-sections,
+  body[data-page="seasonal"] .anime-sections,
+  body[data-page="requests"] .anime-sections {
+    height: auto;
+    padding-right: 0;
+    overflow: visible;
+  }
+
+  .spotlight,
+  body[data-page="seasonal"] .spotlight {
     position: relative;
     top: auto;
+    max-height: none;
     min-height: auto;
+    overflow: visible;
   }
 
   .spotlight-media {
