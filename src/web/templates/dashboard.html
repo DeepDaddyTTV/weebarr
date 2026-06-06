@@ -54,6 +54,7 @@
       </aside>
 
       <main class="main-panel">
+        <div class="page-scroll-shell">
         <header class="topbar">
           <div class="top-copy">
             <h1>{{ page_title }}</h1>
@@ -77,7 +78,10 @@
               <input id="yearInput" class="season-year" aria-label="Year" type="number" min="1970" max="2100" value="{{ default_year }}" />
             </div>
             <button id="nextSeasonBtn" class="icon-btn" type="button" aria-label="Next season" title="Next season">›</button>
-            <button id="refreshBtn" class="refresh-btn" type="button" title="Refresh seasonal data"><span aria-hidden="true">↻</span>Refresh</button>
+            <button id="refreshBtn" class="refresh-btn" type="button" title="Refresh seasonal data"><span class="action-btn-icon action-btn-icon-refresh" aria-hidden="true"></span><span>Refresh</span></button>
+            {% if page_name == "seasonal" %}
+            <button id="scanBtn" class="refresh-btn scan-btn" type="button" title="Scan enabled automation buckets for this season"><span class="action-btn-icon action-btn-icon-scan" aria-hidden="true"></span><span>Scan</span></button>
+            {% endif %}
           </div>
         </header>
 
@@ -180,7 +184,7 @@
           </div>
           {% endif %}
           <div class="filter-actions">
-            <button id="filterBtn" class="filter-btn" type="button" aria-expanded="false" aria-controls="filterMenu" title="Open quick filters"><span class="filter-btn-icon" aria-hidden="true"></span>Filters</button>
+            <button id="filterBtn" class="filter-btn" type="button" aria-expanded="false" aria-controls="filterMenu" title="Open quick filters"><span class="filter-btn-label">Filters</span><span class="filter-btn-icon" aria-hidden="true"></span></button>
             <div id="filterMenu" class="filter-menu" role="menu" hidden>
               <button type="button" data-quick-filter="needs_action">Needs action</button>
               <button type="button" data-quick-filter="en_dubbed">English dubbed</button>
@@ -201,6 +205,7 @@
             </div>
           </aside>
         </div>
+        </div>
       </main>
     </div>
 
@@ -210,7 +215,10 @@
       window.WEEBARR_DEFAULT_YEAR = {{ default_year }};
       window.WEEBARR_PAGE = "{{ page_name }}";
       window.WEEBARR_INITIAL_FILTER = "{{ initial_filter }}";
+      window.WEEBARR_THEME_CONTEXT = {{ weebarr.theme | tojson }};
+      window.WEEBARR_WEEBARR = {{ weebarr | tojson }};
     </script>
+    <script src="/static/js/theme.js?v={{ asset_version }}"></script>
     <script src="/static/js/weebarr.js?v={{ asset_version }}"></script>
   </body>
 </html>

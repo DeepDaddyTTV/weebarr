@@ -70,8 +70,15 @@
           </div>
         </header>
 
+        <nav class="settings-tabs" aria-label="Settings sections">
+          <button class="settings-tab active" type="button" data-settings-tab="weebarr">Weebarr</button>
+          <button class="settings-tab" type="button" data-settings-tab="automation">Automation</button>
+          <button class="settings-tab" type="button" data-settings-tab="authentication">Authentication</button>
+          <button class="settings-tab" type="button" data-settings-tab="connections">Connections</button>
+        </nav>
+
         <section class="settings-stack">
-          <section class="settings-panel settings-section">
+          <section class="settings-panel settings-section" data-settings-panel="weebarr">
             <div class="panel-heading">
               <div>
                 <span class="panel-eyebrow">Weebarr</span>
@@ -83,13 +90,66 @@
               <div class="settings-section-grid">
                 <div class="settings-subpanel">
                   <div class="settings-subheading">
-                    <h3>Theme</h3>
-                    <p>Theme changes are stored locally in this browser. The seasonal dashboard updates immediately.</p>
+                    <h3>Theme Mode</h3>
+                    <p>Dark, Light, and System are local to this browser. The active named theme is shared across the Weebarr instance.</p>
                   </div>
                   <div class="settings-theme-picker" aria-label="Theme controls">
                     <button type="button" class="active" data-theme-choice="dark" title="Use Weebarr dark mode"><span class="theme-glyph theme-glyph-dark" aria-hidden="true"></span>Dark<i></i></button>
                     <button type="button" data-theme-choice="system" title="Match your system theme"><span class="theme-glyph theme-glyph-system" aria-hidden="true"></span>System<i></i></button>
                     <button type="button" data-theme-choice="light" title="Use Weebarr light mode"><span class="theme-glyph theme-glyph-light" aria-hidden="true"></span>Light<i></i></button>
+                  </div>
+
+                  <div class="form-grid theme-stack">
+                    <label class="full-width">
+                      <span>Named Theme</span>
+                      <div class="ui-select" data-ui-select="settingsActiveThemeId">
+                        <select id="settingsActiveThemeId" name="activeThemeId">
+                          {% for theme in weebarr.theme.themes %}
+                          <option value="{{ theme.id }}" {{ 'selected' if theme.id == weebarr.theme.activeThemeId else '' }}>{{ theme.name }}</option>
+                          {% endfor %}
+                        </select>
+                        <button id="settingsActiveThemeIdTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="settingsActiveThemeIdMenu">
+                          <span class="ui-select-value"></span>
+                          <i class="ui-select-chevron" aria-hidden="true"></i>
+                        </button>
+                        <div id="settingsActiveThemeIdMenu" class="ui-select-menu" role="listbox" hidden></div>
+                      </div>
+                      <small>Select a built-in palette or one of the imported community themes.</small>
+                    </label>
+
+                    <div id="themeDescriptionCard" class="settings-note full-width">
+                      <p id="activeThemeDescription">Choose a theme to preview its palette across the dashboard shell.</p>
+                    </div>
+
+                    <div id="colorPickerPanel" class="full-width" hidden>
+                      <div class="settings-subheading">
+                        <h3>Color Picker</h3>
+                        <p>Customize the Neon Lights palette. These colors are shared across the app, while the dark/light mode choice stays local to the browser.</p>
+                      </div>
+                      <div id="colorPickerGrid" class="theme-color-grid"></div>
+                    </div>
+
+                    <label class="full-width">
+                      <span>Import Theme From URL</span>
+                      <div class="theme-import-row">
+                        <input id="themeImportUrl" type="url" placeholder="https://example.com/theme.json" />
+                        <button id="importThemeUrlBtn" class="secondary-btn" type="button">Import URL</button>
+                      </div>
+                      <small>Paste a GitHub raw URL or direct theme manifest URL.</small>
+                    </label>
+
+                    <label class="full-width">
+                      <span>Import Theme Zip</span>
+                      <div class="theme-import-row">
+                        <input id="themeImportZip" type="file" accept=".zip" />
+                        <button id="importThemeZipBtn" class="secondary-btn" type="button">Import Zip</button>
+                      </div>
+                      <small>A zip theme pack must contain a <code>theme.json</code> manifest.</small>
+                    </label>
+
+                    <div class="settings-note full-width">
+                      <p>Community themes use validated JSON token packs only. Reference manifest: <a class="external-link" href="/static/themes/theme-reference.json" target="_blank" rel="noreferrer">theme-reference.json</a></p>
+                    </div>
                   </div>
                 </div>
 
@@ -139,6 +199,10 @@
 
             <div class="settings-summary-grid">
               <div class="pill-card">
+                <span>Active Theme</span>
+                <strong id="currentActiveTheme">{{ weebarr.theme.activeThemeId }}</strong>
+              </div>
+              <div class="pill-card">
                 <span>Content Filter</span>
                 <strong id="currentContentFilter">{{ weebarr.contentFilterMode }}</strong>
               </div>
@@ -153,7 +217,90 @@
             </div>
           </section>
 
-          <section class="settings-panel settings-section">
+          <section class="settings-panel settings-section" data-settings-panel="automation" hidden>
+            <div class="panel-heading">
+              <div>
+                <span class="panel-eyebrow">Automation</span>
+                <h2>Season Auto-Requests</h2>
+              </div>
+            </div>
+            <div id="automationSettingsBanner" class="status-banner" hidden></div>
+            <form id="automationForm" class="settings-form" novalidate>
+              <div class="settings-section-grid">
+                <div class="settings-subpanel">
+                  <div class="settings-subheading">
+                    <h3>Auto-Request Buckets</h3>
+                    <p>Enable the seasonal groups Weebarr should auto-request when a scan runs. Only <code>Missing</code> and <code>Season Missing</code> titles are requestable.</p>
+                  </div>
+                  <div class="automation-bucket-grid">
+                    <label class="automation-bucket-card">
+                      <input id="automationBucketSTier" type="checkbox" />
+                      <span class="automation-bucket-label">S-Tier</span>
+                      <small>Top 10 by seasonal popularity</small>
+                    </label>
+                    <label class="automation-bucket-card">
+                      <input id="automationBucketCanon" type="checkbox" />
+                      <span class="automation-bucket-label">Canon</span>
+                      <small>Ranks 11 through 20</small>
+                    </label>
+                    <label class="automation-bucket-card">
+                      <input id="automationBucketBingeable" type="checkbox" />
+                      <span class="automation-bucket-label">Bingeable</span>
+                      <small>Ranks 21 through 30</small>
+                    </label>
+                    <label class="automation-bucket-card">
+                      <input id="automationBucketFiller" type="checkbox" />
+                      <span class="automation-bucket-label">Filler</span>
+                      <small>Everything below rank 30</small>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="settings-subpanel">
+                  <div class="settings-subheading">
+                    <h3>Scan Schedule</h3>
+                    <p>Weebarr checks automation on a cadence and can also run an immediate manual scan whenever you want.</p>
+                  </div>
+                  <div class="form-grid">
+                    <label>
+                      <span>Scan Every</span>
+                      <input id="automationScanIntervalDays" type="number" min="1" max="365" step="1" value="{{ weebarr.automation.scanIntervalDays }}" />
+                      <small>Default is 30 days. The background automation loop respects this interval.</small>
+                    </label>
+                    <div class="full-width settings-note">
+                      <p>Manual scans ignore the interval and only evaluate the selected enabled buckets.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-actions">
+                <button id="automationScanNowBtn" class="secondary-btn" type="button">Scan Now</button>
+                <button id="saveAutomationBtn" class="refresh-btn" type="submit">Save Automation</button>
+              </div>
+            </form>
+
+            <div class="settings-summary-grid">
+              <div class="pill-card">
+                <span>Enabled Buckets</span>
+                <strong id="automationEnabledBuckets">--</strong>
+              </div>
+              <div class="pill-card">
+                <span>Scan Interval</span>
+                <strong id="automationScanIntervalSummary">{{ weebarr.automation.scanIntervalDays }} days</strong>
+              </div>
+              <div class="pill-card">
+                <span>Last Scan</span>
+                <strong id="automationLastScanAt">{{ weebarr.automation.lastScanAt or "Never" }}</strong>
+              </div>
+              <div class="pill-card">
+                <span>Last Processed Season</span>
+                <strong id="automationLastProcessed">{{ (weebarr.automation.lastProcessedSeason ~ ' ' ~ weebarr.automation.lastProcessedYear) if weebarr.automation.lastProcessedSeason and weebarr.automation.lastProcessedYear else "Not yet run" }}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-panel settings-section" data-settings-panel="authentication" hidden>
             <div class="panel-heading">
               <div>
                 <span class="panel-eyebrow">Authentication</span>
@@ -247,7 +394,7 @@
             </form>
           </section>
 
-          <section id="connections" class="settings-panel settings-section">
+          <section id="connections" class="settings-panel settings-section" data-settings-panel="connections" hidden>
             <div class="panel-heading">
               <div>
                 <span class="panel-eyebrow">Connections</span>
@@ -445,7 +592,9 @@
       window.WEEBARR_WEEBARR = {{ weebarr | tojson }};
       window.WEEBARR_CONNECTION = {{ connection | tojson }};
       window.WEEBARR_ACCESS = {{ access | tojson }};
+      window.WEEBARR_THEME_CONTEXT = {{ weebarr.theme | tojson }};
     </script>
+    <script src="/static/js/theme.js?v={{ asset_version }}"></script>
     <script src="/static/js/settings.js?v={{ asset_version }}"></script>
   </body>
 </html>

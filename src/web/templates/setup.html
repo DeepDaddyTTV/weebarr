@@ -76,10 +76,12 @@
     </main>
 
     <script>
+      window.WEEBARR_THEME_CONTEXT = {{ theme_context | tojson }};
       window.WEEBARR_SETUP = {
         defaultMode: "local",
       };
     </script>
+    <script src="/static/js/theme.js?v={{ asset_version }}"></script>
     <script src="/static/js/auth.js?v={{ asset_version }}"></script>
   </body>
 </html>

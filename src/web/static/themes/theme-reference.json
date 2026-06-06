@@ -1,0 +1,52 @@
+{
+  "id": "community-theme-reference",
+  "name": "Community Theme Reference",
+  "description": "Reference token pack for building custom Weebarr themes.",
+  "author": "Weebarr",
+  "tokens": {
+    "dark": {
+      "bg": "#050911",
+      "bg2": "#08111b",
+      "pageTail": "#03060b",
+      "pageGlowA": "#28c7ff21",
+      "pageGlowB": "#ff3c7d1f",
+      "pageGlowC": "#502aff14",
+      "panel": "#101720db",
+      "panel2": "#141c27b8",
+      "panel3": "#0d121ae6",
+      "mediaScrim": "#05091194",
+      "line": "#7a97b333",
+      "lineStrong": "#7ebfe161",
+      "text": "#f5f7fb",
+      "muted": "#99a8bb",
+      "subtle": "#6f7e90",
+      "cyan": "#28c7ff",
+      "pink": "#ff3c7d",
+      "purple": "#b466ff",
+      "green": "#55e18d",
+      "warning": "#ffd166"
+    },
+    "light": {
+      "bg": "#edf6ff",
+      "bg2": "#f8fbff",
+      "pageTail": "#e9f4ff",
+      "pageGlowA": "#28c7ff33",
+      "pageGlowB": "#ff3c7d29",
+      "pageGlowC": "#502aff14",
+      "panel": "#ffffffd1",
+      "panel2": "#ffffffb3",
+      "panel3": "#ffffffe8",
+      "mediaScrim": "#edf6ffbd",
+      "line": "#425d7c33",
+      "lineStrong": "#28a1da6b",
+      "text": "#121c2b",
+      "muted": "#5d6e82",
+      "subtle": "#778699",
+      "cyan": "#28c7ff",
+      "pink": "#ff3c7d",
+      "purple": "#b466ff",
+      "green": "#55e18d",
+      "warning": "#ffd166"
+    }
+  }
+}

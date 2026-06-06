@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from pathlib import Path
 from threading import RLock
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
 
 
@@ -19,6 +21,145 @@ def _default_config_path() -> str:
 
 
 DEFAULT_CONFIG_PATH = _default_config_path()
+AUTOMATION_BUCKET_KEYS = ("s_tier", "canon", "bingeable", "filler")
+DEFAULT_AUTOMATION_BUCKETS = {
+    "s_tier": False,
+    "canon": False,
+    "bingeable": False,
+    "filler": False,
+}
+DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS = 30
+THEME_TOKEN_KEYS = (
+    "bg",
+    "bg2",
+    "pageTail",
+    "pageGlowA",
+    "pageGlowB",
+    "pageGlowC",
+    "panel",
+    "panel2",
+    "panel3",
+    "mediaScrim",
+    "line",
+    "lineStrong",
+    "text",
+    "muted",
+    "subtle",
+    "cyan",
+    "pink",
+    "purple",
+    "green",
+    "warning",
+)
+THEME_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
+DEFAULT_THEME_LIBRARY = {
+    "neon-lights": {
+        "id": "neon-lights",
+        "name": "Neon Lights",
+        "description": "The default Weebarr palette with cyan, magenta, and violet glow.",
+        "builtIn": True,
+        "editable": False,
+        "tokens": {
+            "dark": {
+                "bg": "#050911",
+                "bg2": "#08111b",
+                "pageTail": "#03060b",
+                "pageGlowA": "#28c7ff21",
+                "pageGlowB": "#ff3c7d1f",
+                "pageGlowC": "#502aff14",
+                "panel": "#101720db",
+                "panel2": "#141c27b8",
+                "panel3": "#0d121ae6",
+                "mediaScrim": "#05091194",
+                "line": "#7a97b333",
+                "lineStrong": "#7ebfe161",
+                "text": "#f5f7fb",
+                "muted": "#99a8bb",
+                "subtle": "#6f7e90",
+                "cyan": "#28c7ff",
+                "pink": "#ff3c7d",
+                "purple": "#b466ff",
+                "green": "#55e18d",
+                "warning": "#ffd166",
+            },
+            "light": {
+                "bg": "#edf6ff",
+                "bg2": "#f8fbff",
+                "pageTail": "#e9f4ff",
+                "pageGlowA": "#28c7ff33",
+                "pageGlowB": "#ff3c7d29",
+                "pageGlowC": "#502aff14",
+                "panel": "#ffffffd1",
+                "panel2": "#ffffffb3",
+                "panel3": "#ffffffe8",
+                "mediaScrim": "#edf6ffbd",
+                "line": "#425d7c33",
+                "lineStrong": "#28a1da6b",
+                "text": "#121c2b",
+                "muted": "#5d6e82",
+                "subtle": "#778699",
+                "cyan": "#28c7ff",
+                "pink": "#ff3c7d",
+                "purple": "#b466ff",
+                "green": "#55e18d",
+                "warning": "#ffd166",
+            },
+        },
+    },
+    "monochrome": {
+        "id": "monochrome",
+        "name": "Monochrome",
+        "description": "Dark charcoal with bright white outlines in dark mode and the inverse in light mode.",
+        "builtIn": True,
+        "editable": False,
+        "tokens": {
+            "dark": {
+                "bg": "#111111",
+                "bg2": "#1a1a1a",
+                "pageTail": "#050505",
+                "pageGlowA": "#ffffff17",
+                "pageGlowB": "#ffffff0d",
+                "pageGlowC": "#ffffff0a",
+                "panel": "#1b1b1bd9",
+                "panel2": "#242424ba",
+                "panel3": "#141414ec",
+                "mediaScrim": "#09090994",
+                "line": "#ffffff2e",
+                "lineStrong": "#ffffff55",
+                "text": "#f7f7f7",
+                "muted": "#d0d0d0",
+                "subtle": "#a4a4a4",
+                "cyan": "#f7f7f7",
+                "pink": "#d7d7d7",
+                "purple": "#bfbfbf",
+                "green": "#ededed",
+                "warning": "#ffffff",
+            },
+            "light": {
+                "bg": "#fbfbfb",
+                "bg2": "#efefef",
+                "pageTail": "#e4e4e4",
+                "pageGlowA": "#11111114",
+                "pageGlowB": "#1111110a",
+                "pageGlowC": "#11111108",
+                "panel": "#ffffffff",
+                "panel2": "#f6f6f6d9",
+                "panel3": "#ffffffef",
+                "mediaScrim": "#f4f4f4bd",
+                "line": "#11111124",
+                "lineStrong": "#11111142",
+                "text": "#111111",
+                "muted": "#3f3f3f",
+                "subtle": "#5b5b5b",
+                "cyan": "#111111",
+                "pink": "#2f2f2f",
+                "purple": "#4a4a4a",
+                "green": "#1f1f1f",
+                "warning": "#111111",
+            },
+        },
+    },
+}
 
 
 def _optional_int(value: str | None) -> int | None:
@@ -88,6 +229,21 @@ def _normalize_bool(value: Any, *, default: bool = False) -> bool:
     return default
 
 
+def _normalize_scan_interval_days(value: Any) -> int:
+    if value in (None, ""):
+        return DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS
+    return max(1, min(365, int(value)))
+
+
+def _normalize_automation_buckets(value: Any) -> dict[str, bool]:
+    normalized = dict(DEFAULT_AUTOMATION_BUCKETS)
+    if not isinstance(value, dict):
+        return normalized
+    for key in AUTOMATION_BUCKET_KEYS:
+        normalized[key] = _normalize_bool(value.get(key), default=False)
+    return normalized
+
+
 def _normalize_content_filter_mode(value: Any) -> str:
     if value is None:
         return "hide_nsfw"
@@ -108,6 +264,110 @@ def _normalize_series_type(value: Any) -> str | None:
     if normalized in {"standard", "daily", "anime"}:
         return normalized
     raise ValueError("series_type must be one of default, standard, daily, or anime")
+
+
+def _normalize_theme_color(value: Any) -> str:
+    candidate = str(value or "").strip()
+    if not candidate:
+        raise ValueError("theme colors must not be blank")
+    if not re.fullmatch(r"#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?", candidate):
+        raise ValueError("theme colors must use #RRGGBB or #RRGGBBAA values")
+    return candidate.lower()
+
+
+def _default_color_picker_tokens() -> dict[str, dict[str, str]]:
+    return cast(
+        dict[str, dict[str, str]],
+        deepcopy(DEFAULT_THEME_LIBRARY["neon-lights"]["tokens"]),
+    )
+
+
+def _normalize_theme_tokens(value: Any) -> dict[str, dict[str, str]]:
+    if not isinstance(value, dict):
+        return _default_color_picker_tokens()
+    normalized: dict[str, dict[str, str]] = {}
+    defaults = _default_color_picker_tokens()
+    for mode in ("dark", "light"):
+        candidate = value.get(mode)
+        source: dict[str, Any] = candidate if isinstance(candidate, dict) else {}
+        normalized[mode] = {}
+        for token_key in THEME_TOKEN_KEYS:
+            raw = source.get(token_key, defaults[mode][token_key])
+            normalized[mode][token_key] = _normalize_theme_color(raw)
+    return normalized
+
+
+def _normalize_theme_manifest(
+    value: Any,
+    *,
+    built_in: bool = False,
+    editable: bool = False,
+) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    theme_id = str(value.get("id") or "").strip().lower()
+    if not THEME_ID_PATTERN.fullmatch(theme_id):
+        raise ValueError("theme id must be lowercase letters, numbers, or hyphens")
+    name = str(value.get("name") or "").strip()
+    if not name:
+        raise ValueError("theme name is required")
+    description = str(value.get("description") or "").strip()
+    author = str(value.get("author") or "").strip() or None
+    tokens = _normalize_theme_tokens(value.get("tokens"))
+    return {
+        "id": theme_id,
+        "name": name,
+        "description": description,
+        "author": author,
+        "builtIn": built_in,
+        "editable": editable,
+        "tokens": tokens,
+    }
+
+
+def _normalize_theme_imports(value: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(value, dict):
+        return {}
+    normalized: dict[str, dict[str, Any]] = {}
+    for _, raw_theme in value.items():
+        theme = _normalize_theme_manifest(raw_theme, built_in=False, editable=False)
+        if theme is None:
+            continue
+        normalized[theme["id"]] = theme
+    return normalized
+
+
+def _normalize_active_theme_id(value: Any, imported: dict[str, dict[str, Any]]) -> str:
+    candidate = str(value or "neon-lights").strip().lower() or "neon-lights"
+    if candidate in DEFAULT_THEME_LIBRARY or candidate == "color-picker":
+        return candidate
+    if candidate in imported:
+        return candidate
+    return "neon-lights"
+
+
+def _theme_catalog(
+    *,
+    imported: dict[str, dict[str, Any]] | None = None,
+    color_picker_tokens: dict[str, dict[str, str]] | None = None,
+) -> list[dict[str, Any]]:
+    catalog = [deepcopy(DEFAULT_THEME_LIBRARY["neon-lights"])]
+    catalog.append(
+        {
+            "id": "color-picker",
+            "name": "Color Picker",
+            "description": "A customizable version of Neon Lights.",
+            "builtIn": True,
+            "editable": True,
+            "tokens": color_picker_tokens or _default_color_picker_tokens(),
+        }
+    )
+    catalog.append(deepcopy(DEFAULT_THEME_LIBRARY["monochrome"]))
+    for theme in sorted(
+        (imported or {}).values(), key=lambda item: item["name"].lower()
+    ):
+        catalog.append(deepcopy(theme))
+    return catalog
 
 
 def _normalize_auth_mode(value: Any) -> str:
@@ -182,6 +442,14 @@ class Settings:
     audio_lookup_timeout_seconds: float = 6.0
     content_filter_mode: str = "hide_nsfw"
     strict_monitoring: bool = False
+    automation_enabled_buckets: dict[str, bool] | None = None
+    automation_scan_interval_days: int = DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS
+    automation_last_scan_at: str = ""
+    automation_last_processed_season: str = ""
+    automation_last_processed_year: int | None = None
+    active_theme_id: str = "neon-lights"
+    theme_imports: dict[str, dict[str, Any]] | None = None
+    color_picker_tokens: dict[str, dict[str, str]] | None = None
     auth_mode: str = "disabled"
     auth_username: str = ""
     auth_password: str = ""
@@ -249,6 +517,19 @@ class Settings:
     @property
     def setup_required(self) -> bool:
         return not self.auth_configured
+
+    @property
+    def automation_enabled(self) -> bool:
+        return any(
+            (self.automation_enabled_buckets or DEFAULT_AUTOMATION_BUCKETS).values()
+        )
+
+    @property
+    def theme_catalog(self) -> list[dict[str, Any]]:
+        return _theme_catalog(
+            imported=self.theme_imports,
+            color_picker_tokens=self.color_picker_tokens,
+        )
 
     @property
     def effective_auth_mode(self) -> str:
@@ -321,6 +602,10 @@ class Settings:
             strict_monitoring=_normalize_bool(
                 os.getenv("WEEBARR_STRICT_MONITORING"),
                 default=False,
+            ),
+            automation_enabled_buckets=_normalize_automation_buckets(None),
+            automation_scan_interval_days=_normalize_scan_interval_days(
+                os.getenv("WEEBARR_AUTOMATION_SCAN_INTERVAL_DAYS", "30")
             ),
             auth_mode=_normalize_auth_mode(os.getenv("WEEBARR_AUTH_MODE", "disabled")),
             auth_username=os.getenv("WEEBARR_AUTH_USERNAME", ""),
@@ -504,6 +789,18 @@ class SettingsStore:
         return {
             "contentFilterMode": current.content_filter_mode,
             "strictMonitoring": current.strict_monitoring,
+            "automation": {
+                "enabledBuckets": current.automation_enabled_buckets
+                or dict(DEFAULT_AUTOMATION_BUCKETS),
+                "scanIntervalDays": current.automation_scan_interval_days,
+                "lastScanAt": current.automation_last_scan_at or None,
+                "lastProcessedSeason": current.automation_last_processed_season or None,
+                "lastProcessedYear": current.automation_last_processed_year,
+            },
+            "theme": {
+                "activeThemeId": current.active_theme_id,
+                "themes": current.theme_catalog,
+            },
         }
 
     def access_summary(self) -> dict[str, Any]:
@@ -610,6 +907,73 @@ class SettingsStore:
                 _normalize_bool(weebarr.get("strict_monitoring"))
                 if "strict_monitoring" in weebarr
                 else self._base.strict_monitoring
+            ),
+            automation_enabled_buckets=(
+                _normalize_automation_buckets(weebarr.get("automation_enabled_buckets"))
+                if "automation_enabled_buckets" in weebarr
+                else (
+                    deepcopy(self._base.automation_enabled_buckets)
+                    if self._base.automation_enabled_buckets is not None
+                    else dict(DEFAULT_AUTOMATION_BUCKETS)
+                )
+            ),
+            automation_scan_interval_days=(
+                _normalize_scan_interval_days(
+                    weebarr.get("automation_scan_interval_days")
+                )
+                if "automation_scan_interval_days" in weebarr
+                else self._base.automation_scan_interval_days
+            ),
+            automation_last_scan_at=(
+                _normalize_optional_str(weebarr.get("automation_last_scan_at"))
+                if "automation_last_scan_at" in weebarr
+                else self._base.automation_last_scan_at
+            )
+            or "",
+            automation_last_processed_season=(
+                _normalize_optional_str(weebarr.get("automation_last_processed_season"))
+                if "automation_last_processed_season" in weebarr
+                else self._base.automation_last_processed_season
+            )
+            or "",
+            automation_last_processed_year=(
+                _normalize_optional_int(weebarr.get("automation_last_processed_year"))
+                if "automation_last_processed_year" in weebarr
+                else self._base.automation_last_processed_year
+            ),
+            theme_imports=(
+                _normalize_theme_imports(weebarr.get("theme_imports"))
+                if "theme_imports" in weebarr
+                else (
+                    deepcopy(self._base.theme_imports)
+                    if self._base.theme_imports is not None
+                    else {}
+                )
+            ),
+            color_picker_tokens=(
+                _normalize_theme_tokens(weebarr.get("color_picker_tokens"))
+                if "color_picker_tokens" in weebarr
+                else (
+                    deepcopy(self._base.color_picker_tokens)
+                    if self._base.color_picker_tokens is not None
+                    else _default_color_picker_tokens()
+                )
+            ),
+            active_theme_id=(
+                _normalize_active_theme_id(
+                    weebarr.get("active_theme_id"),
+                    (
+                        _normalize_theme_imports(weebarr.get("theme_imports"))
+                        if "theme_imports" in weebarr
+                        else (
+                            deepcopy(self._base.theme_imports)
+                            if self._base.theme_imports is not None
+                            else {}
+                        )
+                    ),
+                )
+                if "active_theme_id" in weebarr or "theme_imports" in weebarr
+                else self._base.active_theme_id
             ),
             auth_mode=(
                 _normalize_auth_mode(auth.get("mode"))

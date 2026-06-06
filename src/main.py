@@ -4,17 +4,22 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import ipaddress
+import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from io import BytesIO
 from pathlib import Path
 from threading import RLock
 from time import time
 from typing import Any, Optional, Union
 from urllib.parse import quote
+from zipfile import BadZipFile, ZipFile
 
+import httpx
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -40,7 +45,14 @@ from src.weebarr.auth import (
     verify_local_credentials,
 )
 from src.weebarr.services import WeebarrService
-from src.weebarr.settings import Settings, SettingsStore
+from src.weebarr.settings import (
+    AUTOMATION_BUCKET_KEYS,
+    DEFAULT_AUTOMATION_BUCKETS,
+    DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS,
+    DEFAULT_THEME_LIBRARY,
+    Settings,
+    SettingsStore,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -108,6 +120,28 @@ class WeebarrSettingsPayload(BaseModel):
 
     content_filter_mode: Optional[str] = Field(default=None, alias="contentFilterMode")
     strict_monitoring: Optional[bool] = Field(default=None, alias="strictMonitoring")
+    automation: Optional[dict[str, Any]] = None
+    theme: Optional[dict[str, Any]] = None
+    automation_start_current_season: Optional[bool] = Field(
+        default=None,
+        alias="automationStartCurrentSeason",
+    )
+
+
+class AutomationScanPayload(BaseModel):
+    """Manual automation scan payload."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    season: Optional[str] = None
+    year: Optional[int] = None
+    force: bool = False
+
+
+class ThemeImportUrlPayload(BaseModel):
+    """Theme import from a direct URL."""
+
+    url: str = ""
 
 
 class LocalLoginPayload(BaseModel):
@@ -208,6 +242,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url="/api/docs",
         redoc_url=None,
     )
+    app.state.automation_lock = asyncio.Lock()
+    app.state.automation_task = None
 
     app.mount(
         "/static",
@@ -318,6 +354,184 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "auth_access_copy": access_copy,
             "auth_signin_copy": signin_copy,
         }
+
+    def bucket_label_map() -> dict[str, str]:
+        return {
+            "s_tier": "S-Tier",
+            "canon": "Canon",
+            "bingeable": "Bingeable",
+            "filler": "Filler",
+        }
+
+    def current_theme_summary() -> dict[str, Any]:
+        theme_summary = weebarr_summary().get("theme")
+        return theme_summary if isinstance(theme_summary, dict) else {}
+
+    def save_imported_theme(manifest: dict[str, Any]) -> Settings:
+        theme_id = str(manifest.get("id") or "").strip().lower()
+        if not theme_id:
+            raise HTTPException(
+                status_code=400, detail="Theme manifest must include an id."
+            )
+        imported = dict(current_settings().theme_imports or {})
+        imported[theme_id] = manifest
+        try:
+            return settings_store.save_weebarr(
+                {
+                    "theme_imports": imported,
+                    "active_theme_id": theme_id,
+                }
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    def parse_timestamp(value: str | None) -> datetime | None:
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            return None
+
+    def automation_due(settings_now: Settings) -> bool:
+        if not settings_now.automation_enabled:
+            return False
+        last_scan = parse_timestamp(settings_now.automation_last_scan_at)
+        if last_scan is None:
+            return True
+        return datetime.now(timezone.utc) - last_scan >= timedelta(
+            days=settings_now.automation_scan_interval_days
+        )
+
+    async def run_automation_scan(
+        *,
+        season: str | None = None,
+        year: int | None = None,
+        force: bool = False,
+    ) -> dict[str, Any]:
+        async with app.state.automation_lock:
+            settings_now = current_settings()
+            target_season, target_year = (
+                (season.upper(), year)
+                if season and year is not None
+                else service.current_season()
+            )
+            enabled_buckets = settings_now.automation_enabled_buckets or dict(
+                DEFAULT_AUTOMATION_BUCKETS
+            )
+            bucket_labels = bucket_label_map()
+            active_labels = {
+                bucket_labels[key]
+                for key, enabled in enabled_buckets.items()
+                if enabled and key in bucket_labels
+            }
+            matched = 0
+            eligible = 0
+            requested = 0
+            skipped = 0
+            failed = 0
+            message = ""
+            requested_titles: list[str] = []
+
+            def build_result() -> dict[str, Any]:
+                return {
+                    "success": True,
+                    "season": target_season,
+                    "year": target_year,
+                    "matched": matched,
+                    "eligible": eligible,
+                    "requested": requested,
+                    "skipped": skipped,
+                    "failed": failed,
+                    "message": message,
+                    "requestedTitles": requested_titles,
+                }
+
+            if not settings_now.seerr_configured:
+                message = "Seerr is not configured."
+                return build_result()
+            if not active_labels:
+                message = "Enable at least one automation bucket first."
+                return build_result()
+            if not force and not automation_due(settings_now):
+                message = "Automation scan is not due yet."
+                return build_result()
+
+            payload = annotate_weebarr_requests(
+                await service.seasonal_anime(
+                    season=target_season,
+                    year=target_year,
+                    per_page=48,
+                ),
+                season=target_season,
+                year=target_year,
+            )
+            now_iso = datetime.now(timezone.utc).isoformat()
+            items = payload.get("items")
+            payload_items = items if isinstance(items, list) else []
+            for item_raw in payload_items:
+                if not isinstance(item_raw, dict):
+                    continue
+                item = item_raw
+                if item.get("bucket") not in active_labels:
+                    continue
+                matched += 1
+                seerr = dict(item.get("seerr") or {})
+                if seerr.get("state") not in {"missing", "season_missing"}:
+                    skipped += 1
+                    continue
+                if not seerr.get("requestable") or not seerr.get("tmdbId"):
+                    skipped += 1
+                    continue
+                eligible += 1
+                try:
+                    request_result = await service.request_in_seerr(
+                        media_id=int(seerr["tmdbId"]),
+                        title=str(item.get("title") or "Unknown"),
+                        tvdb_id=seerr.get("tvdbId"),
+                        seasons=seerr.get("requestSeasons")
+                        or settings_now.seerr_request_seasons,
+                    )
+                    record = settings_store.record_request(
+                        {
+                            "anilist_id": item.get("id"),
+                            "tmdb_id": seerr.get("tmdbId"),
+                            "tvdb_id": seerr.get("tvdbId"),
+                            "title": item.get("title"),
+                            "season": target_season,
+                            "year": target_year,
+                            "requested_at": now_iso,
+                            "request_seasons": request_result.get("sentSeasons", []),
+                        }
+                    )
+                    requested += 1
+                    requested_titles.append(str(record["title"]))
+                except Exception:
+                    logger.exception(
+                        "Automation request failed for %s",
+                        item.get("title") or item.get("id"),
+                    )
+                    failed += 1
+
+            settings_store.save_weebarr(
+                {
+                    "automation_last_scan_at": now_iso,
+                    "automation_last_processed_season": target_season,
+                    "automation_last_processed_year": target_year,
+                }
+            )
+            service.clear_cache()
+            message = f"Processed {matched} titles across enabled buckets."
+            return build_result()
+
+    async def maybe_run_scheduled_automation() -> None:
+        settings_now = current_settings()
+        if not settings_now.automation_enabled or not automation_due(settings_now):
+            return
+        try:
+            await run_automation_scan(force=True)
+        except Exception:
+            logger.exception("Scheduled automation scan failed")
 
     def annotate_weebarr_requests(
         payload: dict[str, Any],
@@ -527,6 +741,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "page_title": page_title,
             "page_subtitle": page_subtitle,
             "initial_filter": initial_filter,
+            "weebarr": weebarr_summary(),
             "access": access_summary(),
             **auth_summary(request),
         }
@@ -542,6 +757,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "plex_login_enabled": settings_now.plex_login_enabled,
             "next_path": sanitize_next_path(request.query_params.get("next")),
             "error_message": login_error_message(request.query_params.get("error")),
+            "theme_context": current_theme_summary(),
         }
 
     def setup_context(request: Request) -> dict[str, Any]:
@@ -551,6 +767,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "asset_version": asset_version,
             "setup_required": current_settings().setup_required,
             "error_message": setup_error_message(request.query_params.get("error")),
+            "theme_context": current_theme_summary(),
         }
 
     class AuthGateMiddleware(BaseHTTPMiddleware):
@@ -643,6 +860,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             and initial_settings.public_url.startswith("https://")
         ),
     )
+
+    @app.on_event("startup")
+    async def start_automation_daemon() -> None:
+        async def automation_daemon() -> None:
+            while True:
+                await maybe_run_scheduled_automation()
+                await asyncio.sleep(3600)
+
+        app.state.automation_task = asyncio.create_task(automation_daemon())
+
+    @app.on_event("shutdown")
+    async def stop_automation_daemon() -> None:
+        task = getattr(app.state, "automation_task", None)
+        if task is None:
+            return
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
 
     @app.get("/", include_in_schema=False)
     async def root() -> RedirectResponse:
@@ -1002,13 +1237,101 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             overrides["content_filter_mode"] = payload.content_filter_mode.strip()
         if payload.strict_monitoring is not None:
             overrides["strict_monitoring"] = payload.strict_monitoring
+        if payload.automation is not None:
+            enabled = payload.automation.get("enabledBuckets")
+            if enabled is not None:
+                overrides["automation_enabled_buckets"] = enabled
+            interval = payload.automation.get("scanIntervalDays")
+            if interval is not None:
+                overrides["automation_scan_interval_days"] = interval
+        if payload.theme is not None:
+            active_theme_id = payload.theme.get("activeThemeId")
+            if active_theme_id is not None:
+                overrides["active_theme_id"] = active_theme_id
+            color_picker_tokens = payload.theme.get("colorPickerTokens")
+            if color_picker_tokens is not None:
+                overrides["color_picker_tokens"] = color_picker_tokens
 
-        updated = settings_store.save_weebarr(overrides)
+        try:
+            updated = settings_store.save_weebarr(overrides)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         service.clear_cache()
+        automation_result = None
+        if payload.automation_start_current_season:
+            season, year = service.current_season()
+            automation_result = await run_automation_scan(
+                season=season,
+                year=year,
+                force=True,
+            )
         return {
             "success": True,
             "weebarr": settings_store.weebarr_summary(),
             "strictMonitoring": updated.strict_monitoring,
+            "automationResult": automation_result,
+        }
+
+    @app.post("/api/automation/scan")
+    async def automation_scan(payload: AutomationScanPayload) -> dict[str, Any]:
+        season = payload.season.upper() if payload.season else None
+        if season is not None and season not in {"WINTER", "SPRING", "SUMMER", "FALL"}:
+            raise HTTPException(status_code=400, detail="Invalid season")
+        return await run_automation_scan(
+            season=season,
+            year=payload.year,
+            force=True,
+        )
+
+    @app.post("/api/themes/import/url")
+    async def import_theme_from_url(payload: ThemeImportUrlPayload) -> dict[str, Any]:
+        url = payload.url.strip()
+        if not url.startswith(("http://", "https://")):
+            raise HTTPException(
+                status_code=400, detail="Theme URL must be http or https."
+            )
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(url)
+            response.raise_for_status()
+            body = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        updated = save_imported_theme(body)
+        return {
+            "success": True,
+            "weebarr": settings_store.weebarr_summary(),
+            "activeThemeId": updated.active_theme_id,
+        }
+
+    @app.post("/api/themes/import/zip")
+    async def import_theme_from_zip(file: UploadFile = File(...)) -> dict[str, Any]:
+        if not file.filename or not file.filename.lower().endswith(".zip"):
+            raise HTTPException(status_code=400, detail="Upload a .zip theme pack.")
+        try:
+            payload = await file.read()
+            with ZipFile(BytesIO(payload)) as archive:
+                theme_members = [
+                    name
+                    for name in archive.namelist()
+                    if name.lower().endswith("theme.json")
+                ]
+                if not theme_members:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Theme zip must include a theme.json manifest.",
+                    )
+                with archive.open(theme_members[0]) as handle:
+                    body = json.loads(handle.read().decode("utf-8"))
+        except HTTPException:
+            raise
+        except (BadZipFile, OSError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        updated = save_imported_theme(body)
+        return {
+            "success": True,
+            "weebarr": settings_store.weebarr_summary(),
+            "activeThemeId": updated.active_theme_id,
         }
 
     @app.post("/api/settings/seerr/test")
@@ -1123,6 +1446,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         per_page: int = Query(default=48, ge=1, le=80, alias="perPage"),
     ) -> dict[str, Any]:
         try:
+            await maybe_run_scheduled_automation()
             payload = await service.seasonal_anime(
                 season=season.upper(),
                 year=year,

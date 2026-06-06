@@ -2,6 +2,26 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.28] - 2026-06-05
+
+### Added
+
+- Added a full theme engine with built-in `Neon Lights`, `Monochrome`, and editable `Color Picker` palettes, plus safe theme import from JSON URLs or `.zip` theme packs and a shipped reference manifest for community themes.
+- Added an `Automation` settings section and server-side seasonal auto-request engine with bucket selection, manual `Scan now`, configurable scan cadence, and persisted scan history for `S-Tier`, `Canon`, `Bingeable`, and `Filler`.
+
+### Changed
+
+- Rebuilt Settings into named top tabs for `Weebarr`, `Automation`, `Authentication`, and `Connections`, keeping one section visible at a time while supporting hash deep links like `#automation` and `#connections`.
+- Extended the Weebarr settings payload to persist theme selection, editable theme tokens, and automation preferences alongside the existing catalog behavior controls.
+- Added a real seasonal-page `Scan` action and switched the `Refresh` and `Scan` buttons over to the repo icon assets.
+
+### Fixed
+
+- Centered the seasonal season-selector text independently from the right-aligned chevron and reworked the `Filters` trigger so its label and chevron stay visually centered together.
+- Restored the desktop main-column scroll behavior so the seasonal header, stats, filters, buckets, and pager move together while the sidebar keeps its own independent scroll track.
+- Moved the spotlight and inline detail pill row lower so the rank and audio badges sit more comfortably between the poster and the title block instead of touching the artwork edge.
+- Cleared the new automation/theme mypy regressions so the repo is back to a clean CI state with passing type checks.
+
 ## [0.1.27] - 2026-06-05
 
 ### Fixed

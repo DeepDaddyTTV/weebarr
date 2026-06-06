@@ -1,13 +1,17 @@
-const themeStorageKey = "weebarr-theme";
-const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
-
 const state = {
-  theme: "dark",
   weebarr: window.WEEBARR_WEEBARR || {},
   connection: window.WEEBARR_CONNECTION || {},
   access: window.WEEBARR_ACCESS || {},
   openDropdown: null,
+  activeTab: "weebarr",
 };
+
+const validSettingsTabs = new Set([
+  "weebarr",
+  "automation",
+  "authentication",
+  "connections",
+]);
 
 const contentFilterLabels = {
   hide_nsfw: "Hide NSFW",
@@ -21,19 +25,46 @@ const seriesTypeLabels = {
   daily: "Daily",
 };
 
+const colorPickerFields = [
+  { key: "bg", label: "Background" },
+  { key: "panel", label: "Panel" },
+  { key: "text", label: "Text" },
+  { key: "cyan", label: "Cyan Accent" },
+  { key: "pink", label: "Pink Accent" },
+  { key: "purple", label: "Purple Accent" },
+  { key: "green", label: "Success Accent" },
+];
+
 const els = {
   toast: document.querySelector("#toast"),
   weebarrBanner: document.querySelector("#weebarrSettingsBanner"),
+  automationBanner: document.querySelector("#automationSettingsBanner"),
   connectionBanner: document.querySelector("#settingsBanner"),
   accessBanner: document.querySelector("#accessSettingsBanner"),
   connectionStatusPill: document.querySelector("#settingsStatusPill"),
   localAccountStatusPill: document.querySelector("#localAccountStatusPill"),
-  themeButtons: document.querySelectorAll("[data-theme-choice]"),
   weebarrForm: document.querySelector("#weebarrForm"),
+  automationForm: document.querySelector("#automationForm"),
   connectionForm: document.querySelector("#connectionForm"),
   accessForm: document.querySelector("#localAccountForm"),
+  settingsTabs: document.querySelectorAll("[data-settings-tab]"),
+  settingsPanels: document.querySelectorAll("[data-settings-panel]"),
   contentFilterMode: document.querySelector("#settingsContentFilterMode"),
   strictMonitoring: document.querySelector("#settingsStrictMonitoring"),
+  activeThemeId: document.querySelector("#settingsActiveThemeId"),
+  activeThemeDescription: document.querySelector("#activeThemeDescription"),
+  colorPickerPanel: document.querySelector("#colorPickerPanel"),
+  colorPickerGrid: document.querySelector("#colorPickerGrid"),
+  themeImportUrl: document.querySelector("#themeImportUrl"),
+  themeImportZip: document.querySelector("#themeImportZip"),
+  importThemeUrlBtn: document.querySelector("#importThemeUrlBtn"),
+  importThemeZipBtn: document.querySelector("#importThemeZipBtn"),
+  automationBucketSTier: document.querySelector("#automationBucketSTier"),
+  automationBucketCanon: document.querySelector("#automationBucketCanon"),
+  automationBucketBingeable: document.querySelector("#automationBucketBingeable"),
+  automationBucketFiller: document.querySelector("#automationBucketFiller"),
+  automationScanIntervalDays: document.querySelector("#automationScanIntervalDays"),
+  automationScanNowBtn: document.querySelector("#automationScanNowBtn"),
   baseUrl: document.querySelector("#settingsBaseUrl"),
   apiKey: document.querySelector("#settingsApiKey"),
   requestSeasons: document.querySelector("#settingsRequestSeasons"),
@@ -51,8 +82,15 @@ const els = {
     "#localAccountConfirmPassword",
   ),
   currentAuthSignIn: document.querySelector("#currentAuthSignIn"),
+  currentActiveTheme: document.querySelector("#currentActiveTheme"),
   currentContentFilter: document.querySelector("#currentContentFilter"),
   currentStrictMonitoring: document.querySelector("#currentStrictMonitoring"),
+  automationEnabledBuckets: document.querySelector("#automationEnabledBuckets"),
+  automationScanIntervalSummary: document.querySelector(
+    "#automationScanIntervalSummary",
+  ),
+  automationLastScanAt: document.querySelector("#automationLastScanAt"),
+  automationLastProcessed: document.querySelector("#automationLastProcessed"),
   currentBaseUrl: document.querySelector("#currentBaseUrl"),
   currentApiKey: document.querySelector("#currentApiKey"),
   currentRequestSeasons: document.querySelector("#currentRequestSeasons"),
@@ -87,23 +125,6 @@ async function readError(response) {
   } catch {
     return text;
   }
-}
-
-function resolvedTheme(choice) {
-  if (choice === "system") {
-    return prefersLight.matches ? "light" : "dark";
-  }
-  return choice;
-}
-
-function applyTheme(choice = localStorage.getItem(themeStorageKey) || "dark") {
-  state.theme = choice;
-  document.body.dataset.theme = resolvedTheme(choice);
-  document.body.dataset.themeChoice = choice;
-  localStorage.setItem(themeStorageKey, choice);
-  els.themeButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.themeChoice === choice);
-  });
 }
 
 function showBanner(element, message, tone = "info") {
@@ -227,6 +248,33 @@ function initializeCustomSelects() {
   });
 }
 
+function availableThemes() {
+  return state.weebarr?.theme?.themes || [];
+}
+
+function activeTheme() {
+  return (
+    availableThemes().find(
+      (theme) => theme.id === state.weebarr?.theme?.activeThemeId,
+    ) || availableThemes()[0] || null
+  );
+}
+
+function formatDateTime(value) {
+  if (!value) return "Never";
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
 function signInLabel(access) {
   if (access.localAuthConfigured && access.plexLoginEnabled) {
     return "Username/password or Plex";
@@ -240,34 +288,87 @@ function signInLabel(access) {
   return "Setup required";
 }
 
-function weebarrPayload() {
-  return {
-    contentFilterMode: els.contentFilterMode.value,
-    strictMonitoring: Boolean(els.strictMonitoring.checked),
-  };
+function enabledBucketSummary(buckets) {
+  const labels = [];
+  if (buckets?.s_tier) labels.push("S-Tier");
+  if (buckets?.canon) labels.push("Canon");
+  if (buckets?.bingeable) labels.push("Bingeable");
+  if (buckets?.filler) labels.push("Filler");
+  return labels.length ? labels.join(", ") : "None enabled";
 }
 
-function connectionPayload() {
-  return {
-    baseUrl: els.baseUrl.value.trim(),
-    requestSeasons: els.requestSeasons.value,
-    sonarrServerId: parseOptionalInt(els.sonarrServerId.value),
-    forceQualityProfile: Boolean(els.forceQualityProfile?.checked),
-    seriesType: els.seriesType?.value || "default",
-    profileId: parseOptionalInt(els.profileId.value),
-    rootFolder: els.rootFolder.value.trim() || null,
-    languageProfileId: parseOptionalInt(els.languageProfileId.value),
-    requestUserId: parseOptionalInt(els.requestUserId.value),
-    tags: parseTags(els.tags.value),
-  };
+function buildColorPickerGrid() {
+  if (!els.colorPickerGrid) return;
+  const theme =
+    availableThemes().find((entry) => entry.id === "color-picker") || activeTheme();
+  const tokens = theme?.tokens || { dark: {}, light: {} };
+  els.colorPickerGrid.innerHTML = ["dark", "light"]
+    .map(
+      (mode) => `
+        <section class="theme-color-group">
+          <div class="settings-subheading">
+            <h3>${mode === "dark" ? "Dark Mode Palette" : "Light Mode Palette"}</h3>
+          </div>
+          <div class="theme-color-fields">
+            ${colorPickerFields
+              .map(
+                (field) => `
+                  <label class="theme-color-field">
+                    <span>${field.label}</span>
+                    <input
+                      type="color"
+                      data-theme-color-mode="${mode}"
+                      data-theme-color-key="${field.key}"
+                      value="${tokens[mode]?.[field.key] || "#ffffff"}"
+                    />
+                  </label>
+                `,
+              )
+              .join("")}
+          </div>
+        </section>
+      `,
+    )
+    .join("");
 }
 
-function localAccountPayload() {
-  return {
-    username: els.localAccountUsername.value.trim(),
-    password: els.localAccountPassword.value,
-    confirmPassword: els.localAccountConfirmPassword.value,
-  };
+function readColorPickerTokens() {
+  const theme =
+    availableThemes().find((entry) => entry.id === "color-picker") || activeTheme();
+  const currentTokens = JSON.parse(JSON.stringify(theme?.tokens || { dark: {}, light: {} }));
+  els.colorPickerGrid
+    ?.querySelectorAll("[data-theme-color-key]")
+    .forEach((input) => {
+      const mode = input.dataset.themeColorMode;
+      const key = input.dataset.themeColorKey;
+      if (!mode || !key) return;
+      currentTokens[mode] = currentTokens[mode] || {};
+      currentTokens[mode][key] = input.value;
+    });
+  return currentTokens;
+}
+
+function updateThemeControls() {
+  if (els.activeThemeId && state.weebarr?.theme?.activeThemeId) {
+    els.activeThemeId.value = state.weebarr.theme.activeThemeId;
+  }
+  const theme = activeTheme();
+  if (els.activeThemeDescription) {
+    els.activeThemeDescription.textContent =
+      theme?.description || "Choose a theme to preview its palette across the dashboard shell.";
+  }
+  if (els.currentActiveTheme) {
+    els.currentActiveTheme.textContent = theme?.name || "Neon Lights";
+  }
+  if (els.colorPickerPanel) {
+    els.colorPickerPanel.hidden = theme?.id !== "color-picker";
+  }
+  buildColorPickerGrid();
+  syncCustomSelects(["settingsActiveThemeId"]);
+  if (window.WeebarrTheme) {
+    window.WeebarrTheme.setThemeContext(state.weebarr?.theme || {});
+    window.WeebarrTheme.bindThemeButtons();
+  }
 }
 
 function updateWeebarr(summary) {
@@ -287,6 +388,39 @@ function updateWeebarr(summary) {
       ? "Enabled"
       : "Disabled";
   }
+  const automation = summary.automation || {};
+  if (els.automationBucketSTier) {
+    els.automationBucketSTier.checked = Boolean(automation.enabledBuckets?.s_tier);
+    els.automationBucketCanon.checked = Boolean(automation.enabledBuckets?.canon);
+    els.automationBucketBingeable.checked = Boolean(
+      automation.enabledBuckets?.bingeable,
+    );
+    els.automationBucketFiller.checked = Boolean(automation.enabledBuckets?.filler);
+  }
+  if (els.automationScanIntervalDays) {
+    els.automationScanIntervalDays.value =
+      automation.scanIntervalDays || String(30);
+  }
+  if (els.automationEnabledBuckets) {
+    els.automationEnabledBuckets.textContent = enabledBucketSummary(
+      automation.enabledBuckets,
+    );
+  }
+  if (els.automationScanIntervalSummary) {
+    els.automationScanIntervalSummary.textContent = `${
+      automation.scanIntervalDays || 30
+    } days`;
+  }
+  if (els.automationLastScanAt) {
+    els.automationLastScanAt.textContent = formatDateTime(automation.lastScanAt);
+  }
+  if (els.automationLastProcessed) {
+    els.automationLastProcessed.textContent =
+      automation.lastProcessedSeason && automation.lastProcessedYear
+        ? `${automation.lastProcessedSeason} ${automation.lastProcessedYear}`
+        : "Not yet run";
+  }
+  updateThemeControls();
   syncCustomSelects(["settingsContentFilterMode"]);
 }
 
@@ -393,62 +527,187 @@ function updateAccess(access) {
   }
 }
 
+function openSettingsTab(tabId, replaceHash = true) {
+  const nextTab = validSettingsTabs.has(tabId) ? tabId : "weebarr";
+  state.activeTab = nextTab;
+  els.settingsTabs.forEach((button) => {
+    button.classList.toggle("active", button.dataset.settingsTab === nextTab);
+  });
+  els.settingsPanels.forEach((panel) => {
+    panel.hidden = panel.dataset.settingsPanel !== nextTab;
+  });
+  if (replaceHash) {
+    history.replaceState(null, "", `#${nextTab}`);
+  }
+  setCustomSelectOpen(null);
+}
+
+function currentAutomationEnabled() {
+  return {
+    s_tier: Boolean(els.automationBucketSTier?.checked),
+    canon: Boolean(els.automationBucketCanon?.checked),
+    bingeable: Boolean(els.automationBucketBingeable?.checked),
+    filler: Boolean(els.automationBucketFiller?.checked),
+  };
+}
+
+function hasAnyEnabledBucket(buckets) {
+  return Object.values(buckets || {}).some(Boolean);
+}
+
+function weebarrPayload() {
+  return {
+    contentFilterMode: els.contentFilterMode.value,
+    strictMonitoring: Boolean(els.strictMonitoring.checked),
+    theme: {
+      activeThemeId: els.activeThemeId?.value || "neon-lights",
+      colorPickerTokens: readColorPickerTokens(),
+    },
+  };
+}
+
+function automationPayload() {
+  return {
+    automation: {
+      enabledBuckets: currentAutomationEnabled(),
+      scanIntervalDays: Number(els.automationScanIntervalDays?.value || 30),
+    },
+  };
+}
+
+function connectionPayload() {
+  return {
+    baseUrl: els.baseUrl.value.trim(),
+    requestSeasons: els.requestSeasons.value,
+    sonarrServerId: parseOptionalInt(els.sonarrServerId.value),
+    forceQualityProfile: Boolean(els.forceQualityProfile?.checked),
+    seriesType: els.seriesType?.value || "default",
+    profileId: parseOptionalInt(els.profileId.value),
+    rootFolder: els.rootFolder.value.trim() || null,
+    languageProfileId: parseOptionalInt(els.languageProfileId.value),
+    requestUserId: parseOptionalInt(els.requestUserId.value),
+    tags: parseTags(els.tags.value),
+  };
+}
+
+function localAccountPayload() {
+  return {
+    username: els.localAccountUsername.value.trim(),
+    password: els.localAccountPassword.value,
+    confirmPassword: els.localAccountConfirmPassword.value,
+  };
+}
+
 async function refreshSettings() {
-  const [weebarrResponse, connectionResponse] = await Promise.all([
+  const [weebarrResponse, connectionResponse, accessResponse] = await Promise.all([
     fetch("/api/settings/weebarr"),
     fetch("/api/settings/seerr"),
+    fetch("/api/setup/status"),
   ]);
   if (!weebarrResponse.ok) throw new Error(await readError(weebarrResponse));
   if (!connectionResponse.ok) throw new Error(await readError(connectionResponse));
+  if (!accessResponse.ok) throw new Error(await readError(accessResponse));
   updateWeebarr(await weebarrResponse.json());
   updateConnection(await connectionResponse.json());
+  updateAccess(await accessResponse.json());
 }
 
 async function saveWeebarr(event) {
   event.preventDefault();
   clearBanner(els.weebarrBanner);
-
   const response = await fetch("/api/settings/weebarr", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(weebarrPayload()),
   });
-
   if (!response.ok) {
     throw new Error(await readError(response));
   }
-
   const result = await response.json();
   updateWeebarr(result.weebarr || {});
   showBanner(
     els.weebarrBanner,
-    "Weebarr behavior settings saved. Seasonal lookups will use the new filtering and monitoring rules immediately.",
+    "Weebarr behavior and theme settings saved.",
     "success",
   );
   toast("Weebarr settings saved.");
 }
 
+async function saveAutomation(event) {
+  event.preventDefault();
+  clearBanner(els.automationBanner);
+  const previousBuckets = state.weebarr?.automation?.enabledBuckets || {};
+  const nextBuckets = currentAutomationEnabled();
+  const firstEnable = !hasAnyEnabledBucket(previousBuckets) && hasAnyEnabledBucket(nextBuckets);
+  let automationStartCurrentSeason = false;
+  if (firstEnable) {
+    automationStartCurrentSeason = window.confirm(
+      "Should automations start on the current season?",
+    );
+  }
+  const response = await fetch("/api/settings/weebarr", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...automationPayload(),
+      automationStartCurrentSeason,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  const result = await response.json();
+  updateWeebarr(result.weebarr || {});
+  const automationResult = result.automationResult;
+  const message = automationResult
+    ? `${automationResult.message} Requested ${automationResult.requested} title(s).`
+    : "Automation settings saved.";
+  showBanner(els.automationBanner, message, "success");
+  toast("Automation settings saved.");
+}
+
+async function runAutomationScan() {
+  clearBanner(els.automationBanner);
+  const confirmed = window.confirm(
+    "Run an immediate automation scan for the current season using the enabled buckets?",
+  );
+  if (!confirmed) return;
+  const response = await fetch("/api/automation/scan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ force: true }),
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  const result = await response.json();
+  await refreshSettings();
+  showBanner(
+    els.automationBanner,
+    `${result.message} Requested ${result.requested} title(s), skipped ${result.skipped}, failed ${result.failed}.`,
+    "success",
+  );
+  toast("Automation scan finished.");
+}
+
 async function saveLocalAccount(event) {
   event.preventDefault();
   clearBanner(els.accessBanner);
-
   const response = await fetch("/api/settings/access/local", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(localAccountPayload()),
   });
-
   if (!response.ok) {
     throw new Error(await readError(response));
   }
-
   const result = await response.json();
   updateAccess(result.access || {});
   els.localAccountPassword.value = "";
   els.localAccountConfirmPassword.value = "";
   showBanner(
     els.accessBanner,
-    "Local account saved. Login will now offer username/password alongside Plex whenever both are configured.",
+    "Local account saved. Login will offer local sign-in alongside Plex whenever both are configured.",
     "success",
   );
   toast("Local account saved.");
@@ -465,7 +724,6 @@ async function testConnection() {
     );
     return;
   }
-
   const apiKey = els.apiKey.value.trim();
   const response = await fetch("/api/settings/seerr/test", {
     method: "POST",
@@ -475,11 +733,9 @@ async function testConnection() {
       apiKey: apiKey || null,
     }),
   });
-
   if (!response.ok) {
     throw new Error(await readError(response));
   }
-
   const result = await response.json();
   const defaults = result.defaults || {};
   els.testServerCount.textContent = result.serverCount ?? "--";
@@ -488,7 +744,6 @@ async function testConnection() {
   els.testSeriesType.textContent =
     seriesTypeLabels[defaults.seriesType] || "Use Seerr default";
   els.testRootFolder.textContent = defaults.rootFolder || "Default";
-
   showBanner(
     els.connectionBanner,
     "Connection test succeeded. Seerr responded and its current anime request defaults were detected.",
@@ -500,7 +755,6 @@ async function testConnection() {
 async function saveConnection(event) {
   event.preventDefault();
   clearBanner(els.connectionBanner);
-
   const apiKey = els.apiKey.value.trim();
   const response = await fetch("/api/settings/seerr", {
     method: "PUT",
@@ -510,11 +764,9 @@ async function saveConnection(event) {
       apiKey: apiKey || null,
     }),
   });
-
   if (!response.ok) {
     throw new Error(await readError(response));
   }
-
   const result = await response.json();
   updateConnection(result.connection || {});
   els.apiKey.value = "";
@@ -526,12 +778,97 @@ async function saveConnection(event) {
   toast("Connection settings saved.");
 }
 
+async function importThemeUrl() {
+  clearBanner(els.weebarrBanner);
+  const url = els.themeImportUrl?.value.trim();
+  if (!url) {
+    showBanner(els.weebarrBanner, "Enter a theme manifest URL first.", "warn");
+    return;
+  }
+  const response = await fetch("/api/themes/import/url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  const result = await response.json();
+  updateWeebarr(result.weebarr || {});
+  els.themeImportUrl.value = "";
+  showBanner(els.weebarrBanner, "Theme imported from URL.", "success");
+  toast("Theme imported.");
+}
+
+async function importThemeZip() {
+  clearBanner(els.weebarrBanner);
+  const file = els.themeImportZip?.files?.[0];
+  if (!file) {
+    showBanner(els.weebarrBanner, "Choose a zip file first.", "warn");
+    return;
+  }
+  const body = new FormData();
+  body.append("file", file, file.name);
+  const response = await fetch("/api/themes/import/zip", {
+    method: "POST",
+    body,
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  const result = await response.json();
+  updateWeebarr(result.weebarr || {});
+  els.themeImportZip.value = "";
+  showBanner(els.weebarrBanner, "Theme imported from zip.", "success");
+  toast("Theme imported.");
+}
+
 if (els.weebarrForm) {
   els.weebarrForm.addEventListener("submit", async (event) => {
     try {
       await saveWeebarr(event);
     } catch (error) {
       showBanner(els.weebarrBanner, `Save failed. ${error.message}`, "error");
+    }
+  });
+}
+
+if (els.automationForm) {
+  els.automationForm.addEventListener("submit", async (event) => {
+    try {
+      await saveAutomation(event);
+    } catch (error) {
+      showBanner(els.automationBanner, `Save failed. ${error.message}`, "error");
+    }
+  });
+}
+
+if (els.automationScanNowBtn) {
+  els.automationScanNowBtn.addEventListener("click", async () => {
+    try {
+      await runAutomationScan();
+    } catch (error) {
+      showBanner(els.automationBanner, `Scan failed. ${error.message}`, "error");
+    }
+  });
+}
+
+if (els.importThemeUrlBtn) {
+  els.importThemeUrlBtn.addEventListener("click", async () => {
+    try {
+      await importThemeUrl();
+    } catch (error) {
+      showBanner(els.weebarrBanner, `Import failed. ${error.message}`, "error");
+    }
+  });
+}
+
+if (els.importThemeZipBtn) {
+  els.importThemeZipBtn.addEventListener("click", async () => {
+    try {
+      await importThemeZip();
+    } catch (error) {
+      showBanner(els.weebarrBanner, `Import failed. ${error.message}`, "error");
     }
   });
 }
@@ -576,12 +913,23 @@ if (els.forceQualityProfile) {
   });
 }
 
-els.themeButtons.forEach((button) => {
-  button.addEventListener("click", () => applyTheme(button.dataset.themeChoice));
-});
+if (els.activeThemeId) {
+  els.activeThemeId.addEventListener("change", () => {
+    state.weebarr = {
+      ...state.weebarr,
+      theme: {
+        ...(state.weebarr.theme || {}),
+        activeThemeId: els.activeThemeId.value,
+      },
+    };
+    updateThemeControls();
+  });
+}
 
-prefersLight.addEventListener("change", () => {
-  if (state.theme === "system") applyTheme("system");
+els.settingsTabs.forEach((button) => {
+  button.addEventListener("click", () => {
+    openSettingsTab(button.dataset.settingsTab || "weebarr");
+  });
 });
 
 document.addEventListener("click", (event) => {
@@ -596,11 +944,24 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-applyTheme();
+window.addEventListener("hashchange", () => {
+  openSettingsTab(
+    (location.hash || "#weebarr").replace("#", "") || "weebarr",
+    false,
+  );
+});
+
 initializeCustomSelects();
 updateWeebarr(state.weebarr);
 updateAccess(state.access);
 updateConnection(state.connection);
+if (window.WeebarrTheme) {
+  window.WeebarrTheme.bindThemeButtons();
+}
+openSettingsTab(
+  (location.hash || "#weebarr").replace("#", "") || "weebarr",
+  false,
+);
 refreshSettings().catch((error) => {
   showBanner(
     els.connectionBanner,

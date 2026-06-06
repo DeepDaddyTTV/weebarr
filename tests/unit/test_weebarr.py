@@ -1,4 +1,7 @@
 import asyncio
+import json
+from io import BytesIO
+from zipfile import ZipFile
 
 import pytest
 from fastapi.testclient import TestClient
@@ -121,9 +124,16 @@ def test_settings_page_renders(tmp_path):
     assert "Force Series Type" in response.text
     assert "Force Quality Profile ID" in response.text
     assert "Weebarr Admin Token" not in response.text
+    assert 'data-settings-tab="weebarr"' in response.text
+    assert 'data-settings-tab="automation"' in response.text
+    assert 'data-settings-tab="authentication"' in response.text
+    assert 'data-settings-tab="connections"' in response.text
+    assert "Season Auto-Requests" in response.text
+    assert "Named Theme" in response.text
     assert 'data-ui-select="settingsRequestSeasons"' in response.text
     assert 'data-ui-select="settingsContentFilterMode"' in response.text
     assert 'data-ui-select="settingsSeriesType"' in response.text
+    assert 'data-ui-select="settingsActiveThemeId"' in response.text
 
 
 def test_settings_store_persists_overrides(tmp_path):
@@ -140,6 +150,75 @@ def test_settings_store_persists_overrides(tmp_path):
     assert updated.content_filter_mode == "hide_nsfw"
     assert updated.strict_monitoring is True
     assert config_path.exists()
+
+
+def test_settings_store_persists_automation_and_theme_overrides(tmp_path):
+    config_path = tmp_path / "weebarr.json"
+    store = SettingsStore(Settings(config_path=str(config_path)))
+
+    updated = store.save_weebarr(
+        {
+            "automation_enabled_buckets": {
+                "s_tier": True,
+                "canon": True,
+                "bingeable": False,
+                "filler": False,
+            },
+            "automation_scan_interval_days": 14,
+            "active_theme_id": "color-picker",
+            "color_picker_tokens": {
+                "dark": {
+                    "bg": "#111111",
+                    "bg2": "#121212",
+                    "pageTail": "#000000",
+                    "pageGlowA": "#ffffff14",
+                    "pageGlowB": "#99999914",
+                    "pageGlowC": "#77777714",
+                    "panel": "#181818ee",
+                    "panel2": "#222222dd",
+                    "panel3": "#141414f0",
+                    "mediaScrim": "#090909aa",
+                    "line": "#ffffff20",
+                    "lineStrong": "#ffffff40",
+                    "text": "#f5f5f5",
+                    "muted": "#d0d0d0",
+                    "subtle": "#909090",
+                    "cyan": "#ffffff",
+                    "pink": "#cccccc",
+                    "purple": "#bbbbbb",
+                    "green": "#eeeeee",
+                    "warning": "#fafafa",
+                },
+                "light": {
+                    "bg": "#fafafa",
+                    "bg2": "#f1f1f1",
+                    "pageTail": "#ededed",
+                    "pageGlowA": "#11111110",
+                    "pageGlowB": "#33333310",
+                    "pageGlowC": "#55555510",
+                    "panel": "#ffffffff",
+                    "panel2": "#f6f6f6e8",
+                    "panel3": "#ffffffee",
+                    "mediaScrim": "#f4f4f4cc",
+                    "line": "#11111120",
+                    "lineStrong": "#11111140",
+                    "text": "#111111",
+                    "muted": "#444444",
+                    "subtle": "#666666",
+                    "cyan": "#111111",
+                    "pink": "#2d2d2d",
+                    "purple": "#444444",
+                    "green": "#1d1d1d",
+                    "warning": "#111111",
+                },
+            },
+        }
+    )
+
+    assert updated.automation_enabled is True
+    assert updated.automation_scan_interval_days == 14
+    assert updated.active_theme_id == "color-picker"
+    assert updated.color_picker_tokens["dark"]["cyan"] == "#ffffff"
 
 
 def test_settings_endpoint_saves_connection(tmp_path):
@@ -232,6 +311,64 @@ def test_weebarr_settings_endpoint_saves_app_preferences(tmp_path):
         json={
             "contentFilterMode": "show_all",
             "strictMonitoring": True,
+            "automation": {
+                "enabledBuckets": {
+                    "s_tier": True,
+                    "canon": False,
+                    "bingeable": True,
+                    "filler": False,
+                },
+                "scanIntervalDays": 21,
+            },
+            "theme": {
+                "activeThemeId": "monochrome",
+                "colorPickerTokens": {
+                    "dark": {
+                        "bg": "#111111",
+                        "bg2": "#1a1a1a",
+                        "pageTail": "#050505",
+                        "pageGlowA": "#ffffff17",
+                        "pageGlowB": "#ffffff0d",
+                        "pageGlowC": "#ffffff0a",
+                        "panel": "#1b1b1bd9",
+                        "panel2": "#242424ba",
+                        "panel3": "#141414ec",
+                        "mediaScrim": "#09090994",
+                        "line": "#ffffff2e",
+                        "lineStrong": "#ffffff55",
+                        "text": "#f7f7f7",
+                        "muted": "#d0d0d0",
+                        "subtle": "#a4a4a4",
+                        "cyan": "#f7f7f7",
+                        "pink": "#d7d7d7",
+                        "purple": "#bfbfbf",
+                        "green": "#ededed",
+                        "warning": "#ffffff",
+                    },
+                    "light": {
+                        "bg": "#fbfbfb",
+                        "bg2": "#efefef",
+                        "pageTail": "#e4e4e4",
+                        "pageGlowA": "#11111114",
+                        "pageGlowB": "#1111110a",
+                        "pageGlowC": "#11111108",
+                        "panel": "#ffffffff",
+                        "panel2": "#f6f6f6d9",
+                        "panel3": "#ffffffef",
+                        "mediaScrim": "#f4f4f4bd",
+                        "line": "#11111124",
+                        "lineStrong": "#11111142",
+                        "text": "#111111",
+                        "muted": "#3f3f3f",
+                        "subtle": "#5b5b5b",
+                        "cyan": "#111111",
+                        "pink": "#2f2f2f",
+                        "purple": "#4a4a4a",
+                        "green": "#1f1f1f",
+                        "warning": "#111111",
+                    },
+                },
+            },
         },
     )
 
@@ -240,6 +377,282 @@ def test_weebarr_settings_endpoint_saves_app_preferences(tmp_path):
     assert payload["success"] is True
     assert payload["weebarr"]["contentFilterMode"] == "show_all"
     assert payload["weebarr"]["strictMonitoring"] is True
+    assert payload["weebarr"]["automation"]["enabledBuckets"]["s_tier"] is True
+    assert payload["weebarr"]["automation"]["enabledBuckets"]["bingeable"] is True
+    assert payload["weebarr"]["automation"]["scanIntervalDays"] == 21
+    assert payload["weebarr"]["theme"]["activeThemeId"] == "monochrome"
+
+
+def test_theme_import_from_url_updates_theme_catalog(tmp_path, monkeypatch):
+    client = authenticated_client(tmp_path)
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "id": "aurora-spark",
+                "name": "Aurora Spark",
+                "description": "Imported test theme",
+                "tokens": {
+                    "dark": {
+                        "bg": "#0a0c12",
+                        "bg2": "#111520",
+                        "pageTail": "#05070b",
+                        "pageGlowA": "#28c7ff21",
+                        "pageGlowB": "#8b5cf61f",
+                        "pageGlowC": "#ff3c7d14",
+                        "panel": "#121925e0",
+                        "panel2": "#171f2cb8",
+                        "panel3": "#0d121ae8",
+                        "mediaScrim": "#05091194",
+                        "line": "#7a97b333",
+                        "lineStrong": "#7ebfe161",
+                        "text": "#f5f7fb",
+                        "muted": "#99a8bb",
+                        "subtle": "#6f7e90",
+                        "cyan": "#28c7ff",
+                        "pink": "#ff3c7d",
+                        "purple": "#8b5cf6",
+                        "green": "#55e18d",
+                        "warning": "#ffd166",
+                    },
+                    "light": {
+                        "bg": "#edf6ff",
+                        "bg2": "#f8fbff",
+                        "pageTail": "#e9f4ff",
+                        "pageGlowA": "#28c7ff33",
+                        "pageGlowB": "#8b5cf629",
+                        "pageGlowC": "#ff3c7d14",
+                        "panel": "#ffffffd1",
+                        "panel2": "#ffffffb3",
+                        "panel3": "#ffffffe8",
+                        "mediaScrim": "#edf6ffbd",
+                        "line": "#425d7c33",
+                        "lineStrong": "#28a1da6b",
+                        "text": "#121c2b",
+                        "muted": "#5d6e82",
+                        "subtle": "#778699",
+                        "cyan": "#28c7ff",
+                        "pink": "#ff3c7d",
+                        "purple": "#8b5cf6",
+                        "green": "#55e18d",
+                        "warning": "#ffd166",
+                    },
+                },
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url):
+            assert url == "https://example.test/aurora-spark.json"
+            return FakeResponse()
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", FakeAsyncClient)
+
+    response = client.post(
+        "/api/themes/import/url",
+        json={"url": "https://example.test/aurora-spark.json"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["activeThemeId"] == "aurora-spark"
+    assert any(
+        theme["id"] == "aurora-spark" for theme in payload["weebarr"]["theme"]["themes"]
+    )
+
+
+def test_theme_import_from_zip_updates_theme_catalog(tmp_path):
+    client = authenticated_client(tmp_path)
+    archive_bytes = BytesIO()
+    with ZipFile(archive_bytes, "w") as archive:
+        archive.writestr(
+            "theme.json",
+            json.dumps(
+                {
+                    "id": "zip-theme",
+                    "name": "Zip Theme",
+                    "description": "Theme imported from zip",
+                    "tokens": {
+                        "dark": {
+                            "bg": "#050911",
+                            "bg2": "#08111b",
+                            "pageTail": "#03060b",
+                            "pageGlowA": "#28c7ff21",
+                            "pageGlowB": "#ff3c7d1f",
+                            "pageGlowC": "#502aff14",
+                            "panel": "#101720db",
+                            "panel2": "#141c27b8",
+                            "panel3": "#0d121ae6",
+                            "mediaScrim": "#05091194",
+                            "line": "#7a97b333",
+                            "lineStrong": "#7ebfe161",
+                            "text": "#f5f7fb",
+                            "muted": "#99a8bb",
+                            "subtle": "#6f7e90",
+                            "cyan": "#28c7ff",
+                            "pink": "#ff3c7d",
+                            "purple": "#b466ff",
+                            "green": "#55e18d",
+                            "warning": "#ffd166",
+                        },
+                        "light": {
+                            "bg": "#edf6ff",
+                            "bg2": "#f8fbff",
+                            "pageTail": "#e9f4ff",
+                            "pageGlowA": "#28c7ff33",
+                            "pageGlowB": "#ff3c7d29",
+                            "pageGlowC": "#502aff14",
+                            "panel": "#ffffffd1",
+                            "panel2": "#ffffffb3",
+                            "panel3": "#ffffffe8",
+                            "mediaScrim": "#edf6ffbd",
+                            "line": "#425d7c33",
+                            "lineStrong": "#28a1da6b",
+                            "text": "#121c2b",
+                            "muted": "#5d6e82",
+                            "subtle": "#778699",
+                            "cyan": "#28c7ff",
+                            "pink": "#ff3c7d",
+                            "purple": "#b466ff",
+                            "green": "#55e18d",
+                            "warning": "#ffd166",
+                        },
+                    },
+                }
+            ),
+        )
+    archive_bytes.seek(0)
+
+    response = client.post(
+        "/api/themes/import/zip",
+        files={"file": ("zip-theme.zip", archive_bytes.getvalue(), "application/zip")},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["activeThemeId"] == "zip-theme"
+    assert any(
+        theme["id"] == "zip-theme" for theme in payload["weebarr"]["theme"]["themes"]
+    )
+
+
+def test_manual_automation_scan_requests_enabled_missing_buckets(tmp_path, monkeypatch):
+    calls = []
+
+    async def fake_seasonal_anime(self, season, year, per_page=48):
+        assert season == "SPRING"
+        assert year == 2026
+        return {
+            "items": [
+                {
+                    "id": 101,
+                    "title": "Witch Hat Atelier",
+                    "bucket": "S-Tier",
+                    "seerr": {
+                        "state": "missing",
+                        "label": "Missing",
+                        "requestable": True,
+                        "tmdbId": 196950,
+                    },
+                },
+                {
+                    "id": 202,
+                    "title": "Re:ZERO Season 4",
+                    "bucket": "Canon",
+                    "seerr": {
+                        "state": "season_missing",
+                        "label": "Season Missing",
+                        "requestable": True,
+                        "tmdbId": 65942,
+                        "requestSeasons": [4],
+                    },
+                },
+                {
+                    "id": 303,
+                    "title": "Already Requested",
+                    "bucket": "Canon",
+                    "seerr": {
+                        "state": "requested",
+                        "label": "Requested",
+                        "requestable": False,
+                        "tmdbId": 777,
+                    },
+                },
+                {
+                    "id": 404,
+                    "title": "Filler Pick",
+                    "bucket": "Filler",
+                    "seerr": {
+                        "state": "missing",
+                        "label": "Missing",
+                        "requestable": True,
+                        "tmdbId": 888,
+                    },
+                },
+            ],
+            "stats": {
+                "total": 4,
+                "requestable": 3,
+                "requested": 1,
+            },
+        }
+
+    def fake_current_season(self):
+        return ("SPRING", 2026)
+
+    async def fake_request_in_seerr(self, media_id, title, tvdb_id=None, seasons=None):
+        calls.append({"media_id": media_id, "title": title, "seasons": seasons})
+        return {"success": True, "sentSeasons": seasons or []}
+
+    monkeypatch.setattr(
+        services_module.WeebarrService, "seasonal_anime", fake_seasonal_anime
+    )
+    monkeypatch.setattr(
+        services_module.WeebarrService, "current_season", fake_current_season
+    )
+    monkeypatch.setattr(
+        services_module.WeebarrService, "request_in_seerr", fake_request_in_seerr
+    )
+
+    client = authenticated_client(
+        tmp_path,
+        seerr_base_url="https://seerr.example.test",
+        seerr_api_key="abc123",
+        automation_enabled_buckets={
+            "s_tier": True,
+            "canon": True,
+            "bingeable": False,
+            "filler": False,
+        },
+    )
+
+    response = client.post(
+        "/api/automation/scan", json={"season": "SPRING", "year": 2026}
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["matched"] == 3
+    assert payload["eligible"] == 2
+    assert payload["requested"] == 2
+    assert payload["skipped"] == 1
+    assert payload["failed"] == 0
+    assert {call["title"] for call in calls} == {
+        "Witch Hat Atelier",
+        "Re:ZERO Season 4",
+    }
+    assert calls[1]["seasons"] == [4]
 
 
 def test_settings_store_persists_weebarr_request_history(tmp_path):

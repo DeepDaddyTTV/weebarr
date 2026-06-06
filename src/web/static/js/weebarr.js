@@ -11,6 +11,7 @@ const state = {
   page: 1,
   pageSize: 12,
   theme: "dark",
+  weebarr: window.WEEBARR_WEEBARR || {},
   filterOpen: false,
   openDropdown: null,
   hideRequested: false,
@@ -24,6 +25,7 @@ const els = {
   prevSeason: document.querySelector("#prevSeasonBtn"),
   nextSeason: document.querySelector("#nextSeasonBtn"),
   refresh: document.querySelector("#refreshBtn"),
+  scan: document.querySelector("#scanBtn"),
   filterButton: document.querySelector("#filterBtn"),
   filterMenu: document.querySelector("#filterMenu"),
   search: document.querySelector("#searchInput"),
@@ -47,8 +49,6 @@ const forceCompactPreview = new URLSearchParams(window.location.search).get("com
 const customSelectRoots = [...document.querySelectorAll("[data-ui-select]")];
 const customSelects = new Map();
 const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"];
-const themeStorageKey = "weebarr-theme";
-const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
 const fullyRequestedStates = new Set(["partial", "requested", "available"]);
 
 els.filter.value = state.filter;
@@ -289,21 +289,14 @@ function cardMeta(item) {
   return item.format || "TV";
 }
 
-function resolvedTheme(choice) {
-  if (choice === "system") {
-    return prefersLight.matches ? "light" : "dark";
-  }
-  return choice;
-}
-
-function applyTheme(choice = localStorage.getItem(themeStorageKey) || "dark") {
+function applyTheme(
+  choice = window.WeebarrTheme?.readThemeChoice?.() || "dark",
+) {
   state.theme = choice;
-  document.body.dataset.theme = resolvedTheme(choice);
-  document.body.dataset.themeChoice = choice;
-  localStorage.setItem(themeStorageKey, choice);
-  els.themeButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.themeChoice === choice);
-  });
+  if (window.WeebarrTheme) {
+    window.WeebarrTheme.setThemeContext(state.weebarr?.theme || {});
+    window.WeebarrTheme.applyThemeChoice(choice);
+  }
 }
 
 function updateSeasonControls() {
@@ -1052,6 +1045,40 @@ async function loadSeason() {
   }
 }
 
+async function scanSeason() {
+  if (
+    !window.confirm(
+      `Run an automation scan for ${titleCaseSeason(state.season)} ${state.year}?`,
+    )
+  ) {
+    return;
+  }
+  try {
+    toast(
+      `Scanning enabled automation buckets for ${titleCaseSeason(state.season)} ${state.year}...`,
+    );
+    const response = await fetch("/api/automation/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        season: state.season,
+        year: state.year,
+        force: true,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(await readError(response));
+    }
+    const result = await response.json();
+    toast(
+      `${result.message} Requested ${result.requested} title(s), skipped ${result.skipped}.`,
+    );
+    await loadSeason();
+  } catch (error) {
+    toast(`Automation scan failed. ${error.message}`);
+  }
+}
+
 async function requestItem(id) {
   const item = state.items.find((anime) => String(anime.id) === String(id));
   if (!item) return;
@@ -1122,6 +1149,12 @@ els.refresh.addEventListener("click", () => {
   updateSeasonControls();
   loadSeason();
 });
+
+if (els.scan) {
+  els.scan.addEventListener("click", () => {
+    void scanSeason();
+  });
+}
 
 els.prevSeason.addEventListener("click", () => shiftSeason(-1));
 els.nextSeason.addEventListener("click", () => shiftSeason(1));
@@ -1273,10 +1306,6 @@ els.themeButtons.forEach((button) => {
   button.addEventListener("click", () => applyTheme(button.dataset.themeChoice));
 });
 
-prefersLight.addEventListener("change", () => {
-  if (state.theme === "system") applyTheme("system");
-});
-
 compactDetailsMedia.addEventListener("change", () => {
   renderAll();
 });
@@ -1290,6 +1319,9 @@ document.addEventListener("keydown", (event) => {
 
 window.weebarrToggleSelect = toggleSelectedItem;
 applyTheme();
+if (window.WeebarrTheme) {
+  window.WeebarrTheme.bindThemeButtons();
+}
 initializeCustomSelects();
 document.body.classList.toggle("compact-preview", forceCompactPreview);
 updateSeasonControls();
