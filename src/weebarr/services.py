@@ -101,6 +101,34 @@ query SeasonalAnime($season: MediaSeason!, $year: Int!, $page: Int!, $perPage: I
 }
 """
 
+ANILIST_CHARACTERS_QUERY = """
+query AnimeCharacters($id: Int!, $perPage: Int!) {
+  Media(id: $id, type: ANIME) {
+    siteUrl
+    characters(page: 1, perPage: $perPage, sort: [ROLE, RELEVANCE, ID]) {
+      pageInfo { total hasNextPage }
+      edges {
+        role
+        node {
+          id
+          siteUrl
+          name { full native }
+          image { large medium }
+        }
+        voiceActors(sort: [RELEVANCE, ID]) {
+          id
+          siteUrl
+          languageV2
+          name { full native }
+          image { large medium }
+        }
+      }
+    }
+  }
+}
+"""
+CHARACTER_SPOTLIGHT_LIMIT = 18
+
 
 def normalize_title(value: str | None) -> str:
     """Normalize titles for loose matching."""
@@ -206,6 +234,61 @@ def _shape_trailer(trailer: dict[str, Any] | None) -> dict[str, Any] | None:
         "thumbnail": thumbnail_url,
         "embedUrl": embed_url,
         "watchUrl": watch_url,
+    }
+
+
+def _normalize_character_role(role: Any) -> str:
+    normalized = str(role or "").strip().upper()
+    if normalized == "MAIN":
+        return "Main"
+    if normalized == "SUPPORTING":
+        return "Supporting"
+    if normalized == "BACKGROUND":
+        return "Background"
+    return "Cast"
+
+
+def _shape_voice_actor(actor: dict[str, Any]) -> dict[str, Any] | None:
+    name = cast(dict[str, Any], actor.get("name") or {})
+    full_name = str(name.get("full") or "").strip()
+    native_name = str(name.get("native") or "").strip() or None
+    if not full_name:
+        return None
+    image = cast(dict[str, Any], actor.get("image") or {})
+    return {
+        "id": actor.get("id"),
+        "name": full_name,
+        "nativeName": native_name,
+        "language": str(actor.get("languageV2") or "").strip() or "Unknown",
+        "siteUrl": str(actor.get("siteUrl") or "").strip() or None,
+        "image": str(image.get("large") or image.get("medium") or "").strip() or None,
+    }
+
+
+def _shape_character_edge(edge: dict[str, Any]) -> dict[str, Any] | None:
+    node = cast(dict[str, Any], edge.get("node") or {})
+    name = cast(dict[str, Any], node.get("name") or {})
+    full_name = str(name.get("full") or "").strip()
+    native_name = str(name.get("native") or "").strip() or None
+    if not full_name:
+        return None
+    image = cast(dict[str, Any], node.get("image") or {})
+    voice_actors = [
+        actor
+        for actor in (
+            _shape_voice_actor(cast(dict[str, Any], actor))
+            for actor in (edge.get("voiceActors") or [])
+        )
+        if actor is not None
+    ]
+    return {
+        "id": node.get("id"),
+        "name": full_name,
+        "nativeName": native_name,
+        "role": _normalize_character_role(edge.get("role")),
+        "siteUrl": str(node.get("siteUrl") or "").strip() or None,
+        "image": str(image.get("large") or image.get("medium") or "").strip() or None,
+        "voiceActors": voice_actors,
     }
 
 
@@ -538,7 +621,59 @@ class WeebarrService:
                 for node in ((item.get("studios") or {}).get("nodes") or [])
                 if node.get("name")
             ],
+            "characters": [],
+            "charactersLoaded": False,
         }
+
+    async def anime_characters(self, anime_id: int) -> dict[str, Any]:
+        cache_key = f"anilist-characters:{anime_id}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cast(dict[str, Any], cached)
+
+        try:
+            async with httpx.AsyncClient(
+                timeout=self.settings.request_timeout_seconds
+            ) as client:
+                response = await client.post(
+                    ANILIST_URL,
+                    json={
+                        "query": ANILIST_CHARACTERS_QUERY,
+                        "variables": {
+                            "id": anime_id,
+                            "perPage": CHARACTER_SPOTLIGHT_LIMIT,
+                        },
+                    },
+                )
+                response.raise_for_status()
+                body = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+        if "errors" in body:
+            raise HTTPException(
+                status_code=502,
+                detail=body["errors"][0].get("message", "AniList error"),
+            )
+
+        media = cast(dict[str, Any], (body.get("data") or {}).get("Media") or {})
+        characters_block = cast(dict[str, Any], media.get("characters") or {})
+        page_info = cast(dict[str, Any], characters_block.get("pageInfo") or {})
+        edges = cast(list[dict[str, Any]], characters_block.get("edges") or [])
+        characters = [
+            character
+            for character in (_shape_character_edge(edge) for edge in edges)
+            if character is not None
+        ]
+        payload = {
+            "characters": characters,
+            "shown": len(characters),
+            "total": _coerce_int(page_info.get("total")) or len(characters),
+            "hasMore": bool(page_info.get("hasNextPage")),
+            "siteUrl": str(media.get("siteUrl") or "").strip() or None,
+        }
+        self.cache.set(cache_key, payload, self.settings.anilist_cache_ttl_seconds)
+        return payload
 
     def _apply_seerr_art(self, anime: dict[str, Any]) -> dict[str, Any]:
         """Prefer Seerr/TMDb art when a confident match exposes it."""

@@ -510,6 +510,179 @@ function trailerTemplate(item, compact = false) {
   `;
 }
 
+function voiceActorTemplate(actor) {
+  return `
+    <li class="cast-actor">
+      ${actor.image ? `<img src="${actor.image}" alt="${escapeHtml(actor.name)}" loading="lazy" />` : `<span class="cast-avatar-fallback">${escapeHtml((actor.name || "?").slice(0, 1))}</span>`}
+      <div class="cast-actor-copy">
+        <strong>${escapeHtml(actor.name)}</strong>
+        <span>${escapeHtml(actor.language || "Voice Actor")}${actor.nativeName ? ` • ${escapeHtml(actor.nativeName)}` : ""}</span>
+      </div>
+      ${
+        actor.siteUrl
+          ? `<a class="cast-link" href="${actor.siteUrl}" target="_blank" rel="noreferrer" aria-label="Open ${escapeHtml(actor.name)} on AniList">↗</a>`
+          : ""
+      }
+    </li>
+  `;
+}
+
+function characterCardTemplate(character) {
+  const voiceActors = Array.isArray(character.voiceActors) ? character.voiceActors : [];
+  return `
+    <article class="cast-card">
+      <div class="cast-character">
+        <div class="cast-character-media">
+          ${
+            character.image
+              ? `<img src="${character.image}" alt="${escapeHtml(character.name)}" loading="lazy" />`
+              : `<span class="cast-avatar-fallback">${escapeHtml((character.name || "?").slice(0, 1))}</span>`
+          }
+        </div>
+        <div class="cast-character-copy">
+          <div class="cast-character-head">
+            <div>
+              <h4>${escapeHtml(character.name)}</h4>
+              ${character.nativeName ? `<p>${escapeHtml(character.nativeName)}</p>` : ""}
+            </div>
+            <span class="cast-role-pill">${escapeHtml(character.role || "Cast")}</span>
+          </div>
+          ${
+            character.siteUrl
+              ? `<a class="cast-link cast-character-link" href="${character.siteUrl}" target="_blank" rel="noreferrer">Character on AniList ↗</a>`
+              : ""
+          }
+          ${
+            voiceActors.length
+              ? `
+                <div class="cast-actor-block">
+                  <span class="cast-actor-kicker">Voice Cast</span>
+                  <ul class="cast-actor-list">
+                    ${voiceActors.map(voiceActorTemplate).join("")}
+                  </ul>
+                </div>
+              `
+              : `<p class="cast-empty-copy">No voice actor data is listed for this character yet.</p>`
+          }
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function charactersTemplate(item, compact = false) {
+  if (!item?.id) return "";
+  const wrapperClass = compact ? "cast-block inline-cast-block" : "cast-block";
+  const total = Number(item.charactersTotal || 0);
+  const shown = Number(item.charactersShown || (item.characters || []).length || 0);
+
+  if (item.charactersError) {
+    return `
+      <section class="${wrapperClass}">
+        <div class="cast-head">
+          <div>
+            <span class="cast-kicker">Characters & Voice Cast</span>
+            <h3>Cast lookup failed</h3>
+          </div>
+        </div>
+        <div class="cast-feedback">
+          <p>${escapeHtml(item.charactersError)}</p>
+          <button class="secondary-btn cast-retry-btn" type="button" data-retry-characters="${item.id}">Retry cast lookup</button>
+        </div>
+      </section>
+    `;
+  }
+
+  if (!item.charactersLoaded || item.charactersLoading) {
+    return `
+      <section class="${wrapperClass}">
+        <div class="cast-head">
+          <div>
+            <span class="cast-kicker">Characters & Voice Cast</span>
+            <h3>Loading cast</h3>
+          </div>
+        </div>
+        <div class="cast-feedback cast-loading">
+          <p>Fetching AniList character and voice actor details for ${escapeHtml(item.title)}.</p>
+        </div>
+      </section>
+    `;
+  }
+
+  if (!Array.isArray(item.characters) || !item.characters.length) {
+    return `
+      <section class="${wrapperClass}">
+        <div class="cast-head">
+          <div>
+            <span class="cast-kicker">Characters & Voice Cast</span>
+            <h3>No cast details yet</h3>
+          </div>
+        </div>
+        <div class="cast-feedback">
+          <p>AniList doesn’t currently expose character or actor data for this title.</p>
+        </div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="${wrapperClass}">
+      <div class="cast-head">
+        <div>
+          <span class="cast-kicker">Characters & Voice Cast</span>
+          <h3>${shown}${total && total !== shown ? ` of ${total}` : ""} listed</h3>
+        </div>
+        ${
+          item.charactersSiteUrl || item.siteUrl
+            ? `<a class="anilist-btn cast-link-btn" href="${item.charactersSiteUrl || item.siteUrl}" target="_blank" rel="noreferrer">Full cast ↗</a>`
+            : ""
+        }
+      </div>
+      <div class="cast-list">
+        ${(item.characters || []).map(characterCardTemplate).join("")}
+      </div>
+      ${
+        item.charactersHasMore
+          ? `<p class="cast-more">Showing the first ${shown} relevant cast entries from AniList.</p>`
+          : ""
+      }
+    </section>
+  `;
+}
+
+async function loadCharacters(item, force = false) {
+  if (!item?.id) return;
+  if (item.charactersLoading) return;
+  if (item.charactersLoaded && !force) return;
+
+  item.charactersLoading = true;
+  item.charactersError = null;
+  if (force) {
+    item.charactersLoaded = false;
+    item.characters = [];
+  }
+  renderAll();
+
+  try {
+    const response = await fetch(`/api/anime/${encodeURIComponent(item.id)}/characters`);
+    if (!response.ok) {
+      throw new Error(await readError(response));
+    }
+    const payload = await response.json();
+    item.characters = Array.isArray(payload.characters) ? payload.characters : [];
+    item.charactersLoaded = true;
+    item.charactersShown = Number(payload.shown || item.characters.length || 0);
+    item.charactersTotal = Number(payload.total || item.characters.length || 0);
+    item.charactersHasMore = Boolean(payload.hasMore);
+    item.charactersSiteUrl = payload.siteUrl || item.siteUrl || null;
+  } catch (error) {
+    item.charactersError = error instanceof Error ? error.message : "Unable to load cast details.";
+  } finally {
+    item.charactersLoading = false;
+    renderAll();
+  }
+}
+
 function inlineActionsTemplate(item) {
   const seerr = item.seerr || {};
   const actions = [
@@ -592,6 +765,7 @@ function inlineDetailTemplate(item) {
         <div><span>Status</span><strong><span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
       </div>
       ${inlineActionsTemplate(item)}
+      ${charactersTemplate(item, true)}
     </div>
   `;
 }
@@ -786,13 +960,18 @@ function renderSpotlight(item) {
       <div><span>Status</span><strong><span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
     </div>
     ${actionButtonTemplate(item, true)}
+    ${charactersTemplate(item)}
   `;
 }
 
 function renderAll() {
   const filteredItems = visibleItems();
+  const selected = syncSelectedItem(filteredItems);
   renderSections(filteredItems);
-  renderSpotlight(currentSelectedItem(filteredItems));
+  renderSpotlight(selected);
+  if (selected && !selected.charactersLoaded && !selected.charactersLoading && !selected.charactersError) {
+    void loadCharacters(selected);
+  }
 }
 
 function toggleSelectedItem(clickedId) {
@@ -1012,6 +1191,14 @@ els.sections.addEventListener("click", (event) => {
     requestItem(requestButton.dataset.request);
     return;
   }
+  const retryCharactersButton = event.target.closest("[data-retry-characters]");
+  if (retryCharactersButton) {
+    const item = state.items.find((anime) => String(anime.id) === String(retryCharactersButton.dataset.retryCharacters));
+    if (item) {
+      void loadCharacters(item, true);
+    }
+    return;
+  }
   if (shouldIgnoreCardToggle(event.target)) return;
   const card = event.target.closest(".anime-card");
   if (!card) return;
@@ -1027,6 +1214,14 @@ els.spotlight.addEventListener("click", (event) => {
   const requestButton = event.target.closest("[data-request]");
   if (requestButton) {
     requestItem(requestButton.dataset.request);
+    return;
+  }
+  const retryCharactersButton = event.target.closest("[data-retry-characters]");
+  if (retryCharactersButton) {
+    const item = state.items.find((anime) => String(anime.id) === String(retryCharactersButton.dataset.retryCharacters));
+    if (item) {
+      void loadCharacters(item, true);
+    }
   }
 });
 

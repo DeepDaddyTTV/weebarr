@@ -2,6 +2,16 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.25] - 2026-06-05
+
+### Added
+
+- AniList character and voice actor details now load on demand for the selected anime and render at the end of the desktop spotlight and inline mobile detail views.
+
+### Changed
+
+- Kept the seasonal feed responsive by fetching cast data only for the currently expanded title instead of inflating the base seasonal payload for every card.
+
 ## [0.1.24] - 2026-06-05
 
 ### Fixed

@@ -194,6 +194,9 @@ body[data-theme="light"] .anime-card p,
 body[data-theme="light"] .next-line,
 body[data-theme="light"] .genre-row span,
 body[data-theme="light"] .trailer-head h3,
+body[data-theme="light"] .cast-head h3,
+body[data-theme="light"] .cast-character-copy h4,
+body[data-theme="light"] .cast-actor-copy strong,
 body[data-theme="light"] .detail-list strong,
 body[data-theme="light"] .spotlight-score a,
 body[data-theme="light"] .pager button,
@@ -210,6 +213,10 @@ body[data-theme="light"] .card-menu,
 body[data-theme="light"] .anime-card p,
 body[data-theme="light"] .genre-row span,
 body[data-theme="light"] .trailer-kicker,
+body[data-theme="light"] .cast-kicker,
+body[data-theme="light"] .cast-actor-kicker,
+body[data-theme="light"] .cast-more,
+body[data-theme="light"] .cast-empty-copy,
 body[data-theme="light"] .meta,
 body[data-theme="light"] .next-line,
 body[data-theme="light"] .spotlight-subtitle,
@@ -223,6 +230,13 @@ body[data-theme="light"] .trailer-block {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(241, 248, 255, 0.92)),
     radial-gradient(circle at top left, rgba(31, 205, 255, 0.08), transparent 46%);
+}
+
+body[data-theme="light"] .cast-block,
+body[data-theme="light"] .cast-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(241, 248, 255, 0.92)),
+    radial-gradient(circle at top left, rgba(255, 60, 125, 0.08), transparent 48%);
 }
 
 body[data-theme="light"] .trailer-frame-shell {
@@ -2228,6 +2242,232 @@ body[data-page="requests"] .spotlight {
   border: 0;
 }
 
+.cast-block {
+  margin: 18px 0 0;
+  padding: 15px;
+  background:
+    linear-gradient(180deg, rgba(12, 20, 33, 0.9), rgba(8, 14, 25, 0.92)),
+    radial-gradient(circle at top left, rgba(255, 60, 125, 0.1), transparent 48%);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.cast-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.cast-kicker,
+.cast-actor-kicker {
+  display: inline-block;
+  margin-bottom: 5px;
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cast-head h3 {
+  margin: 0;
+  color: #eef5ff;
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.cast-link-btn {
+  flex-shrink: 0;
+}
+
+.cast-feedback {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+}
+
+.cast-feedback p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.cast-retry-btn {
+  width: 100%;
+}
+
+.cast-list {
+  display: grid;
+  gap: 12px;
+}
+
+.cast-card {
+  padding: 14px;
+  background:
+    linear-gradient(180deg, rgba(7, 13, 23, 0.88), rgba(11, 18, 30, 0.94)),
+    radial-gradient(circle at top left, rgba(40, 199, 255, 0.08), transparent 42%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+}
+
+.cast-character {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.cast-character-media,
+.cast-actor img,
+.cast-avatar-fallback {
+  border-radius: 14px;
+}
+
+.cast-character-media {
+  position: relative;
+  overflow: hidden;
+  width: 72px;
+  height: 72px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cast-character-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cast-avatar-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: #edf4ff;
+  font-size: 20px;
+  font-weight: 1000;
+  background:
+    linear-gradient(135deg, rgba(40, 199, 255, 0.22), rgba(255, 60, 125, 0.28)),
+    rgba(12, 19, 31, 0.95);
+}
+
+.cast-character-copy {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cast-character-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cast-character-head h4 {
+  margin: 0;
+  color: #eef5ff;
+  font-size: 15px;
+  line-height: 1.15;
+}
+
+.cast-character-head p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.cast-role-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 10px;
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: rgba(40, 199, 255, 0.12);
+  border: 1px solid rgba(40, 199, 255, 0.36);
+  border-radius: 999px;
+}
+
+.cast-character-link,
+.cast-link {
+  color: #dce9f6;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.cast-actor-block {
+  display: grid;
+  gap: 10px;
+}
+
+.cast-actor-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cast-actor {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.cast-actor img,
+.cast-actor .cast-avatar-fallback {
+  width: 40px;
+  height: 40px;
+}
+
+.cast-actor-copy {
+  min-width: 0;
+}
+
+.cast-actor-copy strong,
+.cast-actor-copy span {
+  display: block;
+}
+
+.cast-actor-copy strong {
+  color: #eef5ff;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.cast-actor-copy span,
+.cast-more,
+.cast-empty-copy {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.cast-more,
+.cast-empty-copy {
+  margin: 0;
+}
+
 .detail-list {
   display: grid;
   gap: 17px;
@@ -2911,6 +3151,10 @@ body[data-page="requests"] .spotlight {
   margin-top: 18px;
 }
 
+.inline-cast-block {
+  margin-top: 18px;
+}
+
 @media (max-width: 1450px) {
   .main-panel {
     grid-template-columns: minmax(0, 1fr) 292px;
@@ -3057,6 +3301,16 @@ body[data-page="requests"] .spotlight {
   .trailer-link {
     width: 100%;
   }
+
+  .cast-head,
+  .cast-character-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cast-link-btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 900px) {
@@ -3149,6 +3403,15 @@ body[data-page="requests"] .spotlight {
   .settings-summary-grid,
   .inline-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .cast-character {
+    grid-template-columns: 1fr;
+  }
+
+  .cast-character-media {
+    width: 100%;
+    height: 180px;
   }
 
   .settings-theme-picker {

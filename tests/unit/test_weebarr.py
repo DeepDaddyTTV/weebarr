@@ -336,6 +336,100 @@ def test_resolve_audio_uses_en_sub_fallback_when_jikan_lookup_fails(monkeypatch)
     assert result["confidence"] == "lookup_failed"
 
 
+def test_anime_characters_returns_shaped_payload(monkeypatch):
+    service = WeebarrService(Settings())
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "data": {
+                    "Media": {
+                        "siteUrl": "https://anilist.co/anime/178701",
+                        "characters": {
+                            "pageInfo": {"total": 28, "hasNextPage": True},
+                            "edges": [
+                                {
+                                    "role": "MAIN",
+                                    "node": {
+                                        "id": 1,
+                                        "siteUrl": "https://anilist.co/character/1",
+                                        "name": {
+                                            "full": "Natsuki Subaru",
+                                            "native": "ナツキ・スバル",
+                                        },
+                                        "image": {
+                                            "large": "https://img.example/subaru.jpg"
+                                        },
+                                    },
+                                    "voiceActors": [
+                                        {
+                                            "id": 11,
+                                            "siteUrl": "https://anilist.co/staff/11",
+                                            "languageV2": "Japanese",
+                                            "name": {
+                                                "full": "Yusuke Kobayashi",
+                                                "native": "小林 裕介",
+                                            },
+                                            "image": {
+                                                "large": "https://img.example/yusuke.jpg"
+                                            },
+                                        },
+                                        {
+                                            "id": 12,
+                                            "siteUrl": "https://anilist.co/staff/12",
+                                            "languageV2": "English",
+                                            "name": {
+                                                "full": "Sean Chiplock",
+                                                "native": "",
+                                            },
+                                            "image": {
+                                                "medium": "https://img.example/sean.jpg"
+                                            },
+                                        },
+                                    ],
+                                }
+                            ],
+                        },
+                    }
+                }
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json):
+            assert url == services_module.ANILIST_URL
+            assert json["variables"]["id"] == 178701
+            return FakeResponse()
+
+    monkeypatch.setattr(services_module.httpx, "AsyncClient", FakeAsyncClient)
+
+    payload = asyncio.run(service.anime_characters(178701))
+
+    assert payload["shown"] == 1
+    assert payload["total"] == 28
+    assert payload["hasMore"] is True
+    assert payload["siteUrl"] == "https://anilist.co/anime/178701"
+    assert payload["characters"][0]["role"] == "Main"
+    assert payload["characters"][0]["voiceActors"][1]["language"] == "English"
+    assert (
+        payload["characters"][0]["voiceActors"][1]["image"]
+        == "https://img.example/sean.jpg"
+    )
+
+
 def test_shape_anime_includes_installment_and_airing_labels():
     service = WeebarrService(Settings(audio_lookup_enabled=False))
     shaped = service._shape_anime(
@@ -586,6 +680,39 @@ def test_local_setup_persists_access_and_requires_session_auth(tmp_path):
     )
     unauthorized = new_client.get("/api/config")
     assert unauthorized.status_code == 401
+
+
+def test_anime_characters_endpoint_returns_payload(tmp_path, monkeypatch):
+    client = authenticated_client(tmp_path)
+
+    async def fake_anime_characters(self, anime_id):
+        assert anime_id == 178701
+        return {
+            "characters": [
+                {
+                    "id": 1,
+                    "name": "Natsuki Subaru",
+                    "nativeName": "ナツキ・スバル",
+                    "role": "Main",
+                    "siteUrl": "https://anilist.co/character/1",
+                    "image": "https://img.example/subaru.jpg",
+                    "voiceActors": [],
+                }
+            ],
+            "shown": 1,
+            "total": 1,
+            "hasMore": False,
+            "siteUrl": "https://anilist.co/anime/178701",
+        }
+
+    monkeypatch.setattr(WeebarrService, "anime_characters", fake_anime_characters)
+
+    response = client.get("/api/anime/178701/characters")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["shown"] == 1
+    assert payload["characters"][0]["name"] == "Natsuki Subaru"
 
 
 def test_setup_rate_limit_returns_429(tmp_path):

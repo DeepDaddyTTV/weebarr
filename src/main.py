@@ -266,7 +266,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return True
 
     def api_key_path_allowed(path: str) -> bool:
-        return path in API_KEY_ALLOWED_PATHS
+        if path in API_KEY_ALLOWED_PATHS:
+            return True
+        if path.startswith("/api/anime/") and path.endswith("/characters"):
+            parts = path.strip("/").split("/")
+            return (
+                len(parts) == 4
+                and parts[0] == "api"
+                and parts[1] == "anime"
+                and parts[2].isdigit()
+                and parts[3] == "characters"
+            )
+        return False
 
     def connection_summary() -> dict[str, Any]:
         return settings_store.connection_summary()
@@ -1124,6 +1135,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         except Exception as exc:
             logger.exception("seasonal lookup failed")
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    @app.get("/api/anime/{anime_id}/characters")
+    async def anime_characters(anime_id: int) -> dict[str, Any]:
+        try:
+            return await service.anime_characters(anime_id)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception("AniList character lookup failed")
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     @app.post("/api/request")
