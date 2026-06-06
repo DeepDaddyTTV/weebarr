@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.29] - 2026-06-05
+
+### Security
+
+- Upgraded `python-multipart` to `0.0.27` so the repo clears the current `pip-audit` vulnerability checks again after the automation/theme release work.
+
 ## [0.1.28] - 2026-06-05
 
 ### Added

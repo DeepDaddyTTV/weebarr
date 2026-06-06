@@ -9,4 +9,4 @@ pydantic==2.13.4
 Jinja2==3.1.6
 itsdangerous==2.2.0
 python-dotenv==1.2.2
-python-multipart==0.0.20
+python-multipart==0.0.27
