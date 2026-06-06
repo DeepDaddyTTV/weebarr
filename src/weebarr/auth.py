@@ -7,7 +7,7 @@ import hashlib
 import hmac
 import secrets
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlencode
 
 import httpx
@@ -219,7 +219,7 @@ async def create_plex_pin(settings: Settings) -> dict[str, Any]:
             headers=plex_headers(settings),
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
 
 async def fetch_plex_pin(
@@ -237,7 +237,7 @@ async def fetch_plex_pin(
             headers=plex_headers(settings),
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
 
 async def fetch_plex_user(settings: Settings, *, token: str) -> dict[str, Any]:
@@ -249,13 +249,13 @@ async def fetch_plex_user(settings: Settings, *, token: str) -> dict[str, Any]:
             headers=plex_headers(settings, token=token),
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
 
 def plex_user_allowed(settings: Settings, user: dict[str, Any]) -> bool:
     """Check whether a Plex account is permitted to access Weebarr."""
 
-    allowed = {entry.casefold() for entry in settings.plex_allowed_users}
+    allowed = {entry.casefold() for entry in (settings.plex_allowed_users or [])}
     if not allowed:
         return True
 

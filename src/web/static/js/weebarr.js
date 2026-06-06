@@ -14,6 +14,7 @@ const state = {
   filterOpen: false,
   openDropdown: null,
   hideRequested: false,
+  spotlightDismissed: false,
 };
 
 const els = {
@@ -260,6 +261,28 @@ function seasonSummary(item) {
   return [item.installmentLabel, item.seasonLabel].filter(Boolean).join(" • ");
 }
 
+function ratingTooltip(item) {
+  return item.averageScore
+    ? `Average rating: ${(item.averageScore / 10).toFixed(2)} out of 10`
+    : "Average rating is not available yet.";
+}
+
+function popularityTooltip(item) {
+  return item.popularity
+    ? `AniList popularity: ${formatNumber(item.popularity)} users`
+    : "AniList popularity is not available yet.";
+}
+
+function rankTooltip(item) {
+  return item.rank
+    ? `Season popularity rank: #${item.rank}`
+    : "Season popularity rank is not available yet.";
+}
+
+function availabilityTooltip(item) {
+  return `Availability status: ${statusLabel(item)}`;
+}
+
 function cardMeta(item) {
   const seasonInfo = seasonSummary(item);
   if (seasonInfo) return seasonInfo;
@@ -315,7 +338,7 @@ function shiftSeason(delta) {
 function audioState(item) {
   return item.audio || {
     state: "unknown",
-    label: "Audio ?",
+    label: "EN Sub",
     englishDub: null,
     sourceLanguage: null,
     confidence: "missing",
@@ -418,6 +441,7 @@ function currentSelectedItem(items = state.items) {
 function syncSelectedItem(items) {
   if (!items.length) {
     state.selectedId = null;
+    state.spotlightDismissed = false;
     return null;
   }
   const selected = currentSelectedItem(items);
@@ -430,6 +454,10 @@ function syncSelectedItem(items) {
   }
   if (selected && items.some((item) => String(item.id) === String(selected.id))) {
     return selected;
+  }
+  if (state.spotlightDismissed) {
+    state.selectedId = null;
+    return null;
   }
   state.selectedId = String(items[0].id);
   return items[0];
@@ -467,16 +495,28 @@ function statusLabel(item) {
   return seerr.label || "Unknown";
 }
 
-function actionButtonTemplate(item, inline = false) {
+function requestActionTemplate(item, inline = false) {
   const seerr = item.seerr || {};
   if (!seerr || seerr.state === "disabled") {
-    return `<a class="${inline ? "request-btn" : "anilist-btn"}" href="/settings#connections">Configure Seerr</a>`;
+    return `<a class="${inline ? "request-btn" : "anilist-btn"}" href="/settings#connections" title="Open Weebarr connection settings">Configure Seerr</a>`;
   }
   if (!seerr.requestable) {
-    return `<a class="anilist-btn" href="${item.siteUrl}" target="_blank" rel="noreferrer">AniList ↗</a>`;
+    return "";
   }
   const buttonText = seerr.state === "partial" ? "Request Missing" : "Request in Seerr";
-  return `<button class="request-btn" type="button" data-request="${item.id}">${buttonText}<span aria-hidden="true">↗</span></button>`;
+  return `<button class="request-btn" type="button" data-request="${item.id}" title="Send this title to Seerr">${buttonText}</button>`;
+}
+
+function actionButtonTemplate(item, inline = false) {
+  const requestAction = requestActionTemplate(item, inline);
+  if (requestAction) {
+    return requestAction;
+  }
+  return `<a class="anilist-btn external-link" href="${item.siteUrl}" target="_blank" rel="noreferrer" title="Open this anime on AniList">AniList</a>`;
+}
+
+function externalLinkTemplate(item, label = "View on AniList", className = "anilist-btn external-link") {
+  return `<a class="${className}" href="${item.siteUrl}" target="_blank" rel="noreferrer" title="Open this anime on AniList">${label}</a>`;
 }
 
 function trailerTemplate(item, compact = false) {
@@ -492,7 +532,7 @@ function trailerTemplate(item, compact = false) {
         </div>
         ${
           trailer.watchUrl
-            ? `<a class="anilist-btn trailer-link" href="${trailer.watchUrl}" target="_blank" rel="noreferrer">Open trailer ↗</a>`
+            ? `<a class="anilist-btn external-link trailer-link" href="${trailer.watchUrl}" target="_blank" rel="noreferrer" title="Open the trailer on ${escapeHtml(trailer.siteLabel || "the source site")}">Watch trailer</a>`
             : ""
         }
       </div>
@@ -520,7 +560,7 @@ function voiceActorTemplate(actor) {
       </div>
       ${
         actor.siteUrl
-          ? `<a class="cast-link" href="${actor.siteUrl}" target="_blank" rel="noreferrer" aria-label="Open ${escapeHtml(actor.name)} on AniList">↗</a>`
+          ? `<a class="cast-link external-link" href="${actor.siteUrl}" target="_blank" rel="noreferrer" title="Open ${escapeHtml(actor.name)} on AniList">AniList</a>`
           : ""
       }
     </li>
@@ -549,7 +589,7 @@ function characterCardTemplate(character) {
           </div>
           ${
             character.siteUrl
-              ? `<a class="cast-link cast-character-link" href="${character.siteUrl}" target="_blank" rel="noreferrer">Character on AniList ↗</a>`
+              ? `<a class="cast-link cast-character-link external-link" href="${character.siteUrl}" target="_blank" rel="noreferrer" title="Open ${escapeHtml(character.name)} on AniList">Character Page</a>`
               : ""
           }
           ${
@@ -634,7 +674,7 @@ function charactersTemplate(item, compact = false) {
         </div>
         ${
           item.charactersSiteUrl || item.siteUrl
-            ? `<a class="anilist-btn cast-link-btn" href="${item.charactersSiteUrl || item.siteUrl}" target="_blank" rel="noreferrer">Full cast ↗</a>`
+            ? `<a class="anilist-btn external-link cast-link-btn" href="${item.charactersSiteUrl || item.siteUrl}" target="_blank" rel="noreferrer" title="Open the full cast page on AniList">Full cast</a>`
             : ""
         }
       </div>
@@ -686,15 +726,11 @@ async function loadCharacters(item, force = false) {
 function inlineActionsTemplate(item) {
   const seerr = item.seerr || {};
   const actions = [
-    `<a class="anilist-btn inline-link" href="${item.siteUrl}" target="_blank" rel="noreferrer">AniList ↗</a>`,
+    externalLinkTemplate(item, "AniList", "anilist-btn external-link inline-link"),
   ];
-  if (!seerr || seerr.state === "disabled") {
-    actions.push(`<a class="request-btn inline-link" href="/settings#connections">Configure Seerr</a>`);
-  } else if (seerr.requestable) {
-    const buttonText = seerr.state === "partial" ? "Request Missing" : "Request in Seerr";
-    actions.push(
-      `<button class="request-btn inline-link" type="button" data-request="${item.id}">${buttonText}<span aria-hidden="true">↗</span></button>`,
-    );
+  const requestAction = requestActionTemplate(item, true);
+  if (requestAction) {
+    actions.push(requestAction.replace('class="request-btn', 'class="request-btn inline-link'));
   }
   return `<div class="inline-actions inline-spotlight-actions">${actions.join("")}</div>`;
 }
@@ -736,10 +772,13 @@ function requestListTemplate(item) {
 
 function inlineDetailTemplate(item) {
   const seerr = item.seerr || {};
+  const audio = audioState(item);
   return `
     <div class="inline-detail inline-spotlight">
-      <div class="inline-spotlight-media" style="background-image: url('${item.banner || item.cover || ""}')">
-        <span class="rank inline-spotlight-rank">#${item.rank}</span>
+      <div class="inline-spotlight-media" style="background-image: url('${item.banner || item.cover || ""}')"></div>
+      <div class="poster-pills spotlight-pills inline-spotlight-pills">
+        <span class="rank-chip" title="${escapeHtml(rankTooltip(item))}">#${item.rank}</span>
+        <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
       </div>
       <div class="inline-spotlight-head">
         <div class="inline-spotlight-copy">
@@ -749,20 +788,19 @@ function inlineDetailTemplate(item) {
         <button class="inline-detail-close" type="button" data-inline-close="${item.id}" aria-label="Close details">×</button>
       </div>
       <div class="score-row inline-spotlight-score">
-        <span>★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
-        <span>♨ ${formatNumber(item.popularity)}</span>
-        <span class="audio-chip ${escapeHtml(audioState(item).state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audioState(item).label)}</span>
+        <span title="${escapeHtml(ratingTooltip(item))}">★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
+        <span title="${escapeHtml(popularityTooltip(item))}">♨ ${formatNumber(item.popularity)}</span>
       </div>
       <div class="genre-row">${(item.genres || []).slice(0, 3).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
       ${trailerTemplate(item, true)}
       <div class="detail-list inline-detail-list">
         <div><span>Season</span><strong>${escapeHtml(seasonSummary(item) || "Current season")}</strong></div>
         <div><span>Next Episode</span><strong>${formatAiring(item.nextAiring)}</strong></div>
-        <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audioState(item).state)}">${escapeHtml(audioState(item).label)}</span></strong></div>
+        <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span></strong></div>
         <div><span>Overview</span><strong>${plainDescription(item.description, 520)}</strong></div>
         <div><span>Start Date</span><strong>${formatDate(item.startDate)}</strong></div>
         <div><span>Seerr Match</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
-        <div><span>Status</span><strong><span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
+        <div><span>Status</span><strong><span class="dot-status ${seerr.state}" title="${escapeHtml(availabilityTooltip(item))}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
       </div>
       ${inlineActionsTemplate(item)}
       ${charactersTemplate(item, true)}
@@ -780,11 +818,11 @@ function cardTemplate(item) {
     <article class="anime-card ${isSelected ? "selected" : ""} ${compact && isSelected ? "inline-selected" : ""}" data-id="${item.id}" aria-expanded="${compact ? String(isSelected) : "false"}">
       <div class="card-surface" data-select="${item.id}" role="button" tabindex="0" aria-label="${escapeHtml(selectLabel)}" aria-expanded="${compact ? String(isSelected) : "false"}">
         <div class="poster-column">
-          <div class="poster">
-            ${item.cover ? `<img src="${item.cover}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
-          </div>
-          <div class="poster-pills">
-            <span class="rank-chip">#${item.rank}</span>
+        <div class="poster">
+          ${item.cover ? `<img src="${item.cover}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
+        </div>
+        <div class="poster-pills">
+            <span class="rank-chip" title="${escapeHtml(rankTooltip(item))}">#${item.rank}</span>
             <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
           </div>
         </div>
@@ -793,12 +831,12 @@ function cardTemplate(item) {
           <p>${escapeHtml(item.romajiTitle || item.englishTitle || item.title)}</p>
           <div class="meta">${escapeHtml(cardMeta(item))}</div>
       <div class="score-row">
-        <span>★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
-        <span>♨ ${formatNumber(item.popularity)}</span>
+        <span title="${escapeHtml(ratingTooltip(item))}">★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
+        <span title="${escapeHtml(popularityTooltip(item))}">♨ ${formatNumber(item.popularity)}</span>
       </div>
       <div class="next-line"><strong>Next Episode</strong>${formatAiring(item.nextAiring)}</div>
       <div class="card-foot">
-        <span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span>
+        <span class="dot-status ${seerr.state}" title="${escapeHtml(availabilityTooltip(item))}"><i></i>${escapeHtml(statusLabel(item))}</span>
         ${actionButtonTemplate(item)}
       </div>
         </div>
@@ -906,6 +944,7 @@ function renderSections(allItems) {
       event.preventDefault();
       event.stopPropagation();
       state.selectedId = null;
+      state.spotlightDismissed = false;
       renderAll();
     });
   });
@@ -937,29 +976,32 @@ function renderSpotlight(item) {
   const audio = audioState(item);
   els.spotlight.innerHTML = `
     <button class="spotlight-close" type="button" aria-label="Close details">×</button>
-    <div class="spotlight-media" style="background-image: url('${item.banner || item.cover || ""}')">
-      <span class="rank spotlight-rank">#${item.rank}</span>
+    <div class="spotlight-media" style="background-image: url('${item.banner || item.cover || ""}')"></div>
+    <div class="poster-pills spotlight-pills">
+      <span class="rank-chip" title="${escapeHtml(rankTooltip(item))}">#${item.rank}</span>
+      <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
     </div>
     <h2>${escapeHtml(item.title)}</h2>
     <p class="spotlight-subtitle">${escapeHtml(item.romajiTitle || item.englishTitle || item.title)}</p>
     <div class="score-row spotlight-score">
-      <span>★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
-      <span>♨ ${formatNumber(item.popularity)}</span>
-      <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
-      <a href="${item.siteUrl}" target="_blank" rel="noreferrer">View on AniList ↗</a>
+      <span title="${escapeHtml(ratingTooltip(item))}">★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
+      <span title="${escapeHtml(popularityTooltip(item))}">♨ ${formatNumber(item.popularity)}</span>
     </div>
     <div class="genre-row">${(item.genres || []).slice(0, 3).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
     ${trailerTemplate(item)}
     <div class="detail-list">
       <div><span>Season</span><strong>${escapeHtml(seasonSummary(item) || "Current season")}</strong></div>
       <div><span>Next Episode</span><strong>${formatAiring(item.nextAiring)}</strong></div>
-      <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audio.state)}">${escapeHtml(audio.label)}</span></strong></div>
+      <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span></strong></div>
       <div><span>Overview</span><strong>${plainDescription(item.description)}</strong></div>
       <div><span>Start Date</span><strong>${formatDate(item.startDate)}</strong></div>
       <div><span>Seerr Match</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
-      <div><span>Status</span><strong><span class="dot-status ${seerr.state}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
+      <div><span>Status</span><strong><span class="dot-status ${seerr.state}" title="${escapeHtml(availabilityTooltip(item))}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
     </div>
-    ${actionButtonTemplate(item, true)}
+    <div class="spotlight-actions">
+      ${requestActionTemplate(item, true)}
+      ${externalLinkTemplate(item, "View on AniList", "anilist-btn external-link")}
+    </div>
     ${charactersTemplate(item)}
   `;
 }
@@ -975,6 +1017,7 @@ function renderAll() {
 }
 
 function toggleSelectedItem(clickedId) {
+  state.spotlightDismissed = false;
   if (isCompactDetails() && state.selectedId === clickedId) {
     state.selectedId = null;
   } else {
@@ -1208,6 +1251,7 @@ els.sections.addEventListener("click", (event) => {
 els.spotlight.addEventListener("click", (event) => {
   if (event.target.closest(".spotlight-close")) {
     state.selectedId = null;
+    state.spotlightDismissed = true;
     renderAll();
     return;
   }

@@ -887,14 +887,10 @@ class WeebarrService:
 
         if details:
             target_season, target_label = self._resolve_target_season(anime, details)
-            catalog_seasons = {
-                season_number
-                for season_number in (
-                    _coerce_int(item.get("seasonNumber"))
-                    for item in cast(list[dict[str, Any]], details.get("seasons") or [])
-                )
-                if season_number not in (None, 0)
-            }
+            for item in cast(list[dict[str, Any]], details.get("seasons") or []):
+                season_number = _coerce_int(item.get("seasonNumber"))
+                if season_number is not None and season_number != 0:
+                    catalog_seasons.add(season_number)
             for season in cast(list[dict[str, Any]], media_info.get("seasons") or []):
                 season_number = _coerce_int(season.get("seasonNumber"))
                 season_status = _coerce_int(season.get("status"))

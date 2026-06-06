@@ -20,6 +20,17 @@
   --hover-gradient: linear-gradient(135deg, rgba(40, 199, 255, 0.92), rgba(180, 102, 255, 0.78) 50%, rgba(255, 60, 125, 0.92));
   --hover-fill: linear-gradient(145deg, rgba(40, 199, 255, 0.08), rgba(180, 102, 255, 0.04) 48%, rgba(255, 60, 125, 0.08));
   --hover-glow: 0 18px 42px rgba(40, 199, 255, 0.16), 0 22px 48px rgba(255, 60, 125, 0.12);
+  --icon-nav-seasonal: url("/static/img/seasonal_main_nav.png");
+  --icon-nav-requests: url("/static/img/requests_main_nav.png");
+  --icon-nav-settings: url("/static/img/setting_main_nav.png");
+  --icon-stat-total: url("/static/img/anime_this_season.png");
+  --icon-stat-requestable: url("/static/img/requestable.png");
+  --icon-stat-requested: url("/static/img/already_requested.png");
+  --icon-stat-airing: url("/static/img/airing_soon.png");
+  --icon-theme-dark: url("/static/img/night_mode.png");
+  --icon-theme-system: url("/static/img/system.png");
+  --icon-theme-light: url("/static/img/light_mode.png");
+  --icon-arrow-down: url("/static/img/down_arrow.png");
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -198,10 +209,10 @@ body[data-theme="light"] .cast-head h3,
 body[data-theme="light"] .cast-character-copy h4,
 body[data-theme="light"] .cast-actor-copy strong,
 body[data-theme="light"] .detail-list strong,
-body[data-theme="light"] .spotlight-score a,
 body[data-theme="light"] .pager button,
 body[data-theme="light"] .pager span,
 body[data-theme="light"] .anilist-btn,
+body[data-theme="light"] .cast-link,
 body[data-theme="light"] .connection-cta,
 body[data-theme="light"] .secondary-btn,
 body[data-theme="light"] .spotlight-close {
@@ -377,17 +388,27 @@ body[data-theme="light"] .toggle-switch input:checked + i::after {
   flex: 0 0 22px;
   place-items: center;
   color: var(--muted);
+  background-color: currentColor;
+  mask-image: var(--nav-icon);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: var(--nav-icon);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
 }
 
-.nav-glyph svg {
-  display: block;
-  width: 22px;
-  height: 22px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.nav-glyph-seasonal {
+  --nav-icon: var(--icon-nav-seasonal);
+}
+
+.nav-glyph-requests {
+  --nav-icon: var(--icon-nav-requests);
+}
+
+.nav-glyph-settings {
+  --nav-icon: var(--icon-nav-settings);
 }
 
 .nav-item.active {
@@ -458,9 +479,34 @@ body[data-theme="light"] .toggle-switch input:checked + i::after {
   box-shadow: none;
 }
 
-.theme-card button span {
+.theme-glyph {
+  width: 18px;
+  height: 18px;
+  background-color: currentColor;
+  mask-image: var(--theme-icon);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: var(--theme-icon);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+
+.theme-glyph-dark {
+  --theme-icon: var(--icon-theme-dark);
+}
+
+.theme-glyph-system {
+  --theme-icon: var(--icon-theme-system);
+}
+
+.theme-glyph-light {
+  --theme-icon: var(--icon-theme-light);
+}
+
+.theme-card button .theme-glyph {
   color: var(--muted);
-  font-size: 18px;
 }
 
 .theme-card button i {
@@ -967,16 +1013,11 @@ h1 {
 .season-pill {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
   padding: 0 14px;
   position: relative;
   z-index: 1;
-}
-
-.season-pill-mark {
-  color: var(--muted);
-  flex: 0 0 auto;
 }
 
 .season-year {
@@ -1052,19 +1093,25 @@ h1 {
 }
 
 .ui-select-chevron {
-  width: 9px;
-  height: 9px;
+  width: 12px;
+  height: 12px;
   flex: 0 0 auto;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(45deg) translateY(-1px);
-  transform-origin: center;
+  background-color: currentColor;
+  mask-image: var(--icon-arrow-down);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: var(--icon-arrow-down);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  transform: rotate(0deg);
   opacity: 0.85;
   transition: transform 150ms ease, opacity 150ms ease;
 }
 
 .ui-select.open .ui-select-chevron {
-  transform: rotate(-135deg) translateX(-1px);
+  transform: rotate(180deg);
 }
 
 .ui-select-menu {
@@ -1151,6 +1198,20 @@ h1 {
   border-color: rgba(40, 199, 255, 0.6);
 }
 
+.filter-btn-icon {
+  width: 12px;
+  height: 12px;
+  background-color: currentColor;
+  mask-image: var(--icon-arrow-down);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: var(--icon-arrow-down);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+
 .stats-grid {
   display: grid;
   grid-area: stats;
@@ -1176,8 +1237,8 @@ body[data-page="seasonal"] .stats-grid {
 
 body[data-page="seasonal"] .stat-card {
   grid-template-columns: 54px minmax(0, 1fr) auto;
-  min-height: 72px;
-  padding: 10px 16px;
+  min-height: 84px;
+  padding: 12px 18px;
   border-radius: 18px;
 }
 
@@ -1251,64 +1312,37 @@ body[data-page="seasonal"] .stat-icon {
   content: "";
 }
 
-.stat-icon-total::before {
+.stat-icon::before {
   inset: 12px;
-  border: 2px solid currentColor;
-  border-radius: 8px;
+  background-color: currentColor;
+  mask-image: var(--stat-icon);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: var(--stat-icon);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
 }
 
-.stat-icon-total::after {
-  inset: 18px;
-  border: 2px solid currentColor;
-  border-radius: 5px;
-  opacity: 0.45;
+.stat-icon::after {
+  display: none;
 }
 
-.stat-icon-requestable::before {
-  width: 18px;
-  height: 4px;
-  background: currentColor;
-  border-radius: 999px;
-  box-shadow: 0 -8px 0 currentColor, 0 8px 0 currentColor;
+.stat-icon-total {
+  --stat-icon: var(--icon-stat-total);
 }
 
-.stat-icon-requestable::after {
-  width: 4px;
-  height: 20px;
-  background: currentColor;
-  border-radius: 999px;
+.stat-icon-requestable {
+  --stat-icon: var(--icon-stat-requestable);
 }
 
-.stat-icon-requested::before {
-  width: 22px;
-  height: 22px;
-  border: 2px solid currentColor;
-  border-radius: 50%;
+.stat-icon-requested {
+  --stat-icon: var(--icon-stat-requested);
 }
 
-.stat-icon-requested::after {
-  width: 8px;
-  height: 8px;
-  background: currentColor;
-  border-radius: 50%;
-}
-
-.stat-icon-airing::before {
-  width: 24px;
-  height: 24px;
-  border: 2px solid currentColor;
-  border-radius: 50%;
-}
-
-.stat-icon-airing::after {
-  top: 50%;
-  left: 50%;
-  width: 9px;
-  height: 9px;
-  border-top: 2px solid currentColor;
-  border-right: 2px solid currentColor;
-  transform: translate(-46%, -47%) rotate(-45deg);
-  transform-origin: center;
+.stat-icon-airing {
+  --stat-icon: var(--icon-stat-airing);
 }
 
 .stat-pink .stat-icon {
@@ -1340,8 +1374,8 @@ body[data-page="seasonal"] .stat-icon {
 }
 
 body[data-page="seasonal"] .stat-copy > span {
-  font-size: 11px;
-  line-height: 1.12;
+  font-size: 12px;
+  line-height: 1.18;
 }
 
 .stat-card strong {
@@ -1358,7 +1392,7 @@ body[data-page="seasonal"] .stat-copy > span {
 }
 
 body[data-page="seasonal"] .stat-card strong {
-  font-size: clamp(1.95rem, 2.35vw, 2.55rem);
+  font-size: clamp(2rem, 2.3vw, 2.65rem);
 }
 
 .stat-card small {
@@ -1370,8 +1404,8 @@ body[data-page="seasonal"] .stat-card strong {
 }
 
 body[data-page="seasonal"] .stat-card small {
-  font-size: 10px;
-  line-height: 1.12;
+  font-size: 11px;
+  line-height: 1.18;
 }
 
 .filter-panel {
@@ -1884,6 +1918,14 @@ body[data-page="requests"] .spotlight {
   align-items: center;
 }
 
+.spotlight-pills {
+  margin: 0 0 18px;
+}
+
+.inline-spotlight-pills {
+  margin-top: -2px;
+}
+
 .rank-chip {
   position: static;
   display: inline-flex;
@@ -2118,10 +2160,49 @@ body[data-page="requests"] .spotlight {
 }
 
 .anilist-btn {
+  position: relative;
+  isolation: isolate;
   color: #dce9f6;
   background: rgba(255, 255, 255, 0.045);
   border: 1px solid var(--line);
   box-shadow: none;
+}
+
+.external-link {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.external-link::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 1px;
+  pointer-events: none;
+  content: "";
+  background: var(--hover-gradient);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.external-link:hover::before,
+.external-link:focus-visible::before {
+  opacity: 1;
+}
+
+.external-link:hover,
+.external-link:focus-visible {
+  box-shadow: var(--hover-glow);
 }
 
 .spotlight {
@@ -2155,7 +2236,7 @@ body[data-page="requests"] .spotlight {
 .spotlight-media {
   position: relative;
   height: 258px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
   overflow: hidden;
   background-position: center;
   background-size: cover;
@@ -2169,12 +2250,6 @@ body[data-page="requests"] .spotlight {
   background: linear-gradient(180deg, transparent 55%, var(--media-scrim));
 }
 
-.spotlight-rank {
-  top: 28px;
-  right: 8px;
-  left: auto;
-}
-
 .spotlight h2 {
   font-size: 23px;
   line-height: 1.08;
@@ -2186,17 +2261,20 @@ body[data-page="requests"] .spotlight {
 }
 
 .spotlight-score {
-  margin: 22px 0 14px;
+  margin: 14px 0 14px;
 }
 
-.spotlight-score a {
-  margin-left: auto;
-  padding: 8px 10px;
-  color: #c7d5e3;
-  font-size: 12px;
-  text-decoration: none;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+.spotlight-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.spotlight-actions .request-btn,
+.spotlight-actions .anilist-btn {
+  width: 100%;
+  min-height: 36px;
 }
 
 .genre-row {
@@ -2437,10 +2515,20 @@ body[data-page="requests"] .spotlight {
 
 .cast-character-link,
 .cast-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  width: max-content;
+  max-width: 100%;
+  padding: 0 10px;
   color: #dce9f6;
   font-size: 12px;
   font-weight: 800;
   text-decoration: none;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--line);
+  border-radius: 999px;
 }
 
 .cast-actor-block {
@@ -3021,9 +3109,8 @@ body[data-page="requests"] .spotlight {
   box-shadow: none;
 }
 
-.settings-theme-picker button span {
+.settings-theme-picker button .theme-glyph {
   color: var(--muted);
-  font-size: 18px;
 }
 
 .settings-theme-picker button i {
@@ -3131,12 +3218,6 @@ body[data-page="requests"] .spotlight {
   inset: 0;
   content: "";
   background: linear-gradient(180deg, transparent 45%, var(--media-scrim));
-}
-
-.inline-spotlight-rank {
-  top: 18px;
-  right: 12px;
-  left: auto;
 }
 
 .inline-spotlight-head {
@@ -3600,10 +3681,6 @@ body.compact-preview .spotlight {
 
   .season-pill {
     padding: 0 10px;
-  }
-
-  .season-pill-mark {
-    display: none;
   }
 
   .season-year {

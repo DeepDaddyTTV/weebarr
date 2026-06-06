@@ -2,6 +2,16 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.27] - 2026-06-05
+
+### Fixed
+
+- Updated the seasonal and settings shells to use the repo icon assets for sidebar navigation, stat cards, theme mode controls, and dropdown carets instead of the previous mixed SVG/text icon set.
+- Changed the desktop spotlight close button to return the sidebar to its empty `Select an anime` state while keeping the mobile inline close button as a full collapse of the expanded card.
+- Moved the spotlight rank and audio pills beneath the artwork, removed outward-arrow glyphs from AniList/trailer/cast links, and added hover explanations for core metadata like rating, popularity, and availability.
+- Tightened the seasonal top stat-card proportions so the cards stay flatter and more consistent with the sidebar width, with the new asset-driven `Airing Soon` icon centered correctly.
+- Stopped the `CI Pipeline` from failing on every release by aligning mypy with normal optional checking and making the Bandit gate fail only on medium-or-higher findings instead of low-severity subprocess noise.
+
 ## [0.1.26] - 2026-06-05
 
 ### Fixed
