@@ -189,6 +189,127 @@
     });
   }
 
+  function ensureTooltipLayer() {
+    let layer = document.querySelector("#appTooltip");
+    if (!layer) {
+      layer = document.createElement("div");
+      layer.id = "appTooltip";
+      layer.className = "app-tooltip";
+      layer.setAttribute("role", "tooltip");
+      document.body.appendChild(layer);
+    }
+    return layer;
+  }
+
+  function tooltipAnchors() {
+    return document.querySelectorAll(".tooltip-anchor[data-tooltip]");
+  }
+
+  function positionTooltip(layer, anchor) {
+    const rect = anchor.getBoundingClientRect();
+    layer.style.left = "0px";
+    layer.style.top = "0px";
+    const layerRect = layer.getBoundingClientRect();
+    const viewportPadding = 16;
+    const maxLeft = Math.max(
+      viewportPadding,
+      window.innerWidth - layerRect.width - viewportPadding,
+    );
+    const centeredLeft = rect.left + rect.width / 2 - layerRect.width / 2;
+    const left = Math.min(Math.max(centeredLeft, viewportPadding), maxLeft);
+    let top = rect.bottom + 10;
+    let placement = "below";
+    if (top + layerRect.height > window.innerHeight - viewportPadding) {
+      top = Math.max(viewportPadding, rect.top - layerRect.height - 10);
+      placement = "above";
+    }
+    layer.dataset.placement = placement;
+    layer.style.left = `${Math.round(left)}px`;
+    layer.style.top = `${Math.round(top)}px`;
+  }
+
+  function bindTooltips() {
+    if (!document.body) return;
+    document.documentElement.classList.add("js-tooltip-ready");
+    const layer = ensureTooltipLayer();
+    let activeAnchor = null;
+
+    const showTooltip = (anchor) => {
+      const text = anchor?.dataset?.tooltip?.trim();
+      if (!text) return;
+      activeAnchor = anchor;
+      layer.textContent = text;
+      layer.classList.add("visible");
+      positionTooltip(layer, anchor);
+    };
+
+    const hideTooltip = () => {
+      activeAnchor = null;
+      layer.classList.remove("visible");
+      layer.textContent = "";
+      delete layer.dataset.placement;
+    };
+
+    document.addEventListener("mouseover", (event) => {
+      const anchor = event.target.closest(".tooltip-anchor[data-tooltip]");
+      if (!anchor) {
+        if (!event.relatedTarget?.closest?.(".tooltip-anchor[data-tooltip]")) {
+          hideTooltip();
+        }
+        return;
+      }
+      if (anchor !== activeAnchor) {
+        showTooltip(anchor);
+      } else {
+        positionTooltip(layer, anchor);
+      }
+    });
+
+    document.addEventListener("mouseout", (event) => {
+      const anchor = event.target.closest(".tooltip-anchor[data-tooltip]");
+      if (!anchor) return;
+      if (event.relatedTarget?.closest?.(".tooltip-anchor[data-tooltip]") === anchor) {
+        return;
+      }
+      hideTooltip();
+    });
+
+    document.addEventListener("focusin", (event) => {
+      const anchor = event.target.closest(".tooltip-anchor[data-tooltip]");
+      if (anchor) showTooltip(anchor);
+    });
+
+    document.addEventListener("focusout", (event) => {
+      const anchor = event.target.closest(".tooltip-anchor[data-tooltip]");
+      if (!anchor) return;
+      if (event.relatedTarget?.closest?.(".tooltip-anchor[data-tooltip]") === anchor) {
+        return;
+      }
+      hideTooltip();
+    });
+
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (activeAnchor) {
+          positionTooltip(layer, activeAnchor);
+        }
+      },
+      true,
+    );
+    window.addEventListener("resize", () => {
+      if (activeAnchor) {
+        positionTooltip(layer, activeAnchor);
+      }
+    });
+
+    tooltipAnchors().forEach((anchor) => {
+      if (!anchor.hasAttribute("tabindex")) {
+        anchor.tabIndex = 0;
+      }
+    });
+  }
+
   prefersLight.addEventListener("change", () => {
     if (readThemeChoice() === "system") {
       applyThemeChoice("system");
@@ -206,9 +327,11 @@
 
   if (document.body) {
     applyThemeChoice(readThemeChoice(), state.context);
+    bindTooltips();
   } else {
     document.addEventListener("DOMContentLoaded", () => {
       applyThemeChoice(readThemeChoice(), state.context);
+      bindTooltips();
     });
   }
 })();

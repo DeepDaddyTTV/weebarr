@@ -2,6 +2,14 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.32] - 2026-06-06
+
+### Fixed
+
+- Replaced the clipped sidebar pseudo-tooltips with a shared floating tooltip layer so the auth and Seerr status help now render above the page shell instead of being cut off at the sidebar edge.
+- Hardened the seasonal and requests mobile breakpoints so the content rail stays single-column and no sidebar chrome bleeds into smaller layouts.
+- Tightened the built-in `Monochrome` palette to a true grayscale accent family and removed the remaining red/pink selected-state treatment from spotlight and rank surfaces.
+
 ## [0.1.31] - 2026-06-06
 
 ### Fixed
