@@ -804,7 +804,9 @@ async function testConnection() {
   els.testServerName.textContent = defaults.serverName || "None";
   els.testProfileId.textContent = defaults.profileId || "Default";
   els.testSeriesType.textContent =
-    seriesTypeLabels[defaults.seriesType] || "Use Seerr default";
+    defaults.seriesType
+      ? seriesTypeLabels[defaults.seriesType] || "Use Seerr default"
+      : "Not exposed by Seerr";
   els.testRootFolder.textContent = defaults.rootFolder || "Default";
   showBanner(
     els.connectionBanner,

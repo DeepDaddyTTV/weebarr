@@ -1117,15 +1117,31 @@ class WeebarrService:
         return next((item for item in servers if item.get("isDefault")), servers[0])
 
     @staticmethod
-    def _server_anime_series_type(server: dict[str, Any]) -> str:
-        value = (
-            str(server.get("animeSeriesType") or server.get("seriesType") or "anime")
-            .strip()
-            .lower()
-        )
+    def _server_anime_series_type(server: dict[str, Any]) -> str | None:
+        raw_value = server.get("animeSeriesType") or server.get("seriesType")
+        if raw_value is None:
+            return None
+        value = str(raw_value).strip().lower()
         if value in {"standard", "daily", "anime"}:
             return value
-        return "anime"
+        return None
+
+    @staticmethod
+    def _anime_request_defaults(server: dict[str, Any]) -> dict[str, Any]:
+        defaults: dict[str, Any] = {
+            "serverId": server.get("id"),
+            "profileId": server.get("activeAnimeProfileId")
+            or server.get("activeProfileId"),
+            "rootFolder": server.get("activeAnimeDirectory")
+            or server.get("activeDirectory"),
+            "languageProfileId": server.get("activeAnimeLanguageProfileId")
+            or server.get("activeLanguageProfileId"),
+            "tags": server.get("animeTags") or server.get("tags") or [],
+        }
+        series_type = WeebarrService._server_anime_series_type(server)
+        if series_type is not None:
+            defaults["seriesType"] = series_type
+        return defaults
 
     @staticmethod
     def _find_server_by_id(
@@ -1150,14 +1166,7 @@ class WeebarrService:
 
         if servers:
             server = self._select_default_server(servers)
-            defaults = {
-                "serverId": server.get("id"),
-                "profileId": server.get("activeAnimeProfileId")
-                or server.get("activeProfileId"),
-                "rootFolder": server.get("activeAnimeDirectory")
-                or server.get("activeDirectory"),
-                "seriesType": self._server_anime_series_type(server),
-            }
+            defaults = self._anime_request_defaults(server)
         self.cache.set(cache_key, defaults, self.settings.seerr_cache_ttl_seconds)
         return defaults
 
@@ -1180,13 +1189,8 @@ class WeebarrService:
         if servers:
             server = self._select_default_server(servers)
             defaults = {
-                "serverId": server.get("id"),
                 "serverName": server.get("name"),
-                "profileId": server.get("activeAnimeProfileId")
-                or server.get("activeProfileId"),
-                "rootFolder": server.get("activeAnimeDirectory")
-                or server.get("activeDirectory"),
-                "seriesType": self._server_anime_series_type(server),
+                **self._anime_request_defaults(server),
             }
 
         return {
@@ -1216,6 +1220,15 @@ class WeebarrService:
 
         if selected_server is not None:
             actual_type = self._server_anime_series_type(selected_server)
+            if actual_type is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Seerr does not expose an Anime Series Type for the selected Sonarr "
+                        "server. Set the Anime Series Type in Seerr itself, then leave "
+                        "Weebarr on Seerr default."
+                    ),
+                )
             if actual_type != forced_series_type:
                 raise HTTPException(
                     status_code=400,
@@ -1232,6 +1245,15 @@ class WeebarrService:
             if self._server_anime_series_type(server) == forced_series_type
         ]
         if not matching_servers:
+            if any(self._server_anime_series_type(server) is None for server in servers):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Seerr does not expose Anime Series Type metadata for the configured "
+                        "Sonarr server. Set Anime Series Type in Seerr itself and leave "
+                        "Weebarr on Seerr default."
+                    ),
+                )
             raise HTTPException(
                 status_code=400,
                 detail=(
@@ -1303,8 +1325,16 @@ class WeebarrService:
                 self.settings.seerr_api_key,
             )
             selected_server = self._resolve_request_server(servers)
-            if selected_server is not None and selected_server.get("id") is not None:
-                payload["serverId"] = selected_server.get("id")
+            server_id = selected_server.get("id") if selected_server is not None else None
+            if isinstance(server_id, int) and server_id > 0:
+                payload["serverId"] = server_id
+
+        anime_defaults = (
+            self._anime_request_defaults(selected_server)
+            if selected_server is not None
+            else await self._sonarr_defaults()
+        )
+
         if self.settings.seerr_force_quality_profile:
             if self.settings.seerr_profile_id is None:
                 raise HTTPException(
@@ -1314,14 +1344,22 @@ class WeebarrService:
                     ),
                 )
             payload["profileId"] = self.settings.seerr_profile_id
+        elif anime_defaults.get("profileId") is not None:
+            payload["profileId"] = anime_defaults.get("profileId")
         if self.settings.seerr_root_folder is not None:
             payload["rootFolder"] = self.settings.seerr_root_folder
+        elif anime_defaults.get("rootFolder"):
+            payload["rootFolder"] = anime_defaults.get("rootFolder")
         if self.settings.seerr_language_profile_id is not None:
             payload["languageProfileId"] = self.settings.seerr_language_profile_id
+        elif anime_defaults.get("languageProfileId") is not None:
+            payload["languageProfileId"] = anime_defaults.get("languageProfileId")
         if self.settings.seerr_request_user_id is not None:
             payload["userId"] = self.settings.seerr_request_user_id
         if self.settings.seerr_tags:
             payload["tags"] = self.settings.seerr_tags
+        elif anime_defaults.get("tags"):
+            payload["tags"] = anime_defaults.get("tags")
 
         async with httpx.AsyncClient(
             timeout=self.settings.request_timeout_seconds

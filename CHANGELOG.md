@@ -2,6 +2,15 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.33] - 2026-06-06
+
+### Fixed
+
+- Corrected the anime request path so Weebarr no longer tries to send Seerr's internal default Sonarr config ID `0` back as a request override when `Force Series Type` is enabled.
+- Changed Weebarr to carry Seerr's saved anime profile, anime root folder, anime language profile, and anime tag defaults through anime requests unless you explicitly override them in Settings.
+- Stopped treating a missing `animeSeriesType` field from Seerr as `Anime / Absolute`, and now surface a clearer message when Seerr does not expose that metadata.
+- Updated the Connections help copy and test output so `Series Type` reflects what Seerr actually exposes instead of implying a false default.
+
 ## [0.1.32] - 2026-06-06
 
 ### Fixed
