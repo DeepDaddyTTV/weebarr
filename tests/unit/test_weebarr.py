@@ -122,7 +122,7 @@ def test_settings_page_renders(tmp_path):
     assert "Strict Monitoring" in response.text
     assert "Content Filter" in response.text
     assert "Force Series Type" in response.text
-    assert "Force Quality Profile ID" in response.text
+    assert "Quality Profile" in response.text
     assert "Weebarr Admin Token" not in response.text
     assert 'data-settings-tab="weebarr"' in response.text
     assert 'data-settings-tab="automation"' in response.text
@@ -165,6 +165,7 @@ def test_settings_store_persists_automation_and_theme_overrides(tmp_path):
                 "filler": False,
             },
             "automation_scan_interval_days": 14,
+            "automation_scan_interval_hours": 6,
             "active_theme_id": "color-picker",
             "color_picker_tokens": {
                 "dark": {
@@ -217,8 +218,35 @@ def test_settings_store_persists_automation_and_theme_overrides(tmp_path):
 
     assert updated.automation_enabled is True
     assert updated.automation_scan_interval_days == 14
+    assert updated.automation_scan_interval_hours == 6
     assert updated.active_theme_id == "color-picker"
     assert updated.color_picker_tokens["dark"]["cyan"] == "#ffffff"
+
+
+def test_settings_store_backfills_legacy_automation_hours(tmp_path):
+    config_path = tmp_path / "weebarr.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "weebarr": {
+                    "automation_enabled_buckets": {
+                        "s_tier": True,
+                        "canon": False,
+                        "bingeable": False,
+                        "filler": False,
+                    },
+                    "automation_scan_interval_days": 9,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    store = SettingsStore(Settings(config_path=str(config_path)))
+    current = store.get()
+
+    assert current.automation_scan_interval_days == 9
+    assert current.automation_scan_interval_hours == 0
 
 
 def test_settings_endpoint_saves_connection(tmp_path):
@@ -319,6 +347,7 @@ def test_weebarr_settings_endpoint_saves_app_preferences(tmp_path):
                     "filler": False,
                 },
                 "scanIntervalDays": 21,
+                "scanIntervalHours": 8,
             },
             "theme": {
                 "activeThemeId": "monochrome",
@@ -380,7 +409,31 @@ def test_weebarr_settings_endpoint_saves_app_preferences(tmp_path):
     assert payload["weebarr"]["automation"]["enabledBuckets"]["s_tier"] is True
     assert payload["weebarr"]["automation"]["enabledBuckets"]["bingeable"] is True
     assert payload["weebarr"]["automation"]["scanIntervalDays"] == 21
+    assert payload["weebarr"]["automation"]["scanIntervalHours"] == 8
     assert payload["weebarr"]["theme"]["activeThemeId"] == "monochrome"
+
+
+def test_weebarr_settings_rejects_zero_day_zero_hour_automation(tmp_path):
+    client = authenticated_client(tmp_path)
+
+    response = client.put(
+        "/api/settings/weebarr",
+        json={
+            "automation": {
+                "enabledBuckets": {
+                    "s_tier": True,
+                    "canon": False,
+                    "bingeable": False,
+                    "filler": False,
+                },
+                "scanIntervalDays": 0,
+                "scanIntervalHours": 0,
+            }
+        },
+    )
+
+    assert response.status_code == 400
+    assert "at least 1 hour" in response.json()["detail"]
 
 
 def test_theme_import_from_url_updates_theme_catalog(tmp_path, monkeypatch):

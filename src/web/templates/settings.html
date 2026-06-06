@@ -43,21 +43,50 @@
         <div class="access-card">
           <div class="connection-head">
             <span class="pulse"></span>
-            <strong>{{ auth_user_name or "Authenticated" }}</strong>
+            <strong
+              id="authSidebarStatus"
+              class="tooltip-anchor"
+              tabindex="0"
+              data-tooltip="{{ auth_access_copy }}"
+            >Connected</strong>
           </div>
           <hr />
-          <span class="connection-label">{{ "Plex session" if auth_user_mode == "plex" else "Local session" }}</span>
-          <span class="connection-host">{{ auth_access_copy }}</span>
+          <span
+            id="authSidebarIdentity"
+            class="connection-label tooltip-anchor"
+            tabindex="0"
+            data-tooltip="{{ 'Signed in through Plex.' if auth_user_mode == 'plex' else 'Signed in through the local account.' }}"
+          >{{ auth_user_name or "Authenticated session" }}</span>
+          <span
+            id="authSidebarMode"
+            class="connection-host tooltip-anchor"
+            tabindex="0"
+            data-tooltip="{{ auth_access_copy }}"
+          >{{ "Plex session" if auth_user_mode == "plex" else "Local session" }}</span>
           <a class="connection-cta" href="/logout">Sign Out</a>
         </div>
         <div class="connection-card">
           <div class="connection-head">
             <span class="pulse"></span>
-            <strong>{{ "Connected" if connection.configured else "Seerr missing" }}</strong>
+            <strong
+              id="connectionSidebarStatus"
+              class="tooltip-anchor"
+              tabindex="0"
+              data-tooltip="{{ 'Weebarr can reach Seerr with the saved connection settings.' if connection.configured else 'Save a Seerr base URL and API key to enable requests.' }}"
+            >{{ "Connected" if connection.configured else "Seerr missing" }}</strong>
           </div>
           <hr />
-          <span class="connection-label">Seerr</span>
-          <span class="connection-host">{{ connection.baseUrl if connection.baseUrl else "Save a base URL and API key below." }}</span>
+          <span
+            class="connection-label tooltip-anchor"
+            tabindex="0"
+            data-tooltip="Current request provider"
+          >Seerr</span>
+          <span
+            id="connectionSidebarHost"
+            class="connection-host tooltip-anchor"
+            tabindex="0"
+            data-tooltip="{{ connection.baseUrl if connection.baseUrl else 'No live Seerr endpoint is configured yet.' }}"
+          >{{ connection.baseUrl if connection.baseUrl else "Save a base URL and API key below." }}</span>
           <a class="connection-cta" href="#connections">Connection Settings</a>
         </div>
       </aside>
@@ -70,14 +99,15 @@
           </div>
         </header>
 
-        <nav class="settings-tabs" aria-label="Settings sections">
-          <button class="settings-tab active" type="button" data-settings-tab="weebarr">Weebarr</button>
-          <button class="settings-tab" type="button" data-settings-tab="automation">Automation</button>
-          <button class="settings-tab" type="button" data-settings-tab="authentication">Authentication</button>
-          <button class="settings-tab" type="button" data-settings-tab="connections">Connections</button>
-        </nav>
+        <section class="settings-shell">
+          <nav class="settings-tabs" aria-label="Settings sections">
+            <button class="settings-tab active" type="button" data-settings-tab="weebarr">Weebarr</button>
+            <button class="settings-tab" type="button" data-settings-tab="automation">Automation</button>
+            <button class="settings-tab" type="button" data-settings-tab="authentication">Authentication</button>
+            <button class="settings-tab" type="button" data-settings-tab="connections">Connections</button>
+          </nav>
 
-        <section class="settings-stack">
+          <section class="settings-stack">
           <section class="settings-panel settings-section" data-settings-panel="weebarr">
             <div class="panel-heading">
               <div>
@@ -140,8 +170,13 @@
 
                     <label class="full-width">
                       <span>Import Theme Zip</span>
-                      <div class="theme-import-row">
-                        <input id="themeImportZip" type="file" accept=".zip" />
+                      <div class="theme-import-row theme-import-row-upload">
+                        <input id="themeImportZip" class="theme-file-input" type="file" accept=".zip" />
+                        <button id="themeImportZipPickBtn" class="secondary-btn theme-upload-trigger" type="button">
+                          <span class="theme-upload-icon" aria-hidden="true"></span>
+                          <span>Choose zip</span>
+                        </button>
+                        <span id="themeImportZipName" class="theme-upload-name">No file selected</span>
                         <button id="importThemeZipBtn" class="secondary-btn" type="button">Import Zip</button>
                       </div>
                       <small>A zip theme pack must contain a <code>theme.json</code> manifest.</small>
@@ -175,18 +210,13 @@
                       <small>AniList adult-only titles are hidden in <code>Hide NSFW</code> mode.</small>
                     </label>
 
-                    <div class="full-width settings-toggle-field">
-                      <span>Strict Monitoring</span>
-                      <div class="settings-toggle-row">
-                        <div class="settings-toggle-copy">
-                          <strong>Treat untracked sequel seasons as missing</strong>
-                          <small>When enabled, later seasons only count as tracked if the specific season is explicitly present or requested in Seerr.</small>
-                        </div>
-                        <label class="toggle-switch" for="settingsStrictMonitoring" aria-label="Enable strict monitoring">
-                          <input id="settingsStrictMonitoring" name="strictMonitoring" type="checkbox" {{ 'checked' if weebarr.strictMonitoring else '' }} />
-                          <i aria-hidden="true"></i>
-                        </label>
-                      </div>
+                    <div class="full-width settings-plain-toggle">
+                      <span class="settings-plain-toggle-title">Strict Monitoring</span>
+                      <label class="toggle-switch" for="settingsStrictMonitoring" aria-label="Enable strict monitoring">
+                        <input id="settingsStrictMonitoring" name="strictMonitoring" type="checkbox" {{ 'checked' if weebarr.strictMonitoring else '' }} />
+                        <i aria-hidden="true"></i>
+                      </label>
+                      <small>When enabled, later seasons only count as tracked if the specific season is explicitly present or requested in Seerr.</small>
                     </div>
                   </div>
                 </div>
@@ -197,7 +227,7 @@
               </div>
             </form>
 
-            <div class="settings-summary-grid">
+            <div class="settings-summary-grid settings-summary-grid-compact settings-summary-grid-four-up">
               <div class="pill-card">
                 <span>Active Theme</span>
                 <strong id="currentActiveTheme">{{ weebarr.theme.activeThemeId }}</strong>
@@ -261,33 +291,37 @@
                     <h3>Scan Schedule</h3>
                     <p>Weebarr checks automation on a cadence and can also run an immediate manual scan whenever you want.</p>
                   </div>
-                  <div class="form-grid">
-                    <label>
-                      <span>Scan Every</span>
-                      <input id="automationScanIntervalDays" type="number" min="1" max="365" step="1" value="{{ weebarr.automation.scanIntervalDays }}" />
-                      <small>Default is 30 days. The background automation loop respects this interval.</small>
+                  <div class="form-grid automation-schedule-grid">
+                    <label class="automation-cadence-field">
+                      <span>Days</span>
+                      <input id="automationScanIntervalDays" type="number" min="0" max="365" step="1" value="{{ weebarr.automation.scanIntervalDays }}" />
+                      <small>Days</small>
+                    </label>
+                    <label class="automation-cadence-field">
+                      <span>Hours</span>
+                      <input id="automationScanIntervalHours" type="number" min="0" max="23" step="1" value="{{ weebarr.automation.scanIntervalHours or 0 }}" />
+                      <small>Hours</small>
                     </label>
                     <div class="full-width settings-note">
-                      <p>Manual scans ignore the interval and only evaluate the selected enabled buckets.</p>
+                      <p>Default cadence is 30 days. Manual scans ignore the interval and only evaluate the selected enabled buckets.</p>
                     </div>
+                  </div>
+                  <div class="settings-actions settings-actions-inline">
+                    <button id="automationScanNowBtn" class="secondary-btn" type="button">Scan Now</button>
+                    <button id="saveAutomationBtn" class="refresh-btn" type="submit">Save Automation</button>
                   </div>
                 </div>
               </div>
-
-              <div class="settings-actions">
-                <button id="automationScanNowBtn" class="secondary-btn" type="button">Scan Now</button>
-                <button id="saveAutomationBtn" class="refresh-btn" type="submit">Save Automation</button>
-              </div>
             </form>
 
-            <div class="settings-summary-grid">
+            <div class="settings-summary-grid settings-summary-grid-compact settings-summary-grid-four-up">
               <div class="pill-card">
                 <span>Enabled Buckets</span>
                 <strong id="automationEnabledBuckets">--</strong>
               </div>
               <div class="pill-card">
                 <span>Scan Interval</span>
-                <strong id="automationScanIntervalSummary">{{ weebarr.automation.scanIntervalDays }} days</strong>
+                <strong id="automationScanIntervalSummary">{{ weebarr.automation.scanIntervalDays }}d {{ weebarr.automation.scanIntervalHours or 0 }}h</strong>
               </div>
               <div class="pill-card">
                 <span>Last Scan</span>
@@ -413,7 +447,7 @@
                     <h3>Connection Details</h3>
                     <p>Use the internal URL and API key Weebarr can reach from inside the container network.</p>
                   </div>
-                  <div class="form-grid">
+                  <div class="form-grid connection-form-grid">
                     <label>
                       <span>Seerr Base URL</span>
                       <input id="settingsBaseUrl" name="baseUrl" type="url" placeholder="http://seerr:5055" value="{{ connection.baseUrl or '' }}" />
@@ -467,18 +501,13 @@
                       <small>Use Seerr default to keep the Sonarr anime series type from Seerr. Choosing a type makes Weebarr pick a Seerr Sonarr server that matches it when possible.</small>
                     </label>
 
-                    <div class="full-width settings-toggle-field">
-                      <span>Quality Profile</span>
-                      <div class="settings-toggle-row">
-                        <div class="settings-toggle-copy">
-                          <strong>Force Quality Profile ID</strong>
-                          <small>Leave this off to use Seerr’s current anime/default quality profile for the chosen Sonarr server.</small>
-                        </div>
-                        <label class="toggle-switch" for="settingsForceQualityProfile" aria-label="Enable quality profile override">
-                          <input id="settingsForceQualityProfile" name="forceQualityProfile" type="checkbox" {{ 'checked' if connection.forceQualityProfile else '' }} />
-                          <i aria-hidden="true"></i>
-                        </label>
-                      </div>
+                    <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
+                      <span class="settings-plain-toggle-title">Quality Profile</span>
+                      <label class="toggle-switch" for="settingsForceQualityProfile" aria-label="Enable quality profile override">
+                        <input id="settingsForceQualityProfile" name="forceQualityProfile" type="checkbox" {{ 'checked' if connection.forceQualityProfile else '' }} />
+                        <i aria-hidden="true"></i>
+                      </label>
+                      <small>Leave this off to use Seerr’s current anime/default quality profile for the chosen Sonarr server.</small>
                     </div>
 
                     <label>
@@ -518,7 +547,7 @@
                     <h3>Live Connection</h3>
                     <p>Review the currently saved Seerr values and the latest test results without leaving the page.</p>
                   </div>
-                  <div class="settings-summary-grid">
+                  <div class="settings-summary-grid settings-summary-grid-compact settings-summary-grid-connection">
                     <div class="pill-card">
                       <span>Base URL</span>
                       <strong id="currentBaseUrl">{{ connection.baseUrl or "Not set" }}</strong>
@@ -551,7 +580,7 @@
 
                   <div id="testResults" class="settings-note settings-test-results">
                     <p>Run a connection test to verify the URL and API key, then inspect the Sonarr defaults Seerr reports back.</p>
-                    <div class="settings-summary-grid">
+                    <div class="settings-summary-grid settings-summary-grid-compact settings-summary-grid-test">
                       <div class="pill-card">
                         <span>Server Count</span>
                         <strong id="testServerCount">--</strong>
@@ -582,6 +611,7 @@
                 <button id="saveConnectionBtn" class="refresh-btn" type="submit">Save Connection</button>
               </div>
             </form>
+          </section>
           </section>
         </section>
       </main>

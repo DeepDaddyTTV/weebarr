@@ -49,6 +49,7 @@ from src.weebarr.settings import (
     AUTOMATION_BUCKET_KEYS,
     DEFAULT_AUTOMATION_BUCKETS,
     DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS,
+    DEFAULT_AUTOMATION_SCAN_INTERVAL_HOURS,
     DEFAULT_THEME_LIBRARY,
     Settings,
     SettingsStore,
@@ -400,7 +401,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if last_scan is None:
             return True
         return datetime.now(timezone.utc) - last_scan >= timedelta(
-            days=settings_now.automation_scan_interval_days
+            days=settings_now.automation_scan_interval_days,
+            hours=settings_now.automation_scan_interval_hours,
         )
 
     async def run_automation_scan(
@@ -1241,9 +1243,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             enabled = payload.automation.get("enabledBuckets")
             if enabled is not None:
                 overrides["automation_enabled_buckets"] = enabled
-            interval = payload.automation.get("scanIntervalDays")
-            if interval is not None:
-                overrides["automation_scan_interval_days"] = interval
+            interval_days = payload.automation.get("scanIntervalDays")
+            interval_hours = payload.automation.get("scanIntervalHours")
+            normalized_days = (
+                int(interval_days)
+                if interval_days is not None
+                else DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS
+            )
+            normalized_hours = (
+                int(interval_hours)
+                if interval_hours is not None
+                else DEFAULT_AUTOMATION_SCAN_INTERVAL_HOURS
+            )
+            if normalized_days < 0 or normalized_days > 365:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Automation days must be between 0 and 365.",
+                )
+            if normalized_hours < 0 or normalized_hours > 23:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Automation hours must be between 0 and 23.",
+                )
+            if normalized_days == 0 and normalized_hours == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Automation cadence must be at least 1 hour.",
+                )
+            overrides["automation_scan_interval_days"] = normalized_days
+            overrides["automation_scan_interval_hours"] = normalized_hours
         if payload.theme is not None:
             active_theme_id = payload.theme.get("activeThemeId")
             if active_theme_id is not None:

@@ -57,6 +57,8 @@ const els = {
   colorPickerGrid: document.querySelector("#colorPickerGrid"),
   themeImportUrl: document.querySelector("#themeImportUrl"),
   themeImportZip: document.querySelector("#themeImportZip"),
+  themeImportZipPickBtn: document.querySelector("#themeImportZipPickBtn"),
+  themeImportZipName: document.querySelector("#themeImportZipName"),
   importThemeUrlBtn: document.querySelector("#importThemeUrlBtn"),
   importThemeZipBtn: document.querySelector("#importThemeZipBtn"),
   automationBucketSTier: document.querySelector("#automationBucketSTier"),
@@ -64,6 +66,7 @@ const els = {
   automationBucketBingeable: document.querySelector("#automationBucketBingeable"),
   automationBucketFiller: document.querySelector("#automationBucketFiller"),
   automationScanIntervalDays: document.querySelector("#automationScanIntervalDays"),
+  automationScanIntervalHours: document.querySelector("#automationScanIntervalHours"),
   automationScanNowBtn: document.querySelector("#automationScanNowBtn"),
   baseUrl: document.querySelector("#settingsBaseUrl"),
   apiKey: document.querySelector("#settingsApiKey"),
@@ -104,6 +107,11 @@ const els = {
   testSeriesType: document.querySelector("#testSeriesType"),
   testRootFolder: document.querySelector("#testRootFolder"),
   testButton: document.querySelector("#testConnectionBtn"),
+  authSidebarStatus: document.querySelector("#authSidebarStatus"),
+  authSidebarIdentity: document.querySelector("#authSidebarIdentity"),
+  authSidebarMode: document.querySelector("#authSidebarMode"),
+  connectionSidebarStatus: document.querySelector("#connectionSidebarStatus"),
+  connectionSidebarHost: document.querySelector("#connectionSidebarHost"),
 };
 
 const customSelectRoots = [...document.querySelectorAll("[data-ui-select]")];
@@ -275,6 +283,12 @@ function formatDateTime(value) {
   }
 }
 
+function formatAutomationCadence(days, hours) {
+  const safeDays = Number.isFinite(Number(days)) ? Number(days) : 30;
+  const safeHours = Number.isFinite(Number(hours)) ? Number(hours) : 0;
+  return `${safeDays}d ${safeHours}h`;
+}
+
 function signInLabel(access) {
   if (access.localAuthConfigured && access.plexLoginEnabled) {
     return "Username/password or Plex";
@@ -401,15 +415,21 @@ function updateWeebarr(summary) {
     els.automationScanIntervalDays.value =
       automation.scanIntervalDays || String(30);
   }
+  if (els.automationScanIntervalHours) {
+    els.automationScanIntervalHours.value = String(
+      automation.scanIntervalHours ?? 0,
+    );
+  }
   if (els.automationEnabledBuckets) {
     els.automationEnabledBuckets.textContent = enabledBucketSummary(
       automation.enabledBuckets,
     );
   }
   if (els.automationScanIntervalSummary) {
-    els.automationScanIntervalSummary.textContent = `${
-      automation.scanIntervalDays || 30
-    } days`;
+    els.automationScanIntervalSummary.textContent = formatAutomationCadence(
+      automation.scanIntervalDays || 30,
+      automation.scanIntervalHours ?? 0,
+    );
   }
   if (els.automationLastScanAt) {
     els.automationLastScanAt.textContent = formatDateTime(automation.lastScanAt);
@@ -504,6 +524,22 @@ function updateConnection(connection) {
       ? `Stored ${connection.apiKeyPreview} (leave blank to keep)`
       : "Paste a Seerr API key";
   }
+  if (els.connectionSidebarStatus) {
+    els.connectionSidebarStatus.textContent = connection.configured
+      ? "Connected"
+      : "Seerr missing";
+    els.connectionSidebarStatus.dataset.tooltip = connection.configured
+      ? "Weebarr can reach Seerr with the saved connection settings."
+      : "Save a Seerr base URL and API key to enable requests.";
+  }
+  if (els.connectionSidebarHost) {
+    const liveHost =
+      connection.baseUrl || "Save a base URL and API key below.";
+    els.connectionSidebarHost.textContent = liveHost;
+    els.connectionSidebarHost.dataset.tooltip = connection.baseUrl
+      ? connection.baseUrl
+      : "No live Seerr endpoint is configured yet.";
+  }
   applyConnectionOverrideState();
   syncCustomSelects(["settingsRequestSeasons", "settingsSeriesType"]);
 }
@@ -518,6 +554,25 @@ function updateAccess(access) {
   }
   if (els.currentAuthSignIn) {
     els.currentAuthSignIn.textContent = signInLabel(access);
+  }
+  if (els.authSidebarStatus) {
+    const authDescription = access.localAuthConfigured && access.plexLoginEnabled
+      ? "Connected with both local and Plex sign-in available."
+      : access.localAuthConfigured
+        ? "Connected with local sign-in enabled."
+        : access.plexLoginEnabled
+          ? "Connected with Plex sign-in enabled."
+          : "Authentication setup is still required.";
+    els.authSidebarStatus.textContent = access.configured ? "Connected" : "Setup required";
+    els.authSidebarStatus.dataset.tooltip = authDescription;
+  }
+  if (els.authSidebarIdentity && access.authUsername) {
+    els.authSidebarIdentity.textContent = access.authUsername;
+  }
+  if (els.authSidebarMode) {
+    const modeLabel = access.plexLoginEnabled ? "Plex session" : "Local session";
+    els.authSidebarMode.textContent = access.configured ? modeLabel : "Not configured";
+    els.authSidebarMode.dataset.tooltip = signInLabel(access);
   }
   if (els.localAccountStatusPill) {
     const configured = Boolean(access.localAuthConfigured);
@@ -567,10 +622,13 @@ function weebarrPayload() {
 }
 
 function automationPayload() {
+  const scanIntervalDays = Number(els.automationScanIntervalDays?.value || 0);
+  const scanIntervalHours = Number(els.automationScanIntervalHours?.value || 0);
   return {
     automation: {
       enabledBuckets: currentAutomationEnabled(),
-      scanIntervalDays: Number(els.automationScanIntervalDays?.value || 30),
+      scanIntervalDays,
+      scanIntervalHours,
     },
   };
 }
@@ -636,6 +694,15 @@ async function saveWeebarr(event) {
 async function saveAutomation(event) {
   event.preventDefault();
   clearBanner(els.automationBanner);
+  const cadence = automationPayload().automation;
+  if (!cadence.scanIntervalDays && !cadence.scanIntervalHours) {
+    showBanner(
+      els.automationBanner,
+      "Automation cadence must be at least 1 hour.",
+      "warn",
+    );
+    return;
+  }
   const previousBuckets = state.weebarr?.automation?.enabledBuckets || {};
   const nextBuckets = currentAutomationEnabled();
   const firstEnable = !hasAnyEnabledBucket(previousBuckets) && hasAnyEnabledBucket(nextBuckets);
@@ -649,7 +716,7 @@ async function saveAutomation(event) {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      ...automationPayload(),
+      automation: cadence,
       automationStartCurrentSeason,
     }),
   });
@@ -819,6 +886,9 @@ async function importThemeZip() {
   const result = await response.json();
   updateWeebarr(result.weebarr || {});
   els.themeImportZip.value = "";
+  if (els.themeImportZipName) {
+    els.themeImportZipName.textContent = "No file selected";
+  }
   showBanner(els.weebarrBanner, "Theme imported from zip.", "success");
   toast("Theme imported.");
 }
@@ -869,6 +939,18 @@ if (els.importThemeZipBtn) {
       await importThemeZip();
     } catch (error) {
       showBanner(els.weebarrBanner, `Import failed. ${error.message}`, "error");
+    }
+  });
+}
+
+if (els.themeImportZipPickBtn && els.themeImportZip) {
+  els.themeImportZipPickBtn.addEventListener("click", () => {
+    els.themeImportZip.click();
+  });
+  els.themeImportZip.addEventListener("change", () => {
+    if (els.themeImportZipName) {
+      els.themeImportZipName.textContent =
+        els.themeImportZip.files?.[0]?.name || "No file selected";
     }
   });
 }

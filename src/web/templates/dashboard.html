@@ -43,11 +43,23 @@
         <div class="connection-card">
           <div class="connection-head">
             <span class="pulse"></span>
-            <strong>{{ "Connected" if seerr_configured else "Seerr missing" }}</strong>
+            <strong
+              class="tooltip-anchor"
+              tabindex="0"
+              data-tooltip="{{ 'Weebarr can reach Seerr with the saved connection settings.' if seerr_configured else 'Add your Seerr base URL and API key in Settings to enable requests.' }}"
+            >{{ "Connected" if seerr_configured else "Seerr missing" }}</strong>
           </div>
           <hr />
-          <span class="connection-label">Seerr</span>
-          <span class="connection-host">{{ seerr_base_url if seerr_base_url else "Add your Seerr base URL and API key in Settings." }}</span>
+          <span
+            class="connection-label tooltip-anchor"
+            tabindex="0"
+            data-tooltip="Current request provider"
+          >Seerr</span>
+          <span
+            class="connection-host tooltip-anchor"
+            tabindex="0"
+            data-tooltip="{{ seerr_base_url if seerr_base_url else 'No live Seerr endpoint is configured yet.' }}"
+          >{{ seerr_base_url if seerr_base_url else "Add your Seerr base URL and API key in Settings." }}</span>
           <a class="connection-cta" href="/settings#connections">Manage Connections</a>
           <a class="connection-cta connection-cta-subtle" href="/logout">Sign Out</a>
         </div>
@@ -195,16 +207,14 @@
           </div>
         </section>
 
-        <div class="content-grid">
-          <section id="animeSections" class="anime-sections" aria-live="polite"></section>
-          <aside id="spotlight" class="spotlight">
-            <div class="spotlight-empty">
-              <span class="orb"></span>
-              <h2>Select an anime</h2>
-              <p>Pick a seasonal card to see mapping status, next airing data, and the Seerr request action.</p>
-            </div>
-          </aside>
-        </div>
+        <section id="animeSections" class="anime-sections" aria-live="polite"></section>
+        <aside id="spotlight" class="spotlight">
+          <div class="spotlight-empty">
+            <span class="orb"></span>
+            <h2>Select an anime</h2>
+            <p>Pick a seasonal card to see mapping status, next airing data, and the Seerr request action.</p>
+          </div>
+        </aside>
         </div>
       </main>
     </div>

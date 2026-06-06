@@ -29,6 +29,7 @@ DEFAULT_AUTOMATION_BUCKETS = {
     "filler": False,
 }
 DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS = 30
+DEFAULT_AUTOMATION_SCAN_INTERVAL_HOURS = 0
 THEME_TOKEN_KEYS = (
     "bg",
     "bg2",
@@ -233,6 +234,18 @@ def _normalize_scan_interval_days(value: Any) -> int:
     if value in (None, ""):
         return DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS
     return max(1, min(365, int(value)))
+
+
+def _normalize_scan_interval_days_relaxed(value: Any) -> int:
+    if value in (None, ""):
+        return DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS
+    return max(0, min(365, int(value)))
+
+
+def _normalize_scan_interval_hours(value: Any) -> int:
+    if value in (None, ""):
+        return DEFAULT_AUTOMATION_SCAN_INTERVAL_HOURS
+    return max(0, min(23, int(value)))
 
 
 def _normalize_automation_buckets(value: Any) -> dict[str, bool]:
@@ -444,6 +457,7 @@ class Settings:
     strict_monitoring: bool = False
     automation_enabled_buckets: dict[str, bool] | None = None
     automation_scan_interval_days: int = DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS
+    automation_scan_interval_hours: int = DEFAULT_AUTOMATION_SCAN_INTERVAL_HOURS
     automation_last_scan_at: str = ""
     automation_last_processed_season: str = ""
     automation_last_processed_year: int | None = None
@@ -604,8 +618,11 @@ class Settings:
                 default=False,
             ),
             automation_enabled_buckets=_normalize_automation_buckets(None),
-            automation_scan_interval_days=_normalize_scan_interval_days(
+            automation_scan_interval_days=_normalize_scan_interval_days_relaxed(
                 os.getenv("WEEBARR_AUTOMATION_SCAN_INTERVAL_DAYS", "30")
+            ),
+            automation_scan_interval_hours=_normalize_scan_interval_hours(
+                os.getenv("WEEBARR_AUTOMATION_SCAN_INTERVAL_HOURS", "0")
             ),
             auth_mode=_normalize_auth_mode(os.getenv("WEEBARR_AUTH_MODE", "disabled")),
             auth_username=os.getenv("WEEBARR_AUTH_USERNAME", ""),
@@ -793,6 +810,7 @@ class SettingsStore:
                 "enabledBuckets": current.automation_enabled_buckets
                 or dict(DEFAULT_AUTOMATION_BUCKETS),
                 "scanIntervalDays": current.automation_scan_interval_days,
+                "scanIntervalHours": current.automation_scan_interval_hours,
                 "lastScanAt": current.automation_last_scan_at or None,
                 "lastProcessedSeason": current.automation_last_processed_season or None,
                 "lastProcessedYear": current.automation_last_processed_year,
@@ -918,11 +936,18 @@ class SettingsStore:
                 )
             ),
             automation_scan_interval_days=(
-                _normalize_scan_interval_days(
+                _normalize_scan_interval_days_relaxed(
                     weebarr.get("automation_scan_interval_days")
                 )
                 if "automation_scan_interval_days" in weebarr
                 else self._base.automation_scan_interval_days
+            ),
+            automation_scan_interval_hours=(
+                _normalize_scan_interval_hours(
+                    weebarr.get("automation_scan_interval_hours")
+                )
+                if "automation_scan_interval_hours" in weebarr
+                else self._base.automation_scan_interval_hours
             ),
             automation_last_scan_at=(
                 _normalize_optional_str(weebarr.get("automation_last_scan_at"))

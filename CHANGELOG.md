@@ -2,6 +2,17 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.30] - 2026-06-06
+
+### Fixed
+
+- Restored the desktop seasonal shell to a stable two-column layout so the left content rail owns the header, stats, filters, buckets, and pagination while the spotlight stays pinned on the right without crowding the list.
+- Tightened the seasonal header controls and spotlight spacing, including the centered season selector, aligned Refresh/Scan buttons, and a cleaner gap between the spotlight poster and the rank/audio pill row.
+- Reworked Settings into attached tabs with compact, top-aligned panels so the `Weebarr`, `Automation`, `Authentication`, and `Connections` sections no longer feel detached or vertically stretched.
+- Replaced the native-looking theme zip upload field with a styled Weebarr upload control and added the shared upload asset to both the docs bundle and the live static image set.
+- Split automation cadence into persisted `days + hours` inputs, kept backward compatibility for older day-only configs, and added validation so `0d 0h` is rejected.
+- Reduced the size of settings summary/status cards, aligned the connection dashboards more tightly, and added themed hover tooltips to the sidebar status text and live endpoint/session text.
+
 ## [0.1.29] - 2026-06-05
 
 ### Security
