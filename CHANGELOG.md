@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.35] - 2026-06-06
+
+### Fixed
+
+- Stopped seasonal card request clicks from being intercepted by the card-surface select handler, so `Request in Seerr` now sends the request directly from the small card while also focusing the same title in the detail sidebar.
+
 ## [0.1.34] - 2026-06-06
 
 ### Fixed

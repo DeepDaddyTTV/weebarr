@@ -920,6 +920,7 @@ function renderSections(allItems) {
     .join("")}${renderPager(allItems.length)}`;
   els.sections.querySelectorAll("[data-select]").forEach((button) => {
     button.addEventListener("click", (event) => {
+      if (shouldIgnoreCardToggle(event.target)) return;
       event.preventDefault();
       event.stopPropagation();
       toggleSelectedItem(String(button.dataset.select));
@@ -1006,6 +1007,12 @@ function renderAll() {
   if (selected && !selected.charactersLoaded && !selected.charactersLoading && !selected.charactersError) {
     void loadCharacters(selected);
   }
+}
+
+function focusSelectedItem(id) {
+  state.selectedId = String(id);
+  state.spotlightDismissed = false;
+  renderAll();
 }
 
 function toggleSelectedItem(clickedId) {
@@ -1263,7 +1270,8 @@ els.sections.addEventListener("click", (event) => {
   }
   const requestButton = event.target.closest("[data-request]");
   if (requestButton) {
-    requestItem(requestButton.dataset.request);
+    focusSelectedItem(requestButton.dataset.request);
+    void requestItem(requestButton.dataset.request);
     return;
   }
   const retryCharactersButton = event.target.closest("[data-retry-characters]");
@@ -1289,7 +1297,8 @@ els.spotlight.addEventListener("click", (event) => {
   }
   const requestButton = event.target.closest("[data-request]");
   if (requestButton) {
-    requestItem(requestButton.dataset.request);
+    focusSelectedItem(requestButton.dataset.request);
+    void requestItem(requestButton.dataset.request);
     return;
   }
   const retryCharactersButton = event.target.closest("[data-retry-characters]");
