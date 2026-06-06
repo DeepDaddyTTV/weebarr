@@ -2101,4 +2101,4 @@ def test_request_in_seerr_rejects_forced_series_type_when_seerr_hides_it():
         service._resolve_request_server([selected_server])
 
     assert exc.value.status_code == 400
-    assert "does not expose an Anime Series Type" in exc.value.detail
+    assert "does not expose Anime Series Type" in exc.value.detail

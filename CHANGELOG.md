@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.34] - 2026-06-06
+
+### Fixed
+
+- Finished the Seerr anime-default follow-up by initializing the no-override request path correctly and aligning the request-path assertions with the final error copy so CI stays green.
+
 ## [0.1.33] - 2026-06-06
 
 ### Fixed

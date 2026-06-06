@@ -1245,7 +1245,9 @@ class WeebarrService:
             if self._server_anime_series_type(server) == forced_series_type
         ]
         if not matching_servers:
-            if any(self._server_anime_series_type(server) is None for server in servers):
+            if any(
+                self._server_anime_series_type(server) is None for server in servers
+            ):
                 raise HTTPException(
                     status_code=400,
                     detail=(
@@ -1314,6 +1316,7 @@ class WeebarrService:
             "is4k": False,
             "seasons": request_seasons,
         }
+        selected_server: dict[str, Any] | None = None
         if tvdb_id:
             payload["tvdbId"] = tvdb_id
         if (
@@ -1325,7 +1328,9 @@ class WeebarrService:
                 self.settings.seerr_api_key,
             )
             selected_server = self._resolve_request_server(servers)
-            server_id = selected_server.get("id") if selected_server is not None else None
+            server_id = (
+                selected_server.get("id") if selected_server is not None else None
+            )
             if isinstance(server_id, int) and server_id > 0:
                 payload["serverId"] = server_id
 
