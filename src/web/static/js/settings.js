@@ -109,7 +109,6 @@ const els = {
   testButton: document.querySelector("#testConnectionBtn"),
   authSidebarStatus: document.querySelector("#authSidebarStatus"),
   authSidebarIdentity: document.querySelector("#authSidebarIdentity"),
-  authSidebarMode: document.querySelector("#authSidebarMode"),
   connectionSidebarStatus: document.querySelector("#connectionSidebarStatus"),
   connectionSidebarHost: document.querySelector("#connectionSidebarHost"),
 };
@@ -533,11 +532,9 @@ function updateConnection(connection) {
       : "Save a Seerr base URL and API key to enable requests.";
   }
   if (els.connectionSidebarHost) {
-    const liveHost =
-      connection.baseUrl || "Save a base URL and API key below.";
-    els.connectionSidebarHost.textContent = liveHost;
+    els.connectionSidebarHost.textContent = "Seerr";
     els.connectionSidebarHost.dataset.tooltip = connection.baseUrl
-      ? connection.baseUrl
+      ? `Current Seerr endpoint: ${connection.baseUrl}`
       : "No live Seerr endpoint is configured yet.";
   }
   applyConnectionOverrideState();
@@ -569,10 +566,8 @@ function updateAccess(access) {
   if (els.authSidebarIdentity && access.authUsername) {
     els.authSidebarIdentity.textContent = access.authUsername;
   }
-  if (els.authSidebarMode) {
-    const modeLabel = access.plexLoginEnabled ? "Plex session" : "Local session";
-    els.authSidebarMode.textContent = access.configured ? modeLabel : "Not configured";
-    els.authSidebarMode.dataset.tooltip = signInLabel(access);
+  if (els.authSidebarIdentity) {
+    els.authSidebarIdentity.dataset.tooltip = signInLabel(access);
   }
   if (els.localAccountStatusPill) {
     const configured = Boolean(access.localAuthConfigured);

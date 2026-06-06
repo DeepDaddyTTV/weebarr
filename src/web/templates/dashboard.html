@@ -48,18 +48,12 @@
               tabindex="0"
               data-tooltip="{{ 'Weebarr can reach Seerr with the saved connection settings.' if seerr_configured else 'Add your Seerr base URL and API key in Settings to enable requests.' }}"
             >{{ "Connected" if seerr_configured else "Seerr missing" }}</strong>
+            <span
+              class="connection-head-detail tooltip-anchor"
+              tabindex="0"
+              data-tooltip="{{ seerr_base_url if seerr_base_url else 'No live Seerr endpoint is configured yet.' }}"
+            >Seerr</span>
           </div>
-          <hr />
-          <span
-            class="connection-label tooltip-anchor"
-            tabindex="0"
-            data-tooltip="Current request provider"
-          >Seerr</span>
-          <span
-            class="connection-host tooltip-anchor"
-            tabindex="0"
-            data-tooltip="{{ seerr_base_url if seerr_base_url else 'No live Seerr endpoint is configured yet.' }}"
-          >{{ seerr_base_url if seerr_base_url else "Add your Seerr base URL and API key in Settings." }}</span>
           <a class="connection-cta" href="/settings#connections">Manage Connections</a>
           <a class="connection-cta connection-cta-subtle" href="/logout">Sign Out</a>
         </div>
@@ -101,32 +95,32 @@
           <article class="stat-card stat-cyan" title="{{ 'Requested titles tracked through Weebarr this season' if page_name == 'requests' else 'Total anime surfaced for this season' }}">
             <span class="stat-icon stat-icon-total" aria-hidden="true"></span>
             <div class="stat-copy">
-              <span>{{ "Requested This Season" if page_name == "requests" else "Anime This Season" }}</span>
-              <small>{{ "Tracked in Seerr" if page_name == "requests" else "Total shows" }}</small>
+              <span class="stat-title">{{ "Requested This Season" if page_name == "requests" else "Anime This Season" }}</span>
+              <small class="stat-subcopy">{{ "Tracked in Seerr" if page_name == "requests" else "Total shows" }}</small>
             </div>
             <strong id="statTotal">--</strong>
           </article>
           <article class="stat-card stat-pink" title="{{ 'Requested titles that still need more seasons covered' if page_name == 'requests' else 'Anime that still need a request or explicit season coverage' }}">
             <span class="stat-icon stat-icon-requestable" aria-hidden="true"></span>
             <div class="stat-copy">
-              <span>{{ "Missing Seasons" if page_name == "requests" else "Requestable" }}</span>
-              <small>{{ "Partial requests" if page_name == "requests" else "Actionable titles" }}</small>
+              <span class="stat-title">{{ "Missing Seasons" if page_name == "requests" else "Requestable" }}</span>
+              <small class="stat-subcopy">{{ "Partial requests" if page_name == "requests" else "Actionable titles" }}</small>
             </div>
             <strong id="statRequestable">--</strong>
           </article>
           <article class="stat-card stat-purple" title="Anime already requested, partially available, or fully available in Seerr">
             <span class="stat-icon stat-icon-requested" aria-hidden="true"></span>
             <div class="stat-copy">
-              <span>{{ "Already Requested" if page_name == "requests" else "Already Requested" }}</span>
-              <small>{{ "Fully tracked" if page_name == "requests" else "Tracked in Seerr" }}</small>
+              <span class="stat-title">{{ "Already Requested" if page_name == "requests" else "Already Requested" }}</span>
+              <small class="stat-subcopy">{{ "Fully tracked" if page_name == "requests" else "Tracked in Seerr" }}</small>
             </div>
             <strong id="statRequested">--</strong>
           </article>
           <article class="stat-card stat-blue" title="Anime airing within the next 7 days">
             <span class="stat-icon stat-icon-airing" aria-hidden="true"></span>
             <div class="stat-copy">
-              <span>Airing Soon</span>
-              <small>Next 7 days</small>
+              <span class="stat-title">Airing Soon</span>
+              <small class="stat-subcopy">Next 7 days</small>
             </div>
             <strong id="statAiringSoon">--</strong>
           </article>

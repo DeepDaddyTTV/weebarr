@@ -833,7 +833,6 @@ function cardTemplate(item) {
         ${actionButtonTemplate(item)}
       </div>
         </div>
-        <div class="card-menu" aria-hidden="true">⋮</div>
       </div>
       ${compact && isSelected ? inlineDetailTemplate(item) : ""}
     </article>

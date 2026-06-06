@@ -49,20 +49,13 @@
               tabindex="0"
               data-tooltip="{{ auth_access_copy }}"
             >Connected</strong>
+            <span
+              id="authSidebarIdentity"
+              class="connection-head-detail tooltip-anchor"
+              tabindex="0"
+              data-tooltip="{{ 'Signed in through Plex.' if auth_user_mode == 'plex' else 'Signed in through the local account.' }}"
+            >{{ auth_user_name or "Authenticated" }}</span>
           </div>
-          <hr />
-          <span
-            id="authSidebarIdentity"
-            class="connection-label tooltip-anchor"
-            tabindex="0"
-            data-tooltip="{{ 'Signed in through Plex.' if auth_user_mode == 'plex' else 'Signed in through the local account.' }}"
-          >{{ auth_user_name or "Authenticated session" }}</span>
-          <span
-            id="authSidebarMode"
-            class="connection-host tooltip-anchor"
-            tabindex="0"
-            data-tooltip="{{ auth_access_copy }}"
-          >{{ "Plex session" if auth_user_mode == "plex" else "Local session" }}</span>
           <a class="connection-cta" href="/logout">Sign Out</a>
         </div>
         <div class="connection-card">
@@ -74,19 +67,13 @@
               tabindex="0"
               data-tooltip="{{ 'Weebarr can reach Seerr with the saved connection settings.' if connection.configured else 'Save a Seerr base URL and API key to enable requests.' }}"
             >{{ "Connected" if connection.configured else "Seerr missing" }}</strong>
+            <span
+              id="connectionSidebarHost"
+              class="connection-head-detail tooltip-anchor"
+              tabindex="0"
+              data-tooltip="{{ connection.baseUrl if connection.baseUrl else 'No live Seerr endpoint is configured yet.' }}"
+            >Seerr</span>
           </div>
-          <hr />
-          <span
-            class="connection-label tooltip-anchor"
-            tabindex="0"
-            data-tooltip="Current request provider"
-          >Seerr</span>
-          <span
-            id="connectionSidebarHost"
-            class="connection-host tooltip-anchor"
-            tabindex="0"
-            data-tooltip="{{ connection.baseUrl if connection.baseUrl else 'No live Seerr endpoint is configured yet.' }}"
-          >{{ connection.baseUrl if connection.baseUrl else "Save a base URL and API key below." }}</span>
           <a class="connection-cta" href="#connections">Connection Settings</a>
         </div>
       </aside>

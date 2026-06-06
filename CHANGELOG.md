@@ -2,6 +2,16 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.31] - 2026-06-06
+
+### Fixed
+
+- Softened the seasonal stat-card copy layout, widened the centered season selector clearance, and added more bottom scroll buffer so the desktop seasonal page reads cleanly end-to-end again.
+- Removed the dead three-dot affordance from anime cards and tightened the spotlight pill spacing so the poster/title transition feels intentional instead of cramped.
+- Converted the settings sidebar auth and Seerr cards into one-line connected states with runtime tooltip details, and raised the tooltip layer so overlays no longer render behind the main page content.
+- Leveled the `Connections` form rows and simplified the toggle sections so `Strict Monitoring` and `Quality Profile` align with the rest of the settings grid.
+- Fixed theme token propagation so `Monochrome` drops the leftover accent chrome and `Color Picker` updates borders, highlights, and other visible UI surfaces instead of only recoloring icons.
+
 ## [0.1.30] - 2026-06-06
 
 ### Fixed

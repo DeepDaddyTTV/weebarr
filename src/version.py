@@ -49,7 +49,7 @@ def get_version() -> str:
                         version = f"{base_version}-dev"
                 else:
                     # Just a commit hash, use fallback
-                    version = "0.1.30-dev"
+                    version = "0.1.31-dev"
 
             return version
 
@@ -59,7 +59,7 @@ def get_version() -> str:
 
     # Fallback version for when git is not available (e.g., in Docker)
     # This should be updated when creating a new release
-    return "0.1.30"
+    return "0.1.31"
 
 
 # Cache the version at import time
