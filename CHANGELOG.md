@@ -2,6 +2,17 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.36] - 2026-06-06
+
+### Fixed
+
+- Reverted the `0.1.35` forced-sidebar request behavior so small seasonal-card request clicks no longer hijack the spotlight state.
+- Kept the click-routing fix that lets the small-card `Request in Seerr` button bypass the card-select handler and send the same real request as the expanded spotlight action.
+
+### Documentation
+
+- Added a repo wiki covering features, settings, API behavior, troubleshooting, Docker Desktop deployment on Windows and Linux, and other deployment options.
+
 ## [0.1.35] - 2026-06-06
 
 ### Fixed

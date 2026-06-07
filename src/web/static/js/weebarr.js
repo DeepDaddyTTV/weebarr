@@ -1009,12 +1009,6 @@ function renderAll() {
   }
 }
 
-function focusSelectedItem(id) {
-  state.selectedId = String(id);
-  state.spotlightDismissed = false;
-  renderAll();
-}
-
 function toggleSelectedItem(clickedId) {
   state.spotlightDismissed = false;
   if (isCompactDetails() && state.selectedId === clickedId) {
@@ -1270,7 +1264,6 @@ els.sections.addEventListener("click", (event) => {
   }
   const requestButton = event.target.closest("[data-request]");
   if (requestButton) {
-    focusSelectedItem(requestButton.dataset.request);
     void requestItem(requestButton.dataset.request);
     return;
   }
@@ -1297,7 +1290,6 @@ els.spotlight.addEventListener("click", (event) => {
   }
   const requestButton = event.target.closest("[data-request]");
   if (requestButton) {
-    focusSelectedItem(requestButton.dataset.request);
     void requestItem(requestButton.dataset.request);
     return;
   }

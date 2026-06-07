@@ -20,6 +20,20 @@ Weebarr helps self-hosted anime libraries stay ahead of each release season. It 
 
 <p align="center"><em>Dark mode</em> and <em>light mode</em> dashboard captures from the live app.</p>
 
+## Wiki
+
+The repo includes a full Markdown wiki under [wiki/Home.md](wiki/Home.md).
+
+Quick links:
+
+- [Feature Reference](wiki/Feature-Reference.md)
+- [Settings Reference](wiki/Settings-Reference.md)
+- [API Reference](wiki/API-Reference.md)
+- [Docker Desktop on Windows](wiki/Deployment-Docker-Desktop-Windows.md)
+- [Docker Desktop on Linux](wiki/Deployment-Docker-Desktop-Linux.md)
+- [Other Deployment Options](wiki/Deployment-Other-Options.md)
+- [Troubleshooting](wiki/Troubleshooting.md)
+
 ## Why Weebarr?
 
 - **Seasonal discovery**: Browse current and upcoming anime seasons without manually hunting through multiple anime sites.
