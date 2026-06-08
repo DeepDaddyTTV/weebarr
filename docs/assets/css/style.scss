@@ -5,6 +5,7 @@
   --bg: #070d16;
   --panel: rgba(13, 21, 35, 0.92);
   --panel-strong: rgba(17, 28, 46, 0.96);
+  --panel-soft: rgba(18, 30, 49, 0.82);
   --line: rgba(143, 162, 188, 0.22);
   --line-strong: rgba(91, 217, 255, 0.38);
   --text: #f4f7fb;
@@ -42,6 +43,7 @@ body {
     28px 28px,
     28px 28px,
     auto;
+  background-attachment: fixed;
 }
 
 body::before {
@@ -54,6 +56,17 @@ body::before {
     radial-gradient(circle at 84% 14%, rgba(155, 107, 255, 0.12), transparent 26%),
     radial-gradient(circle at 82% 84%, rgba(255, 77, 152, 0.14), transparent 30%);
   opacity: 0.95;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(68, 215, 255, 0.08), transparent 30%),
+    radial-gradient(circle at 50% 100%, rgba(255, 77, 152, 0.08), transparent 36%);
+  mix-blend-mode: screen;
 }
 
 a {
@@ -122,7 +135,9 @@ pre {
   padding: 12px 14px;
   color: var(--text);
   font-weight: 700;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)),
+    linear-gradient(120deg, rgba(68, 215, 255, 0.02), transparent 55%, rgba(155, 107, 255, 0.03));
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
@@ -131,7 +146,13 @@ pre {
 .docs-nav a:hover,
 .docs-nav a.active {
   border-color: rgba(68, 215, 255, 0.42);
-  box-shadow: 0 0 0 1px rgba(68, 215, 255, 0.18), 0 0 18px rgba(68, 215, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+    linear-gradient(120deg, rgba(68, 215, 255, 0.08), transparent 55%, rgba(255, 77, 152, 0.07));
+  box-shadow:
+    0 0 0 1px rgba(68, 215, 255, 0.18),
+    0 0 22px rgba(68, 215, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
   transform: translateY(-1px);
 }
 
@@ -139,10 +160,13 @@ pre {
 .docs-content {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(14, 22, 36, 0.96), rgba(11, 18, 30, 0.94));
+  background:
+    linear-gradient(180deg, rgba(14, 22, 36, 0.96), rgba(11, 18, 30, 0.94)),
+    linear-gradient(135deg, rgba(68, 215, 255, 0.025), transparent 45%, rgba(255, 77, 152, 0.04));
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 28px;
   box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
 }
 
 .sidebar-card::before,
@@ -157,20 +181,38 @@ pre {
   opacity: 0.95;
 }
 
+.sidebar-card::after,
+.docs-content::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
 .sidebar-card {
   margin-top: 28px;
-  padding: 18px;
+  padding: 16px 18px;
 }
 
 .sidebar-card h3 {
-  margin: 10px 0 10px;
-  font-size: 22px;
+  margin: 8px 0 8px;
+  font-size: 14px;
+  letter-spacing: -0.02em;
 }
 
 .sidebar-card p {
   margin: 0;
   color: var(--muted);
-  line-height: 1.65;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.sidebar-card code {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.84rem;
 }
 
 .docs-main {
@@ -180,6 +222,14 @@ pre {
 .docs-header {
   max-width: 980px;
   margin: 0 auto 22px;
+  padding: 28px 30px 24px;
+  background:
+    linear-gradient(180deg, rgba(12, 21, 34, 0.88), rgba(9, 16, 27, 0.8)),
+    linear-gradient(120deg, rgba(68, 215, 255, 0.06), transparent 45%, rgba(255, 77, 152, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 28px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
 }
 
 .docs-header h1 {
@@ -216,6 +266,20 @@ pre {
 .docs-content h2 {
   margin-top: 2.2rem;
   font-size: 1.8rem;
+  position: relative;
+  padding-bottom: 0.45rem;
+}
+
+.docs-content h2::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 86px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--cyan), var(--pink));
+  box-shadow: 0 0 16px rgba(68, 215, 255, 0.18);
 }
 
 .docs-content h3 {
@@ -324,6 +388,10 @@ pre {
     padding: 22px;
   }
 
+  .docs-header {
+    padding: 22px 22px 20px;
+  }
+
   .docs-content {
     padding: 24px;
   }
@@ -347,5 +415,23 @@ pre {
   .docs-content {
     padding: 20px;
     border-radius: 22px;
+  }
+
+  .docs-header {
+    padding: 18px 18px 16px;
+    border-radius: 22px;
+  }
+
+  .sidebar-card {
+    padding: 14px 16px;
+  }
+
+  .sidebar-card h3 {
+    font-size: 1.45rem;
+  }
+
+  .sidebar-card p,
+  .sidebar-card code {
+    font-size: 0.82rem;
   }
 }
