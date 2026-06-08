@@ -14,8 +14,8 @@
 Weebarr helps self-hosted anime libraries stay ahead of each release season. It pulls seasonal anime from AniList, ranks and groups shows by popularity, resolves titles against Seerr/TMDB, and lets you request TV anime directly into Seerr.
 
 <p align="center">
-  <img src="src/web/static/img/SCR-20260605-degh.jpeg" alt="Weebarr dashboard in dark mode" width="48%"/>
-  <img src="src/web/static/img/SCR-20260605-deoi.jpeg" alt="Weebarr dashboard in light mode" width="48%"/>
+  <img src="src/web/static/img/SCR-20260605-degh.jpeg" alt="Weebarr dashboard in dark mode" width="100%"/>
+  <img src="src/web/static/img/SCR-20260605-deoi.jpeg" alt="Weebarr dashboard in light mode" width="100%"/>
 </p>
 
 <p align="center"><em>Dark mode</em> and <em>light mode</em> dashboard captures from the live app.</p>
