@@ -30,6 +30,12 @@ Weebarr brings together:
 
 In plain English: Weebarr helps you answer, “What anime is airing, do I already have it, and should I request it?”
 
+## Downloads and Links
+
+- [GitHub Repository](https://github.com/DeepDaddyTTV/weebarr)
+- [GitHub Pages Docs](https://deepdaddyttv.github.io/weebarr/)
+- [Docker Hub Image](https://hub.docker.com/repository/docker/deepdaddyttv/weebarr/general)
+
 ## Pages in This Wiki
 
 - [Features](Features.md)  

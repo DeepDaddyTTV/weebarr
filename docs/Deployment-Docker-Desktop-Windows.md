@@ -19,6 +19,15 @@ Before starting, make sure you have:
 
 The config folder is important. It keeps your Weebarr settings safe when the container updates or restarts.
 
+## Image Source
+
+You can pull Weebarr from either published registry:
+
+- `ghcr.io/deepdaddyttv/weebarr:latest`
+- `deepdaddyttv/weebarr:latest`
+
+This guide uses GHCR in the compose example, but swapping to Docker Hub is fine if you prefer it.
+
 ## Recommended Folder Layout
 
 Create a folder like this:
@@ -58,6 +67,12 @@ Change these values before starting:
 - `TZ`: your timezone
 - `SEERR_BASE_URL`: the URL Weebarr should use to reach Seerr
 - `SEERR_API_KEY`: your Seerr API key
+
+To use Docker Hub instead, change only the image line:
+
+```yaml
+image: deepdaddyttv/weebarr:latest
+```
 
 If you are just testing locally, you can leave `WEEBARR_PUBLIC_URL` as:
 

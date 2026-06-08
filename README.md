@@ -8,6 +8,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)](https://www.docker.com/)
 [![GHCR](https://img.shields.io/badge/image-ghcr.io%2Fdeepdaddyttv%2Fweebarr-blue)](https://github.com/DeepDaddyTTV/weebarr/pkgs/container/weebarr)
+[![Docker Hub](https://img.shields.io/badge/image-docker.io%2Fdeepdaddyttv%2Fweebarr-2496ED)](https://hub.docker.com/repository/docker/deepdaddyttv/weebarr/general)
 
 </div>
 
@@ -65,6 +66,12 @@ services:
     restart: unless-stopped
 ```
 
+If you prefer Docker Hub, use this image instead:
+
+```yaml
+image: deepdaddyttv/weebarr:latest
+```
+
 Start it:
 
 ```bash
@@ -83,6 +90,8 @@ The first time you open the app, Weebarr walks you through setup. You can create
 
 The full documentation site is published from the repo `docs/` folder to GitHub Pages:
 
+- [Docker Hub](https://hub.docker.com/repository/docker/deepdaddyttv/weebarr/general)
+- [GitHub Repository](https://github.com/DeepDaddyTTV/weebarr)
 - [Documentation Home](https://deepdaddyttv.github.io/weebarr/)
 - [Docker Desktop on Windows](https://deepdaddyttv.github.io/weebarr/Deployment-Docker-Desktop-Windows)
 - [Docker Desktop on Linux](https://deepdaddyttv.github.io/weebarr/Deployment-Docker-Desktop-Linux)

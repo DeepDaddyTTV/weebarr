@@ -11,6 +11,15 @@ If you are new to Docker, use one of these first:
 - [Docker Desktop on Windows](Deployment-Docker-Desktop-Windows.md)
 - [Docker Desktop on Linux](Deployment-Docker-Desktop-Linux.md)
 
+## Image Registries
+
+Weebarr is intended to be available from both:
+
+- `ghcr.io/deepdaddyttv/weebarr`
+- `deepdaddyttv/weebarr`
+
+Use whichever registry fits your environment better.
+
 ## Native Docker Compose on Linux
 
 If you use Docker Engine directly, Weebarr runs normally with Docker Compose.
@@ -33,6 +42,12 @@ services:
     volumes:
       - /opt/weebarr/config:/config
     restart: unless-stopped
+```
+
+If you want Docker Hub instead, change the image to:
+
+```yaml
+image: deepdaddyttv/weebarr:latest
 ```
 
 Before starting, change:
