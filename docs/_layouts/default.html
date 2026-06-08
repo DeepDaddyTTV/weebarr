@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="{{ '/assets/img/weebarr-mark.png' | relative_url }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+    {% seo %}
+  </head>
+  <body>
+    <div class="docs-shell">
+      <aside class="docs-sidebar">
+        <a class="brand" href="{{ '/' | relative_url }}">
+          <img src="{{ '/assets/img/weebarr-wordmark.png' | relative_url }}" alt="Weebarr">
+          <span>Docs</span>
+        </a>
+
+        <nav class="docs-nav" aria-label="Documentation">
+          <a href="{{ '/' | relative_url }}" class="{% if page.url == '/' %}active{% endif %}">Home</a>
+          <a href="{{ '/Features/' | relative_url }}" class="{% if page.url contains '/Features/' %}active{% endif %}">Features</a>
+          <a href="{{ '/Settings/' | relative_url }}" class="{% if page.url contains '/Settings/' %}active{% endif %}">Settings</a>
+          <a href="{{ '/API-Reference/' | relative_url }}" class="{% if page.url contains '/API-Reference/' %}active{% endif %}">API</a>
+          <a href="{{ '/Theme-Template/' | relative_url }}" class="{% if page.url contains '/Theme-Template/' %}active{% endif %}">Themes</a>
+          <a href="{{ '/Deployment-Docker-Desktop-Windows/' | relative_url }}" class="{% if page.url contains '/Deployment-Docker-Desktop-Windows/' %}active{% endif %}">Windows</a>
+          <a href="{{ '/Deployment-Docker-Desktop-Linux/' | relative_url }}" class="{% if page.url contains '/Deployment-Docker-Desktop-Linux/' %}active{% endif %}">Linux</a>
+          <a href="{{ '/Deployment-Other-Options/' | relative_url }}" class="{% if page.url contains '/Deployment-Other-Options/' %}active{% endif %}">Other Deploys</a>
+          <a href="{{ '/Troubleshooting/' | relative_url }}" class="{% if page.url contains '/Troubleshooting/' %}active{% endif %}">Troubleshooting</a>
+        </nav>
+
+        <div class="sidebar-card">
+          <p class="eyebrow">Quick Start</p>
+          <h3>Default port</h3>
+          <p>Expose Weebarr on <code>18080:8888</code> and open <code>http://localhost:18080</code>.</p>
+        </div>
+      </aside>
+
+      <main class="docs-main">
+        <header class="docs-header">
+          <p class="eyebrow">Weebarr Documentation</p>
+          <h1>{{ page.title }}</h1>
+          <p>{{ site.description }}</p>
+        </header>
+
+        <article class="docs-content">
+          {{ content }}
+        </article>
+      </main>
+    </div>
+  </body>
+</html>

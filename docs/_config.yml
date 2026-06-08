@@ -1,5 +1,13 @@
 title: Weebarr Docs
 description: Seasonal anime discovery and Seerr request management
-theme: jekyll-theme-cayman
 markdown: kramdown
 permalink: pretty
+baseurl: /weebarr
+plugins:
+  - jekyll-seo-tag
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: default
