@@ -27,6 +27,7 @@ body {
 }
 
 body {
+  position: relative;
   font-family: "Manrope", system-ui, sans-serif;
   color: var(--text);
   background:
@@ -41,6 +42,18 @@ body {
     28px 28px,
     28px 28px,
     auto;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(68, 215, 255, 0.16), transparent 28%),
+    radial-gradient(circle at 84% 14%, rgba(155, 107, 255, 0.12), transparent 26%),
+    radial-gradient(circle at 82% 84%, rgba(255, 77, 152, 0.14), transparent 30%);
+  opacity: 0.95;
 }
 
 a {
@@ -58,6 +71,7 @@ pre {
 }
 
 .docs-shell {
+  position: relative;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
@@ -68,9 +82,12 @@ pre {
   top: 0;
   height: 100vh;
   padding: 28px 22px;
-  background: linear-gradient(180deg, rgba(10, 17, 29, 0.96), rgba(7, 13, 22, 0.94));
+  background:
+    linear-gradient(180deg, rgba(10, 17, 29, 0.96), rgba(7, 13, 22, 0.94)),
+    radial-gradient(circle at top left, rgba(68, 215, 255, 0.09), transparent 38%);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: inset -1px 0 0 rgba(68, 215, 255, 0.08);
+  backdrop-filter: blur(18px);
 }
 
 .brand {
@@ -105,7 +122,7 @@ pre {
   padding: 12px 14px;
   color: var(--text);
   font-weight: 700;
-  background: rgba(255, 255, 255, 0.02);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
@@ -120,10 +137,24 @@ pre {
 
 .sidebar-card,
 .docs-content {
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(180deg, rgba(14, 22, 36, 0.96), rgba(11, 18, 30, 0.94));
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 28px;
   box-shadow: var(--shadow);
+}
+
+.sidebar-card::before,
+.docs-content::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top left, rgba(68, 215, 255, 0.08), transparent 34%),
+    radial-gradient(circle at top right, rgba(255, 77, 152, 0.08), transparent 28%);
+  opacity: 0.95;
 }
 
 .sidebar-card {
@@ -193,10 +224,13 @@ pre {
 }
 
 .docs-content p,
-.docs-content li {
+.docs-content li,
+.docs-content td,
+.docs-content th {
   color: var(--muted);
   font-size: 1.02rem;
   line-height: 1.8;
+  overflow-wrap: anywhere;
 }
 
 .docs-content strong {
@@ -218,12 +252,16 @@ pre {
 }
 
 .docs-content pre {
+  max-width: 100%;
   overflow-x: auto;
   padding: 18px;
   color: #e7f8ff;
   background: #0b1320;
   border: 1px solid rgba(68, 215, 255, 0.18);
   border-radius: 18px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .docs-content code {
@@ -231,6 +269,8 @@ pre {
   color: #dff8ff;
   background: rgba(68, 215, 255, 0.08);
   border-radius: 8px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .docs-content pre code {
@@ -239,9 +279,11 @@ pre {
 }
 
 .docs-content table {
+  display: block;
   width: 100%;
   border-collapse: collapse;
   margin: 1.5rem 0;
+  overflow-x: auto;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
