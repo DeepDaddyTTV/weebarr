@@ -127,9 +127,11 @@ def test_settings_page_renders(tmp_path):
     assert 'data-settings-tab="weebarr"' in response.text
     assert 'data-settings-tab="automation"' in response.text
     assert 'data-settings-tab="authentication"' in response.text
+    assert 'data-settings-tab="api"' in response.text
     assert 'data-settings-tab="connections"' in response.text
     assert "Season Auto-Requests" in response.text
     assert "Named Theme" in response.text
+    assert "Automation API Key" in response.text
     assert 'data-ui-select="settingsRequestSeasons"' in response.text
     assert 'data-ui-select="settingsContentFilterMode"' in response.text
     assert 'data-ui-select="settingsSeriesType"' in response.text
@@ -247,6 +249,23 @@ def test_settings_store_backfills_legacy_automation_hours(tmp_path):
 
     assert current.automation_scan_interval_days == 9
     assert current.automation_scan_interval_hours == 0
+
+
+def test_api_key_regeneration_updates_access_summary(tmp_path):
+    client = authenticated_client(tmp_path)
+
+    response = client.post("/api/settings/access/api-key/regenerate")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["apiKey"].startswith("weebarr_")
+    assert payload["access"]["apiKeyEnabled"] is True
+    assert payload["access"]["apiKeyPreview"].startswith("••••")
+
+    refreshed = client.get("/api/setup/status")
+    assert refreshed.status_code == 200
+    assert refreshed.json()["apiKeyEnabled"] is True
 
 
 def test_settings_endpoint_saves_connection(tmp_path):

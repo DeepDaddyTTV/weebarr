@@ -6,7 +6,7 @@ services:
       TZ: UTC
       # Required when Weebarr is exposed through a reverse proxy, tunnel, HTTPS,
       # or when Plex sign-in is enabled.
-      WEEBARR_PUBLIC_URL: ${WEEBARR_PUBLIC_URL:-http://localhost:8080}
+      WEEBARR_PUBLIC_URL: ${WEEBARR_PUBLIC_URL:-http://localhost:18080}
       # Optional one-time bootstrap secret for intentionally claiming a brand-new
       # public instance. Leave blank for local-only first-run setup.
       WEEBARR_BOOTSTRAP_TOKEN: ${WEEBARR_BOOTSTRAP_TOKEN:-}
@@ -19,7 +19,7 @@ services:
       AUDIO_CACHE_TTL_SECONDS: ${AUDIO_CACHE_TTL_SECONDS:-86400}
       AUDIO_LOOKUP_TIMEOUT_SECONDS: ${AUDIO_LOOKUP_TIMEOUT_SECONDS:-6}
     ports:
-      - "8080:8888"
+      - "18080:8888"
     volumes:
       - ./config:/config
     restart: unless-stopped

@@ -91,6 +91,7 @@
             <button class="settings-tab active" type="button" data-settings-tab="weebarr">Weebarr</button>
             <button class="settings-tab" type="button" data-settings-tab="automation">Automation</button>
             <button class="settings-tab" type="button" data-settings-tab="authentication">Authentication</button>
+            <button class="settings-tab" type="button" data-settings-tab="api">API</button>
             <button class="settings-tab" type="button" data-settings-tab="connections">Connections</button>
           </nav>
 
@@ -413,6 +414,79 @@
                 </button>
               </div>
             </form>
+          </section>
+
+          <section class="settings-panel settings-section" data-settings-panel="api" hidden>
+            <div class="panel-heading">
+              <div>
+                <span class="panel-eyebrow">API</span>
+                <h2>Automation API Key</h2>
+              </div>
+              <span id="apiKeyStatusPill" class="status-pill {{ 'connected' if access.apiKeyEnabled else 'missing' }}">
+                {{ "Enabled" if access.apiKeyEnabled else "Not generated" }}
+              </span>
+            </div>
+
+            <div id="apiSettingsBanner" class="status-banner" hidden></div>
+            <div class="settings-section-grid">
+              <div class="settings-subpanel">
+                <div class="settings-subheading">
+                  <h3>Manage API Access</h3>
+                  <p>Use this key for limited external automation such as health checks, seasonal reads, and request creation. It is not a full admin token.</p>
+                </div>
+                <div class="form-grid">
+                  <label class="full-width">
+                    <span>Current API Key Preview</span>
+                    <input id="currentAppApiKeyPreview" type="text" readonly value="{{ access.apiKeyPreview or 'Not generated yet' }}" />
+                    <small>The full saved key is never shown again after generation. Regenerate it if you think it was exposed.</small>
+                  </label>
+
+                  <label id="generatedAppApiKeyGroup" class="full-width" hidden>
+                    <span>New API Key</span>
+                    <input id="generatedAppApiKey" type="text" readonly value="" />
+                    <small>Copy and store this now. Weebarr only shows the full new key once.</small>
+                  </label>
+                </div>
+
+                <div class="settings-actions settings-actions-inline">
+                  <button id="regenerateAppApiKeyBtn" class="refresh-btn" type="button">
+                    <span class="action-btn-icon action-btn-icon-refresh" aria-hidden="true"></span>
+                    <span>{{ "Regenerate API Key" if access.apiKeyEnabled else "Generate API Key" }}</span>
+                  </button>
+                  <button id="copyAppApiKeyBtn" class="secondary-btn" type="button" hidden>Copy New Key</button>
+                </div>
+              </div>
+
+              <div class="settings-subpanel">
+                <div class="settings-subheading">
+                  <h3>Allowed Uses</h3>
+                  <p>The automation API key is intentionally scoped down so it is safer to use outside the browser session.</p>
+                </div>
+                <div class="settings-note">
+                  <p>Allowed: health checks, public config reads, seasonal reads, character reads, and request creation.</p>
+                  <p>Not allowed: first-run setup, local account changes, Weebarr settings writes, theme imports, or Seerr connection changes.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-summary-grid settings-summary-grid-compact settings-summary-grid-four-up">
+              <div class="pill-card">
+                <span>API Key Status</span>
+                <strong id="apiKeyEnabledSummary">{{ "Enabled" if access.apiKeyEnabled else "Not generated" }}</strong>
+              </div>
+              <div class="pill-card">
+                <span>Current Preview</span>
+                <strong id="apiKeyPreviewSummary">{{ access.apiKeyPreview or "Not generated" }}</strong>
+              </div>
+              <div class="pill-card">
+                <span>Scope</span>
+                <strong>Read + request only</strong>
+              </div>
+              <div class="pill-card">
+                <span>Rotate When</span>
+                <strong>Compromised or shared</strong>
+              </div>
+            </div>
           </section>
 
           <section id="connections" class="settings-panel settings-section" data-settings-panel="connections" hidden>

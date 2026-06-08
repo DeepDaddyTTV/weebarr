@@ -20,19 +20,21 @@ Weebarr helps self-hosted anime libraries stay ahead of each release season. It 
 
 <p align="center"><em>Dark mode</em> and <em>light mode</em> dashboard captures from the live app.</p>
 
-## Wiki
+## Documentation
 
-The repo includes a full Markdown wiki under [wiki/Home.md](wiki/Home.md).
+The repo now publishes its documentation from the [`docs/`](docs/) folder so GitHub Pages can expose only the docs site instead of the whole repository tree.
 
 Quick links:
 
-- [Feature Reference](wiki/Feature-Reference.md)
-- [Settings Reference](wiki/Settings-Reference.md)
-- [API Reference](wiki/API-Reference.md)
-- [Docker Desktop on Windows](wiki/Deployment-Docker-Desktop-Windows.md)
-- [Docker Desktop on Linux](wiki/Deployment-Docker-Desktop-Linux.md)
-- [Other Deployment Options](wiki/Deployment-Other-Options.md)
-- [Troubleshooting](wiki/Troubleshooting.md)
+- [Home](docs/index.md)
+- [Feature Reference](docs/Features.md)
+- [Settings Reference](docs/Settings.md)
+- [Theme Template](docs/Theme-Template.md)
+- [API Reference](docs/API-Reference.md)
+- [Docker Desktop on Windows](docs/Deployment-Docker-Desktop-Windows.md)
+- [Docker Desktop on Linux](docs/Deployment-Docker-Desktop-Linux.md)
+- [Other Deployment Options](docs/Deployment-Other-Options.md)
+- [Troubleshooting](docs/Troubleshooting.md)
 
 ## Why Weebarr?
 
@@ -56,13 +58,13 @@ services:
       SEERR_BASE_URL: http://seerr:5055
       SEERR_API_KEY: your-seerr-api-key
     ports:
-      - "8080:8888"
+      - "18080:8888"
     volumes:
       - ./config:/config
     restart: unless-stopped
 ```
 
-Open `http://localhost:8080`.
+Open `http://localhost:18080`.
 
 On a brand-new install, Weebarr starts with a first-run access wizard. By default, first-run setup is only available from a direct local/private-network connection. If you intentionally need to claim a brand-new public instance through a reverse proxy or tunnel, configure `WEEBARR_BOOTSTRAP_TOKEN` first and use that bootstrap path during setup.
 
@@ -126,7 +128,7 @@ Weebarr is configured with environment variables so it works cleanly in Docker C
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
-WEEBARR_PORT=8080 SEERR_BASE_URL=http://localhost:5055 SEERR_API_KEY=change-me python -m src.main
+WEEBARR_PORT=18080 SEERR_BASE_URL=http://localhost:5055 SEERR_API_KEY=change-me python -m src.main
 ```
 
 Run tests:

@@ -15,7 +15,7 @@ services:
       SEERR_BASE_URL: http://seerr:5055
       SEERR_API_KEY: change-me
     ports:
-      - "8080:8888"
+      - "18080:8888"
     volumes:
       - /opt/weebarr/config:/config
     restart: unless-stopped
@@ -67,7 +67,7 @@ Example:
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
-WEEBARR_PUBLIC_URL=http://localhost:8080 \
+WEEBARR_PUBLIC_URL=http://localhost:18080 \
 SEERR_BASE_URL=http://localhost:5055 \
 SEERR_API_KEY=change-me \
 python -m src.main
@@ -90,4 +90,3 @@ Regardless of platform:
 3. recreate the container
 4. verify `/api/health`
 5. confirm the UI and Seerr integration still work
-

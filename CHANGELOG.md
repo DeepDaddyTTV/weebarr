@@ -2,6 +2,20 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.37] - 2026-06-08
+
+### Added
+
+- Added a dedicated `API` settings tab for the automation API key, including one-click generation or regeneration and a one-time reveal of the new key value.
+- Added a GitHub Pages deployment workflow that publishes only the repo `docs/` folder as the public documentation site.
+- Added a public theme-template documentation page and a downloadable `docs/theme-reference.json` manifest for community theme authors.
+
+### Changed
+
+- Promoted the new markdown documentation set into the repo `docs/` folder and updated the README to point at the Pages-backed docs instead of the old repo wiki.
+- Changed the default documented host port from `8080` to `18080` across compose examples, local testing docs, and deployment guides while keeping the container listen port at `8888`.
+- Updated the settings model documentation to reflect the new `API` tab and the automation cadence `days + hours` format.
+
 ## [0.1.36] - 2026-06-06
 
 ### Fixed

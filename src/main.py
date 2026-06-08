@@ -36,8 +36,10 @@ from src.weebarr.auth import (
     create_plex_pin,
     fetch_plex_pin,
     fetch_plex_user,
+    generate_api_key,
     generate_session_secret,
     hash_secret,
+    masked_preview,
     plex_auth_user,
     plex_user_allowed,
     verify_api_key,
@@ -1227,6 +1229,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "success": True,
             "access": settings_store.access_summary(),
             "authMode": updated.effective_auth_mode,
+        }
+
+    @app.post("/api/settings/access/api-key/regenerate")
+    async def regenerate_app_api_key() -> dict[str, Any]:
+        fresh_key = generate_api_key()
+        settings_store.save_auth(
+            {
+                "api_key_hash": hash_secret(fresh_key),
+                "api_key_preview": masked_preview(fresh_key),
+            }
+        )
+        return {
+            "success": True,
+            "access": settings_store.access_summary(),
+            "apiKey": fresh_key,
         }
 
     @app.put("/api/settings/weebarr")

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "weebarr"
-version = "0.1.36"
+version = "0.1.37"
 description = "Seasonal anime discovery and Seerr request dashboard"
 readme = "README.md"
 license = {text = "GPL-3.0"}
@@ -54,7 +54,7 @@ docs = [
 Homepage = "https://github.com/DeepDaddyTTV/weebarr"
 Repository = "https://github.com/DeepDaddyTTV/weebarr"
 Issues = "https://github.com/DeepDaddyTTV/weebarr/issues"
-Documentation = "https://github.com/DeepDaddyTTV/weebarr/blob/main/README.md"
+Documentation = "https://deepdaddyttv.github.io/weebarr/"
 
 [project.scripts]
 weebarr = "src.main:cli"

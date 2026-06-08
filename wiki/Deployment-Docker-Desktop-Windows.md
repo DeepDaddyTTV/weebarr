@@ -26,12 +26,12 @@ services:
     container_name: weebarr
     environment:
       TZ: America/New_York
-      WEEBARR_PUBLIC_URL: http://localhost:8080
+      WEEBARR_PUBLIC_URL: http://localhost:18080
       SEERR_BASE_URL: http://seerr:5055
       SEERR_API_KEY: change-me
       SEERR_REQUEST_SEASONS: all
     ports:
-      - "8080:8888"
+      - "18080:8888"
     volumes:
       - ./config:/config
     restart: unless-stopped
@@ -49,7 +49,7 @@ docker compose up -d
 3. Open:
 
 ```text
-http://localhost:8080
+http://localhost:18080
 ```
 
 4. Complete the first-run setup:
@@ -94,4 +94,3 @@ If you expose Weebarr through a reverse proxy, tunnel, or HTTPS endpoint:
 - set `WEEBARR_PUBLIC_URL` to the public URL
 - keep TLS and rate limiting at the edge
 - avoid exposing the raw container port directly when possible
-

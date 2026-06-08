@@ -10,6 +10,7 @@ const validSettingsTabs = new Set([
   "weebarr",
   "automation",
   "authentication",
+  "api",
   "connections",
 ]);
 
@@ -41,8 +42,10 @@ const els = {
   automationBanner: document.querySelector("#automationSettingsBanner"),
   connectionBanner: document.querySelector("#settingsBanner"),
   accessBanner: document.querySelector("#accessSettingsBanner"),
+  apiBanner: document.querySelector("#apiSettingsBanner"),
   connectionStatusPill: document.querySelector("#settingsStatusPill"),
   localAccountStatusPill: document.querySelector("#localAccountStatusPill"),
+  apiKeyStatusPill: document.querySelector("#apiKeyStatusPill"),
   weebarrForm: document.querySelector("#weebarrForm"),
   automationForm: document.querySelector("#automationForm"),
   connectionForm: document.querySelector("#connectionForm"),
@@ -85,6 +88,13 @@ const els = {
     "#localAccountConfirmPassword",
   ),
   currentAuthSignIn: document.querySelector("#currentAuthSignIn"),
+  currentAppApiKeyPreview: document.querySelector("#currentAppApiKeyPreview"),
+  generatedAppApiKeyGroup: document.querySelector("#generatedAppApiKeyGroup"),
+  generatedAppApiKey: document.querySelector("#generatedAppApiKey"),
+  regenerateAppApiKeyBtn: document.querySelector("#regenerateAppApiKeyBtn"),
+  copyAppApiKeyBtn: document.querySelector("#copyAppApiKeyBtn"),
+  apiKeyEnabledSummary: document.querySelector("#apiKeyEnabledSummary"),
+  apiKeyPreviewSummary: document.querySelector("#apiKeyPreviewSummary"),
   currentActiveTheme: document.querySelector("#currentActiveTheme"),
   currentContentFilter: document.querySelector("#currentContentFilter"),
   currentStrictMonitoring: document.querySelector("#currentStrictMonitoring"),
@@ -552,6 +562,30 @@ function updateAccess(access) {
   if (els.currentAuthSignIn) {
     els.currentAuthSignIn.textContent = signInLabel(access);
   }
+  if (els.currentAppApiKeyPreview) {
+    els.currentAppApiKeyPreview.value = access.apiKeyPreview || "Not generated yet";
+  }
+  if (els.apiKeyEnabledSummary) {
+    els.apiKeyEnabledSummary.textContent = access.apiKeyEnabled
+      ? "Enabled"
+      : "Not generated";
+  }
+  if (els.apiKeyPreviewSummary) {
+    els.apiKeyPreviewSummary.textContent =
+      access.apiKeyPreview || "Not generated";
+  }
+  if (els.apiKeyStatusPill) {
+    els.apiKeyStatusPill.textContent = access.apiKeyEnabled
+      ? "Enabled"
+      : "Not generated";
+    els.apiKeyStatusPill.classList.toggle("connected", access.apiKeyEnabled);
+    els.apiKeyStatusPill.classList.toggle("missing", !access.apiKeyEnabled);
+  }
+  if (els.regenerateAppApiKeyBtn) {
+    els.regenerateAppApiKeyBtn.innerHTML = access.apiKeyEnabled
+      ? '<span class="action-btn-icon action-btn-icon-refresh" aria-hidden="true"></span><span>Regenerate API Key</span>'
+      : '<span class="action-btn-icon action-btn-icon-refresh" aria-hidden="true"></span><span>Generate API Key</span>';
+  }
   if (els.authSidebarStatus) {
     const authDescription = access.localAuthConfigured && access.plexLoginEnabled
       ? "Connected with both local and Plex sign-in available."
@@ -574,6 +608,19 @@ function updateAccess(access) {
     els.localAccountStatusPill.textContent = configured ? "Configured" : "Not set";
     els.localAccountStatusPill.classList.toggle("connected", configured);
     els.localAccountStatusPill.classList.toggle("missing", !configured);
+  }
+}
+
+function showGeneratedApiKey(apiKey = "") {
+  const hasValue = Boolean(apiKey);
+  if (els.generatedAppApiKeyGroup) {
+    els.generatedAppApiKeyGroup.hidden = !hasValue;
+  }
+  if (els.generatedAppApiKey) {
+    els.generatedAppApiKey.value = apiKey || "";
+  }
+  if (els.copyAppApiKeyBtn) {
+    els.copyAppApiKeyBtn.hidden = !hasValue;
   }
 }
 
@@ -773,6 +820,31 @@ async function saveLocalAccount(event) {
     "success",
   );
   toast("Local account saved.");
+}
+
+async function regenerateAppApiKey() {
+  clearBanner(els.apiBanner);
+  const response = await fetch("/api/settings/access/api-key/regenerate", {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  const result = await response.json();
+  updateAccess(result.access || {});
+  showGeneratedApiKey(result.apiKey || "");
+  showBanner(
+    els.apiBanner,
+    "A new automation API key was generated. Copy it now because the full value will only be shown once.",
+    "success",
+  );
+  toast("Automation API key rotated.");
+}
+
+async function copyGeneratedApiKey() {
+  if (!els.generatedAppApiKey?.value) return;
+  await navigator.clipboard.writeText(els.generatedAppApiKey.value);
+  toast("API key copied.");
 }
 
 async function testConnection() {
@@ -986,6 +1058,26 @@ if (els.accessForm) {
   });
 }
 
+if (els.regenerateAppApiKeyBtn) {
+  els.regenerateAppApiKeyBtn.addEventListener("click", async () => {
+    try {
+      await regenerateAppApiKey();
+    } catch (error) {
+      showBanner(els.apiBanner, `Key rotation failed. ${error.message}`, "error");
+    }
+  });
+}
+
+if (els.copyAppApiKeyBtn) {
+  els.copyAppApiKeyBtn.addEventListener("click", async () => {
+    try {
+      await copyGeneratedApiKey();
+    } catch (error) {
+      showBanner(els.apiBanner, `Copy failed. ${error.message}`, "error");
+    }
+  });
+}
+
 if (els.forceQualityProfile) {
   els.forceQualityProfile.addEventListener("change", () => {
     applyConnectionOverrideState();
@@ -1034,6 +1126,7 @@ initializeCustomSelects();
 updateWeebarr(state.weebarr);
 updateAccess(state.access);
 updateConnection(state.connection);
+showGeneratedApiKey("");
 if (window.WeebarrTheme) {
   window.WeebarrTheme.bindThemeButtons();
 }
