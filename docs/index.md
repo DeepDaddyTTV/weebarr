@@ -53,6 +53,9 @@ In plain English: Weebarr helps you answer, “What anime is airing, do I alread
 - [Docker Desktop on Linux](Deployment-Docker-Desktop-Linux.md)  
   Recommended if you are running Docker Desktop on Linux.
 
+- [Docker Hub](Deployment-Docker-Hub.md)  
+  Use the published Docker Hub image directly if that is your preferred registry.
+
 - [Other Deployment Options](Deployment-Other-Options.md)  
   For Docker Engine, Portainer, reverse proxies, Cloudflare Tunnel, custom images, and development use.
 
@@ -69,6 +72,7 @@ If this is your first time setting up Weebarr, use this order:
 1. Pick one deployment guide:
    - [Docker Desktop on Windows](Deployment-Docker-Desktop-Windows.md)
    - [Docker Desktop on Linux](Deployment-Docker-Desktop-Linux.md)
+   - [Docker Hub](Deployment-Docker-Hub.md)
    - [Other Deployment Options](Deployment-Other-Options.md)
 2. Start Weebarr and complete the first-run setup.
 3. Go to **Settings**.
