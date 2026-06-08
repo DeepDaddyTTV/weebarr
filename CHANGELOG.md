@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.38] - 2026-06-08
+
+### Fixed
+
+- Fixed seasonal anime card selection so clicking a normal card surface reliably opens and switches the spotlight again instead of being ignored by the card click guard.
+
 ## [0.1.37] - 2026-06-08
 
 ### Added

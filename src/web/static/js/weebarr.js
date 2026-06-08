@@ -1134,11 +1134,12 @@ async function requestItem(id) {
 
 function shouldIgnoreCardToggle(target) {
   if (!(target instanceof Element)) return false;
-  return Boolean(
-    target.closest(
-      "a[href], button, input, select, textarea, summary, [role='button'], [contenteditable='true']",
-    ),
+  const interactive = target.closest(
+    "a[href], button, input, select, textarea, summary, [role='button'], [contenteditable='true']",
   );
+  if (!interactive) return false;
+  if (interactive.matches(".card-surface,[data-select]")) return false;
+  return true;
 }
 
 els.refresh.addEventListener("click", () => {
