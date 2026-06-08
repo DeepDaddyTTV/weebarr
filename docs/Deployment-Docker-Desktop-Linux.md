@@ -28,6 +28,8 @@ You can pull Weebarr from either published registry:
 
 This guide uses GHCR in the example, but Docker Hub works as a drop-in replacement.
 
+If you want to use Docker Desktop's UI instead of Compose first, you can also go to `Images`, pull `deepdaddyttv/weebarr:latest`, and create the container from there.
+
 ## Recommended Folder Layout
 
 Create a folder like this:
