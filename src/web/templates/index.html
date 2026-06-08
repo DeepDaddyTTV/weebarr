@@ -13,7 +13,10 @@
       <aside class="sidebar" aria-label="Weebarr navigation">
         <a class="brand" href="/seasonal" aria-label="Weebarr home">
           <span class="brand-lockup">
-            <img class="brand-wordmark" src="/static/img/weebarr-wordmark.svg" alt="Weebarr" />
+            <span class="wordmark-swap brand-wordmark-swap" role="img" aria-label="Weebarr">
+              <img class="brand-wordmark wordmark-dark" src="/static/img/weebarr-wordmark.svg" alt="" aria-hidden="true" />
+              <img class="brand-wordmark wordmark-light" src="/static/img/weebarr-wordmark-light.png" alt="" aria-hidden="true" />
+            </span>
             <small>v{{ version }}</small>
           </span>
         </a>

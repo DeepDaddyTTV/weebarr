@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.39] - 2026-06-08
+
+### Changed
+
+- Added a dedicated light-theme Weebarr wordmark so the logo text switches to black in light mode while preserving the colored `W` mark.
+- Refreshed the README and GitHub Pages docs with the new dark, light, login, requests, and settings screenshots.
+
 ## [0.1.38] - 2026-06-08
 
 ### Fixed

@@ -12,7 +12,10 @@
     <main class="auth-screen">
       <section class="auth-panel auth-panel-login">
         <div class="auth-brand">
-          <img class="auth-wordmark" src="/static/img/weebarr-wordmark.svg?v={{ asset_version }}" alt="Weebarr" />
+          <span class="wordmark-swap auth-wordmark-swap" role="img" aria-label="Weebarr">
+            <img class="auth-wordmark wordmark-dark" src="/static/img/weebarr-wordmark.svg?v={{ asset_version }}" alt="" aria-hidden="true" />
+            <img class="auth-wordmark wordmark-light" src="/static/img/weebarr-wordmark-light.png?v={{ asset_version }}" alt="" aria-hidden="true" />
+          </span>
           <p>
             {% if local_login_enabled and plex_login_enabled %}
             Sign in to the single-admin anime request dashboard with your Weebarr password or Plex.

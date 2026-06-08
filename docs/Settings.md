@@ -22,6 +22,8 @@ The Settings page has five tabs:
 
 The **Weebarr** tab controls general app behavior.
 
+![Weebarr settings tab](assets/img/settings-weebarr.jpeg)
+
 ### Theme Mode
 
 Theme Mode controls light and dark behavior for your current browser.
@@ -81,6 +83,8 @@ Use Strict Monitoring if you want Weebarr to be more careful with sequels.
 The **Automation** tab controls auto-requesting.
 
 Automation is optional. You can use Weebarr manually without enabling it.
+
+![Automation settings tab](assets/img/settings-automation.jpeg)
 
 ### Enabled Buckets
 
@@ -142,6 +146,8 @@ The **Authentication** tab manages admin access.
 
 Weebarr is built for a single-admin setup, not a large multi-user permission system.
 
+![Authentication settings tab](assets/img/settings-authentication.jpeg)
+
 ### Local Account
 
 A local account uses:
@@ -164,6 +170,8 @@ When both local login and Plex login are configured, either sign-in method can b
 The **API** tab manages the automation API key.
 
 This key is meant for limited external access such as:
+
+![API settings tab](assets/img/settings-api.jpeg)
 
 - health checks
 - seasonal data reads
@@ -195,6 +203,8 @@ The new full key is only shown once after regeneration, so save it somewhere sec
 The **Connections** tab is where Weebarr connects to Seerr.
 
 This is the most important tab during first setup.
+
+![Connections settings tab](assets/img/settings-connections.jpeg)
 
 ### Required Inputs
 

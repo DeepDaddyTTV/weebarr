@@ -12,7 +12,10 @@
     <main class="auth-screen">
       <section class="auth-panel auth-panel-setup">
         <div class="auth-brand">
-          <img class="auth-wordmark" src="/static/img/weebarr-wordmark.svg?v={{ asset_version }}" alt="Weebarr" />
+          <span class="wordmark-swap auth-wordmark-swap" role="img" aria-label="Weebarr">
+            <img class="auth-wordmark wordmark-dark" src="/static/img/weebarr-wordmark.svg?v={{ asset_version }}" alt="" aria-hidden="true" />
+            <img class="auth-wordmark wordmark-light" src="/static/img/weebarr-wordmark-light.png?v={{ asset_version }}" alt="" aria-hidden="true" />
+          </span>
           <p>First-run setup is only available from a local or private-network address. Choose whether this single-admin instance should use a local password or a Plex-only sign-in.</p>
         </div>
 

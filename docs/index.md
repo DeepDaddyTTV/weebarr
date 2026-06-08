@@ -10,6 +10,12 @@ Weebarr is a seasonal anime dashboard for people who run their own media setup. 
 
 You do not need to understand every setting before using it. Start with the deployment guide for your system, connect Weebarr to Seerr, then use the Seasonal page as your main dashboard.
 
+## Interface Preview
+
+![Weebarr dark mode dashboard](assets/img/dark-mode.jpeg)
+
+![Weebarr light mode dashboard](assets/img/light-mode.jpeg)
+
 ## What Weebarr Does
 
 Weebarr brings together:
@@ -87,6 +93,8 @@ Automation can request shows for you based on the buckets you choose. It intenti
 ### Settings
 
 Settings control themes, content filtering, automation, login options, API-key access, and how Weebarr talks to Seerr.
+
+![Weebarr settings overview](assets/img/settings-weebarr.jpeg)
 
 ## Before You Start
 

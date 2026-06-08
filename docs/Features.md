@@ -12,6 +12,8 @@ The **Seasonal** page is the main dashboard.
 
 This is where you browse anime by season, see what is already available, and request anything you want Seerr to handle.
 
+![Seasonal page overview](assets/img/dark-mode.jpeg)
+
 You can use it to:
 
 - choose a season and year
@@ -83,6 +85,8 @@ Use this view when you are deciding whether a show is worth requesting.
 The **Requests** page shows requests made through Weebarr.
 
 It is not a full copy of your Seerr request history. If you requested something directly in Seerr, it may not appear here.
+
+![Requests page](assets/img/requests-page.jpeg)
 
 Each row can show:
 
@@ -210,6 +214,8 @@ You can use:
 - both local and Plex login
 
 If both are enabled, either login method can be used.
+
+![Login page](assets/img/login.jpeg)
 
 ## Security Basics
 
