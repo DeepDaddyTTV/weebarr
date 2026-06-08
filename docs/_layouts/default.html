@@ -22,12 +22,25 @@
         <nav class="docs-nav" aria-label="Documentation">
           <a href="{{ '/' | relative_url }}" class="{% if page.url == '/' %}active{% endif %}">Home</a>
           <a href="{{ '/Features/' | relative_url }}" class="{% if page.url contains '/Features/' %}active{% endif %}">Features</a>
-          <a href="{{ '/Settings/' | relative_url }}" class="{% if page.url contains '/Settings/' %}active{% endif %}">Settings</a>
-          <a href="{{ '/API-Reference/' | relative_url }}" class="{% if page.url contains '/API-Reference/' %}active{% endif %}">API</a>
-          <a href="{{ '/Theme-Template/' | relative_url }}" class="{% if page.url contains '/Theme-Template/' %}active{% endif %}">Themes</a>
-          <a href="{{ '/Deployment-Docker-Desktop-Windows/' | relative_url }}" class="{% if page.url contains '/Deployment-Docker-Desktop-Windows/' %}active{% endif %}">Windows</a>
-          <a href="{{ '/Deployment-Docker-Desktop-Linux/' | relative_url }}" class="{% if page.url contains '/Deployment-Docker-Desktop-Linux/' %}active{% endif %}">Linux</a>
-          <a href="{{ '/Deployment-Other-Options/' | relative_url }}" class="{% if page.url contains '/Deployment-Other-Options/' %}active{% endif %}">Other Deploys</a>
+
+          <details class="docs-group" {% if page.url contains '/Settings/' or page.url contains '/API-Reference/' or page.url contains '/Theme-Template/' %}open{% endif %}>
+            <summary class="docs-group-summary {% if page.url contains '/Settings/' or page.url contains '/API-Reference/' or page.url contains '/Theme-Template/' %}active{% endif %}">Configuration</summary>
+            <div class="docs-group-links">
+              <a href="{{ '/Settings/' | relative_url }}" class="{% if page.url contains '/Settings/' %}active{% endif %}">Settings</a>
+              <a href="{{ '/API-Reference/' | relative_url }}" class="nested {% if page.url contains '/API-Reference/' %}active{% endif %}">API</a>
+              <a href="{{ '/Theme-Template/' | relative_url }}" class="nested {% if page.url contains '/Theme-Template/' %}active{% endif %}">Themes</a>
+            </div>
+          </details>
+
+          <details class="docs-group" {% if page.url contains '/Deployment-Docker-Desktop-Windows/' or page.url contains '/Deployment-Docker-Desktop-Linux/' or page.url contains '/Deployment-Other-Options/' %}open{% endif %}>
+            <summary class="docs-group-summary {% if page.url contains '/Deployment-Docker-Desktop-Windows/' or page.url contains '/Deployment-Docker-Desktop-Linux/' or page.url contains '/Deployment-Other-Options/' %}active{% endif %}">Installation</summary>
+            <div class="docs-group-links">
+              <a href="{{ '/Deployment-Docker-Desktop-Windows/' | relative_url }}" class="nested {% if page.url contains '/Deployment-Docker-Desktop-Windows/' %}active{% endif %}">Windows</a>
+              <a href="{{ '/Deployment-Docker-Desktop-Linux/' | relative_url }}" class="nested {% if page.url contains '/Deployment-Docker-Desktop-Linux/' %}active{% endif %}">Linux</a>
+              <a href="{{ '/Deployment-Other-Options/' | relative_url }}" class="nested {% if page.url contains '/Deployment-Other-Options/' %}active{% endif %}">Other Deployments</a>
+            </div>
+          </details>
+
           <a href="{{ '/Troubleshooting/' | relative_url }}" class="{% if page.url contains '/Troubleshooting/' %}active{% endif %}">Troubleshooting</a>
         </nav>
 
