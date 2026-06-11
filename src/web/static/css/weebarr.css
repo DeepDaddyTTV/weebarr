@@ -580,6 +580,16 @@ body[data-theme="light"] .wordmark-light {
   box-shadow: 0 0 20px var(--pink-12);
 }
 
+.nav-item.active::before {
+  opacity: 0 !important;
+}
+
+.nav-item.active:hover,
+.nav-item.active:focus-visible {
+  border-color: var(--pink-64);
+  box-shadow: 0 0 20px var(--pink-12);
+}
+
 .nav-item.active .nav-glyph {
   color: var(--pink);
 }
@@ -2984,9 +2994,9 @@ body[data-theme-palette="monochrome"] .rank-chip {
 }
 
 .cast-actor .cast-link {
-  grid-column: 2;
+  grid-column: 1 / -1;
   justify-self: start;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .cast-more,

@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.41] - 2026-06-11
+
+### Fixed
+
+- Moved the voice-actor AniList action left so the card no longer leaves an awkward empty gutter under the avatar column.
+- Removed the shared cyan-pink hover edge from already-active pink navigation states so the selected Seasonal rail keeps its intended single red treatment.
+
 ## [0.1.40] - 2026-06-11
 
 ### Fixed
