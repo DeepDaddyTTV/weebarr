@@ -587,18 +587,23 @@ function characterCardTemplate(character) {
               : ""
           }
           ${
-            voiceActors.length
-              ? `
-                <div class="cast-actor-block">
-                  <span class="cast-actor-kicker">Voice Cast</span>
-                  <ul class="cast-actor-list">
-                    ${voiceActors.map(voiceActorTemplate).join("")}
-                  </ul>
-                </div>
-              `
-              : `<p class="cast-empty-copy">No voice actor data is listed for this character yet.</p>`
+            !voiceActors.length
+              ? `<p class="cast-empty-copy">No voice actor data is listed for this character yet.</p>`
+              : ""
           }
         </div>
+        ${
+          voiceActors.length
+            ? `
+              <div class="cast-actor-block">
+                <span class="cast-actor-kicker">Voice Cast</span>
+                <ul class="cast-actor-list">
+                  ${voiceActors.map(voiceActorTemplate).join("")}
+                </ul>
+              </div>
+            `
+            : ""
+          }
       </div>
     </article>
   `;

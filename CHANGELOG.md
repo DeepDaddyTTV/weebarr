@@ -2,6 +2,14 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.40] - 2026-06-11
+
+### Fixed
+
+- Widened the voice-cast layout so the `Voice Cast` label and actor cards use the full character rail instead of leaving a dead media gutter beside the card body.
+- Tightened the shared hover chrome so gradient outlines replace the resting border cleanly on buttons, selects, and other outlined controls instead of doubling up.
+- Reshaped the sidebar theme mode rows to highlight the full row shell and attached the settings tabs to the panel body so the tab rail no longer looks overlaid on top of the page.
+
 ## [0.1.39] - 2026-06-08
 
 ### Changed
