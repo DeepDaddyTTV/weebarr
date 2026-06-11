@@ -191,8 +191,6 @@ button {
 
 button:hover:not(:disabled),
 a:hover {
-  border-color: rgba(40, 199, 255, 0.58);
-  box-shadow: 0 0 22px rgba(40, 199, 255, 0.12);
   transform: translateY(-1px);
 }
 
@@ -368,6 +366,73 @@ body[data-theme-palette="monochrome"][data-theme="light"] {
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   mask-composite: exclude;
+}
+
+:where(
+  button:not(.card-surface),
+  .nav-item,
+  .connection-cta,
+  .ui-select-trigger
+) {
+  position: relative;
+  isolation: isolate;
+}
+
+:where(
+  button:not(.card-surface),
+  .nav-item,
+  .connection-cta,
+  .ui-select-trigger
+)::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 1px;
+  pointer-events: none;
+  content: "";
+  background: var(--hover-gradient);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+:where(
+  button:not(.card-surface),
+  .nav-item,
+  .connection-cta,
+  .ui-select-trigger
+):hover::before,
+:where(
+  button:not(.card-surface),
+  .nav-item,
+  .connection-cta,
+  .ui-select-trigger
+):focus-visible::before {
+  opacity: 1;
+}
+
+:where(
+  button:not(.card-surface),
+  .nav-item,
+  .connection-cta,
+  .ui-select-trigger
+):hover,
+:where(
+  button:not(.card-surface),
+  .nav-item,
+  .connection-cta,
+  .ui-select-trigger
+):focus-visible {
+  border-color: transparent;
+  box-shadow: var(--hover-glow);
 }
 
 .brand::after,
@@ -2491,6 +2556,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
 
 .external-link:hover,
 .external-link:focus-visible {
+  border-color: transparent;
   box-shadow: var(--hover-glow);
 }
 
@@ -2836,9 +2902,9 @@ body[data-theme-palette="monochrome"] .rank-chip {
 
 .cast-actor {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: 40px minmax(0, 1fr);
   gap: 10px;
-  align-items: center;
+  align-items: start;
   padding: 9px 10px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -2852,12 +2918,17 @@ body[data-theme-palette="monochrome"] .rank-chip {
 }
 
 .cast-actor-copy {
+  display: grid;
+  align-content: start;
+  gap: 2px;
   min-width: 0;
 }
 
 .cast-actor-copy strong,
 .cast-actor-copy span {
   display: block;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .cast-actor-copy strong {
@@ -2873,6 +2944,23 @@ body[data-theme-palette="monochrome"] .rank-chip {
   font-size: 12px;
   font-weight: 700;
   line-height: 1.5;
+}
+
+.cast-actor-language {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.cast-actor-native {
+  color: var(--subtle);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.cast-actor .cast-link {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: 2px;
 }
 
 .cast-more,

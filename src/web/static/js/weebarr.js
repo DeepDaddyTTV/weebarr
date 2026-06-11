@@ -549,7 +549,8 @@ function voiceActorTemplate(actor) {
       ${actor.image ? `<img src="${actor.image}" alt="${escapeHtml(actor.name)}" loading="lazy" />` : `<span class="cast-avatar-fallback">${escapeHtml((actor.name || "?").slice(0, 1))}</span>`}
       <div class="cast-actor-copy">
         <strong>${escapeHtml(actor.name)}</strong>
-        <span>${escapeHtml(actor.language || "Voice Actor")}${actor.nativeName ? ` • ${escapeHtml(actor.nativeName)}` : ""}</span>
+        <span class="cast-actor-language">${escapeHtml(actor.language || "Voice Actor")}</span>
+        ${actor.nativeName ? `<span class="cast-actor-native">${escapeHtml(actor.nativeName)}</span>` : ""}
       </div>
       ${
         actor.siteUrl
