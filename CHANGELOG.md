@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.45] - 2026-06-12
+
+### Fixed
+
+- Restored the seasonal header season dropdown by removing the clipping that hid the open menu.
+- Extended the seasonal selector hover/open outline cleanly across the left segment and suppressed the divider line while active so the highlight no longer collapses into the year separator.
+
 ## [0.1.44] - 2026-06-12
 
 ### Fixed

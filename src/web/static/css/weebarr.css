@@ -1316,7 +1316,7 @@ h1 {
   padding: 0;
   position: relative;
   z-index: 1;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .season-year {
@@ -1481,12 +1481,12 @@ h1 {
   position: relative;
   isolation: isolate;
   border-radius: calc(var(--radius-sm) - 1px) 0 0 calc(var(--radius-sm) - 1px);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .season-pill .ui-select-inline::before {
   position: absolute;
-  inset: -1px 0 -1px -1px;
+  inset: -1px -1px -1px -1px;
   z-index: 2;
   padding: 1px;
   pointer-events: none;
@@ -1509,6 +1509,12 @@ h1 {
 .season-pill .ui-select-inline:focus-within::before,
 .season-pill .ui-select-inline.ui-select.open::before {
   opacity: 1;
+}
+
+.season-pill .ui-select-inline:hover + .season-year,
+.season-pill .ui-select-inline:focus-within + .season-year,
+.season-pill .ui-select-inline.ui-select.open + .season-year {
+  border-left-color: transparent;
 }
 
 .ui-select-inline .ui-select-trigger {
@@ -1563,6 +1569,7 @@ h1 {
 .season-pill .ui-select-inline .ui-select-menu {
   left: 0;
   min-width: 100%;
+  z-index: 120;
 }
 
 .refresh-btn,
