@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.43] - 2026-06-12
+
+### Fixed
+
+- Moved the seasonal header selector highlight to the full left segment so the active hover/open ring lines up with the outer pill instead of drawing inset.
+
 ## [0.1.42] - 2026-06-11
 
 ### Fixed

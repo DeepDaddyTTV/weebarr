@@ -1478,6 +1478,37 @@ h1 {
   flex: 1 1 140px;
   min-width: 140px;
   align-self: stretch;
+  position: relative;
+  isolation: isolate;
+  border-radius: calc(var(--radius-sm) - 1px) 0 0 calc(var(--radius-sm) - 1px);
+  overflow: hidden;
+}
+
+.season-pill .ui-select-inline::before {
+  position: absolute;
+  inset: -1px 0 -1px -1px;
+  z-index: 0;
+  padding: 1px;
+  pointer-events: none;
+  content: "";
+  background: var(--hover-gradient);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.season-pill .ui-select-inline:hover::before,
+.season-pill .ui-select-inline:focus-within::before,
+.season-pill .ui-select-inline.ui-select.open::before {
+  opacity: 1;
 }
 
 .ui-select-inline .ui-select-trigger {
@@ -1511,6 +1542,16 @@ h1 {
 .season-pill .ui-select-inline .ui-select-trigger {
   min-height: 40px;
   border-radius: calc(var(--radius-sm) - 1px) 0 0 calc(var(--radius-sm) - 1px);
+}
+
+.season-pill .ui-select-inline .ui-select-trigger::before {
+  display: none;
+}
+
+.season-pill .ui-select-inline .ui-select-trigger:hover,
+.season-pill .ui-select-inline .ui-select-trigger:focus-visible,
+.season-pill .ui-select-inline.ui-select.open .ui-select-trigger {
+  box-shadow: none;
 }
 
 .season-pill .ui-select-inline .ui-select-value {
