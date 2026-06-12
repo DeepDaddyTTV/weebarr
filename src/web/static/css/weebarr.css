@@ -1487,7 +1487,7 @@ h1 {
 .season-pill .ui-select-inline::before {
   position: absolute;
   inset: -1px 0 -1px -1px;
-  z-index: 0;
+  z-index: 2;
   padding: 1px;
   pointer-events: none;
   content: "";
@@ -1541,6 +1541,8 @@ h1 {
 
 .season-pill .ui-select-inline .ui-select-trigger {
   min-height: 40px;
+  position: relative;
+  z-index: 3;
   border-radius: calc(var(--radius-sm) - 1px) 0 0 calc(var(--radius-sm) - 1px);
 }
 

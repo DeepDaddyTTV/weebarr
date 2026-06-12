@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.44] - 2026-06-12
+
+### Fixed
+
+- Raised the seasonal selector highlight layer above the pill background so the active left-segment outline renders cleanly instead of collapsing into the divider accent.
+
 ## [0.1.43] - 2026-06-12
 
 ### Fixed
