@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.42] - 2026-06-11
+
+### Fixed
+
+- Extended the seasonal header selector styling so the season highlight spans the full left segment instead of floating inset inside the pill.
+- Bound the small-card `Request in Seerr` action directly on each card button so it no longer gets lost behind the card selection handlers.
+
 ## [0.1.41] - 2026-06-11
 
 ### Fixed

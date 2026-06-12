@@ -938,6 +938,13 @@ function renderSections(allItems) {
       toggleSelectedItem(String(button.dataset.select));
     });
   });
+  els.sections.querySelectorAll("[data-request]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void requestItem(button.dataset.request);
+    });
+  });
   els.sections.querySelectorAll("[data-inline-close]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();

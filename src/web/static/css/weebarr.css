@@ -1310,18 +1310,19 @@ h1 {
 
 .season-pill {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 0 16px;
+  align-items: stretch;
+  gap: 0;
+  min-width: 236px;
+  padding: 0;
   position: relative;
   z-index: 1;
+  overflow: hidden;
 }
 
 .season-year {
   width: 78px;
   min-width: 78px;
-  min-height: 38px;
+  min-height: 40px;
   padding: 0 12px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
@@ -1473,6 +1474,12 @@ h1 {
   min-width: 112px;
 }
 
+.season-pill .ui-select-inline {
+  flex: 1 1 140px;
+  min-width: 140px;
+  align-self: stretch;
+}
+
 .ui-select-inline .ui-select-trigger {
   min-height: 38px;
   justify-content: center;
@@ -1499,6 +1506,20 @@ h1 {
 .ui-select-inline .ui-select-menu {
   left: -14px;
   min-width: calc(100% + 34px);
+}
+
+.season-pill .ui-select-inline .ui-select-trigger {
+  min-height: 40px;
+  border-radius: calc(var(--radius-sm) - 1px) 0 0 calc(var(--radius-sm) - 1px);
+}
+
+.season-pill .ui-select-inline .ui-select-value {
+  max-width: calc(100% - 72px);
+}
+
+.season-pill .ui-select-inline .ui-select-menu {
+  left: 0;
+  min-width: 100%;
 }
 
 .refresh-btn,
