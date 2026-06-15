@@ -239,11 +239,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         limit=initial_settings.plex_rate_limit_attempts,
         window_seconds=initial_settings.plex_rate_limit_window_seconds,
     )
+
+    @contextlib.asynccontextmanager
+    async def automation_lifespan(app: FastAPI):
+        async def automation_daemon() -> None:
+            while True:
+                await maybe_run_scheduled_automation()
+                await asyncio.sleep(3600)
+
+        app.state.automation_task = asyncio.create_task(automation_daemon())
+        try:
+            yield
+        finally:
+            task = getattr(app.state, "automation_task", None)
+            app.state.automation_task = None
+            if task is None:
+                return
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
     app = FastAPI(
         title="Weebarr",
         version=__version__,
         docs_url="/api/docs",
         redoc_url=None,
+        lifespan=automation_lifespan,
     )
     app.state.automation_lock = asyncio.Lock()
     app.state.automation_task = None
@@ -864,24 +885,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             and initial_settings.public_url.startswith("https://")
         ),
     )
-
-    @app.on_event("startup")
-    async def start_automation_daemon() -> None:
-        async def automation_daemon() -> None:
-            while True:
-                await maybe_run_scheduled_automation()
-                await asyncio.sleep(3600)
-
-        app.state.automation_task = asyncio.create_task(automation_daemon())
-
-    @app.on_event("shutdown")
-    async def stop_automation_daemon() -> None:
-        task = getattr(app.state, "automation_task", None)
-        if task is None:
-            return
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
 
     @app.get("/", include_in_schema=False)
     async def root() -> RedirectResponse:

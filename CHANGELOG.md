@@ -2,6 +2,14 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.50] - 2026-06-15
+
+### Fixed
+
+- Increased the seasonal header control fill opacity so the season picker and adjacent navigation blocks read as solid glass again on desktop and mobile.
+- Kept the masked episode glyph and shorter `X Episodes` stat treatment aligned cleanly in the seasonal card detail row.
+- Replaced deprecated FastAPI startup and shutdown event hooks with a lifespan handler and updated GitHub Actions workflows to Node 24-compatible action releases.
+
 ## [0.1.49] - 2026-06-15
 
 ### Fixed
