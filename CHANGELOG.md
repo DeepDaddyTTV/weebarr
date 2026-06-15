@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.52] - 2026-06-15
+
+### Fixed
+
+- Expanded the opened character voice-cast neon highlight to the full disclosure box instead of only outlining the toggle row.
+
 ## [0.1.51] - 2026-06-15
 
 ### Fixed

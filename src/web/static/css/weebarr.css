@@ -3074,9 +3074,45 @@ body[data-theme-palette="monochrome"] .rank-chip {
   display: grid;
   gap: 12px;
   padding: 12px 14px 14px;
+  position: relative;
+  isolation: isolate;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 14px;
+}
+
+.cast-actor-disclosure::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 1px;
+  pointer-events: none;
+  content: "";
+  background: var(--hover-gradient);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.cast-actor-disclosure:hover::before,
+.cast-actor-disclosure:focus-within::before,
+.cast-actor-disclosure.is-open::before {
+  opacity: 1;
+}
+
+.cast-actor-disclosure:hover,
+.cast-actor-disclosure:focus-within,
+.cast-actor-disclosure.is-open {
+  border-color: transparent;
+  box-shadow: var(--hover-glow);
 }
 
 .cast-actor-toggle {
@@ -3091,6 +3127,15 @@ body[data-theme-palette="monochrome"] .rank-chip {
   background: transparent;
   border: 0;
   cursor: pointer;
+}
+
+.cast-actor-toggle::before {
+  display: none;
+}
+
+.cast-actor-toggle:hover,
+.cast-actor-toggle:focus-visible {
+  box-shadow: none;
 }
 
 .cast-actor-toggle-copy {

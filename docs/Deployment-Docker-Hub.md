@@ -27,7 +27,7 @@ docker pull deepdaddyttv/weebarr:latest
 Pull a specific version:
 
 ```bash
-docker pull deepdaddyttv/weebarr:0.1.51
+docker pull deepdaddyttv/weebarr:0.1.52
 ```
 
 ## Using Docker Desktop UI
@@ -45,7 +45,7 @@ If you are using Docker Desktop, you can pull Weebarr directly from the app inst
    or a specific version such as:
 
    ```text
-   deepdaddyttv/weebarr:0.1.51
+   deepdaddyttv/weebarr:0.1.52
    ```
 
 4. Pull the image.
