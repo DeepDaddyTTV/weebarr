@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.49] - 2026-06-15
+
+### Fixed
+
+- Restored the filled glass background on the seasonal header season selector while keeping the label centered cleanly inside the pill.
+- Reworked the seasonal episode stat into a shorter icon-led `X Episodes` treatment using the new masked episode glyph, with centered vertical alignment on desktop and mobile.
+
 ## [0.1.48] - 2026-06-14
 
 ### Fixed

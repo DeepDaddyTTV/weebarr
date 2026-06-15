@@ -1555,6 +1555,7 @@ h1 {
 
 .season-pill .ui-select-inline .ui-select-trigger {
   min-height: 40px;
+  background: rgba(255, 255, 255, 0.055);
   position: relative;
   z-index: 3;
   border-radius: calc(var(--radius-sm) - 1px) 0 0 calc(var(--radius-sm) - 1px);
@@ -2497,12 +2498,23 @@ body[data-theme-palette="monochrome"] .rank-chip {
   mask: url("/static/img/popularity.png") center / contain no-repeat;
 }
 
+.media-stat-icon-episodes {
+  background-color: currentColor;
+  filter: drop-shadow(0 0 8px rgba(40, 199, 255, 0.24));
+  -webkit-mask: url("/static/img/episodes.png") center / contain no-repeat;
+  mask: url("/static/img/episodes.png") center / contain no-repeat;
+}
+
 .media-stat-value {
+  display: inline-flex;
+  align-items: center;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
 .media-stat-suffix {
+  display: inline-flex;
+  align-items: center;
   line-height: 1;
   font-size: 10px;
   font-weight: 900;
@@ -2519,6 +2531,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
 }
 
 .media-stat-episodes {
+  gap: 5px;
   color: var(--cyan);
 }
 

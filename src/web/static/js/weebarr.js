@@ -300,8 +300,9 @@ function statsRowTemplate(item, extraClass = "") {
         <span class="media-stat-value">${formatNumber(item.popularity)}</span>
       </span>
       <span class="media-stat media-stat-episodes" title="${escapeHtml(totalEpisodesTooltip(item))}">
+        <span class="media-stat-icon media-stat-icon-episodes" aria-hidden="true"></span>
         <span class="media-stat-value">${episodes ? formatNumber(episodes) : "TBD"}</span>
-        <span class="media-stat-suffix">Total Episode${episodes === 1 ? "" : "s"}</span>
+        <span class="media-stat-suffix">Episode${episodes === 1 ? "" : "s"}</span>
       </span>
     </div>
   `;
