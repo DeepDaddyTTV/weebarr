@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.47] - 2026-06-14
+
+### Fixed
+
+- Tinted the seasonal popularity icon with the same accent color as its stat text so the glyph no longer renders as a flat dark bitmap.
+- Centered the seasonal picker label vertically so the selected season text sits evenly within the top control pill.
+
 ## [0.1.46] - 2026-06-14
 
 ### Fixed

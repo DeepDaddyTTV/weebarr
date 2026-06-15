@@ -1528,10 +1528,12 @@ h1 {
 
 .ui-select-inline .ui-select-value {
   position: absolute;
+  top: 50%;
   left: 50%;
   max-width: calc(100% - 78px);
+  line-height: 1;
   text-align: center;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   white-space: nowrap;
 }
 
@@ -2482,10 +2484,11 @@ body[data-theme-palette="monochrome"] .rank-chip {
   line-height: 1;
 }
 
-.media-stat-icon-image {
-  display: block;
-  object-fit: contain;
+.media-stat-icon-popularity {
+  background-color: currentColor;
   filter: drop-shadow(0 0 8px rgba(255, 94, 154, 0.24));
+  -webkit-mask: url("/static/img/popularity.png") center / contain no-repeat;
+  mask: url("/static/img/popularity.png") center / contain no-repeat;
 }
 
 .media-stat-value {

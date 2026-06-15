@@ -50,8 +50,6 @@ const customSelectRoots = [...document.querySelectorAll("[data-ui-select]")];
 const customSelects = new Map();
 const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"];
 const fullyRequestedStates = new Set(["partial", "requested", "available"]);
-const popularityIconSrc = "/static/img/popularity.png";
-
 els.filter.value = state.filter;
 els.sort.value = state.sort;
 
@@ -298,7 +296,7 @@ function statsRowTemplate(item, extraClass = "") {
         <span class="media-stat-value">${rating}</span>
       </span>
       <span class="media-stat media-stat-popularity" title="${escapeHtml(popularityTooltip(item))}">
-        <img class="media-stat-icon media-stat-icon-image" src="${popularityIconSrc}" alt="" aria-hidden="true" />
+        <span class="media-stat-icon media-stat-icon-popularity" aria-hidden="true"></span>
         <span class="media-stat-value">${formatNumber(item.popularity)}</span>
       </span>
       <span class="media-stat media-stat-episodes" title="${escapeHtml(totalEpisodesTooltip(item))}">
