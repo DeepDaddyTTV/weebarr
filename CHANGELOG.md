@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.53] - 2026-06-15
+
+### Fixed
+
+- Limited the character voice-cast disclosure neon highlight to hover while the wrapper is closed so click focus and expanded state no longer leave the box glowing.
+
 ## [0.1.52] - 2026-06-15
 
 ### Fixed

@@ -3102,15 +3102,11 @@ body[data-theme-palette="monochrome"] .rank-chip {
   mask-composite: exclude;
 }
 
-.cast-actor-disclosure:hover::before,
-.cast-actor-disclosure:focus-within::before,
-.cast-actor-disclosure.is-open::before {
+.cast-actor-disclosure:not(.is-open):hover::before {
   opacity: 1;
 }
 
-.cast-actor-disclosure:hover,
-.cast-actor-disclosure:focus-within,
-.cast-actor-disclosure.is-open {
+.cast-actor-disclosure:not(.is-open):hover {
   border-color: transparent;
   box-shadow: var(--hover-glow);
 }
