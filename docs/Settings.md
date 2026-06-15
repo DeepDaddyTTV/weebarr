@@ -4,7 +4,7 @@ title: Settings
 
 # Settings Reference
 
-The Settings page controls how Weebarr looks, logs in, scans for anime, exposes API access, and talks to Seerr.
+The Settings page controls how Weebarr looks, logs in, scans for anime, exposes API access, and talks to the active request backend.
 
 Most users only need to configure the **Connections** tab first. The other tabs can be adjusted later.
 
@@ -200,15 +200,26 @@ The new full key is only shown once after regeneration, so save it somewhere sec
 
 ## Connections Tab
 
-The **Connections** tab is where Weebarr connects to Seerr.
+The **Connections** tab is where Weebarr chooses and configures the active request backend.
 
-This is the most important tab during first setup.
+This is one of the most important tabs during first setup because the backend step now follows access setup directly.
 
 ![Connections settings tab](assets/img/settings-connections.jpeg)
 
-### Required Inputs
+### Active Backend
 
-You need:
+The selector at the top chooses whether Weebarr should send requests through:
+
+- `Seerr`
+- `Sonarr Direct`
+
+Switching backends does not erase the saved settings for the other backend. It only changes which backend Weebarr actively uses for new requests, automation, and frontend state labels.
+
+### Seerr Settings
+
+Choose `Seerr` if you want the existing one-click request flow.
+
+Required fields:
 
 - **Seerr Base URL**
 - **API Key**
@@ -219,11 +230,7 @@ The Seerr Base URL must be reachable from inside the Weebarr container. If Weeba
 http://seerr:5055
 ```
 
-If Seerr is not in the same Docker network, use a URL the Weebarr container can actually reach.
-
-### Optional Overrides
-
-Weebarr can override some Seerr request values:
+Optional Seerr overrides include:
 
 - Request Seasons
 - Sonarr Server ID
@@ -235,40 +242,36 @@ Weebarr can override some Seerr request values:
 - Request User ID
 - Tags
 
-You do not need to fill these out unless your Seerr defaults are not giving you the result you want.
+Use these only if your normal Seerr defaults are not giving you the result you want.
 
-### Request Seasons
+### Sonarr Direct Settings
 
-This controls how Weebarr handles season-specific titles.
+Choose `Sonarr Direct` if you want Weebarr to add or update anime directly in Sonarr.
 
-Options:
+Required Sonarr Direct fields:
 
-- `all`
-- `first`
-- `latest`
+- **Sonarr Base URL**
+- **API Key**
+- **Root Folder Path**
+- **Quality Profile ID**
+- **Series Type**
 
-Use `all` if you usually want the full show coverage requested. Use `latest` if your workflow focuses on the newest seasonal entry.
+Saved Sonarr Direct defaults also include:
 
-### Force Series Type
+- Default Monitor Mode
+- Search On Add
+- Season Folder
+- optional Language Profile ID
+- optional Tag IDs
 
-This should usually stay on `Use Seerr default`.
+The connection test can confirm that Weebarr can reach Sonarr and show the detected root folders, quality profiles, and language profiles.
 
-Options:
+### Backend Behavior Notes
 
-- `Use Seerr default`
-- `Standard`
-- `Anime / Absolute`
-- `Daily`
-
-Only force this if Seerr is choosing the wrong series type and you know which type your Sonarr setup expects.
-
-### Force Quality Profile
-
-If Force Quality Profile is enabled, you must provide a profile ID.
-
-If it is disabled, Weebarr follows Seerr's current anime/default request profile behavior.
-
-For most users, leaving this disabled is easier and safer.
+- `Seerr` keeps the current one-click request CTA.
+- `Sonarr Direct` uses a request modal with season selection, monitor mode, search-on-add, and season-folder controls.
+- The Requests page stays a Weebarr-origin log either way.
+- Automation routes through whichever backend is active.
 
 ### Live Connection Summary
 
@@ -285,7 +288,7 @@ This includes:
 - named theme
 - strict monitoring
 - automation cadence
-- Seerr overrides
+- request backend settings
 - auth mode
 - API key state
 - request history

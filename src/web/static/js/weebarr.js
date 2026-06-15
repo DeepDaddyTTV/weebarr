@@ -12,10 +12,12 @@ const state = {
   pageSize: 12,
   theme: "dark",
   weebarr: window.WEEBARR_WEEBARR || {},
+  requestSettings: window.WEEBARR_REQUEST_SETTINGS || {},
   filterOpen: false,
   openDropdown: null,
   hideRequested: false,
   spotlightDismissed: false,
+  requestModalItemId: null,
 };
 
 const els = {
@@ -35,6 +37,16 @@ const els = {
   sections: document.querySelector("#animeSections"),
   spotlight: document.querySelector("#spotlight"),
   toast: document.querySelector("#toast"),
+  requestModal: document.querySelector("#requestModal"),
+  requestModalForm: document.querySelector("#requestModalForm"),
+  requestModalCopy: document.querySelector("#requestModalCopy"),
+  requestModalSeasonGroup: document.querySelector("#requestModalSeasonGroup"),
+  requestModalSeasons: document.querySelector("#requestModalSeasons"),
+  requestModalSeasonFallback: document.querySelector("#requestModalSeasonFallback"),
+  requestModalMonitorMode: document.querySelector("#requestModalMonitorMode"),
+  requestModalSearchOnAdd: document.querySelector("#requestModalSearchOnAdd"),
+  requestModalSeasonFolder: document.querySelector("#requestModalSeasonFolder"),
+  requestModalSubmit: document.querySelector("#requestModalSubmit"),
   themeButtons: document.querySelectorAll("[data-theme-choice]"),
   stats: {
     total: document.querySelector("#statTotal"),
@@ -49,7 +61,6 @@ const forceCompactPreview = new URLSearchParams(window.location.search).get("com
 const customSelectRoots = [...document.querySelectorAll("[data-ui-select]")];
 const customSelects = new Map();
 const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"];
-const fullyRequestedStates = new Set(["partial", "requested", "available"]);
 els.filter.value = state.filter;
 els.sort.value = state.sort;
 
@@ -58,6 +69,34 @@ function toast(message) {
   els.toast.classList.add("show");
   window.clearTimeout(toast.timer);
   toast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 3600);
+}
+
+function activeRequestBackend() {
+  return state.requestSettings?.requestBackend || "seerr";
+}
+
+function activeRequestBackendName() {
+  return activeRequestBackend() === "sonarr" ? "Sonarr Direct" : "Seerr";
+}
+
+function requestMatchLabel() {
+  return activeRequestBackend() === "sonarr" ? "Sonarr Match" : "Seerr Match";
+}
+
+function configureRequestBackendLabel() {
+  return activeRequestBackend() === "sonarr"
+    ? "Configure Sonarr Direct"
+    : "Configure Seerr";
+}
+
+function requestState(item) {
+  return item?.request || item?.seerr || {};
+}
+
+function handledRequestStates() {
+  return activeRequestBackend() === "sonarr"
+    ? new Set(["in_library", "partial", "available"])
+    : new Set(["partial", "requested", "available"]);
 }
 
 async function readError(response) {
@@ -400,7 +439,7 @@ function hasWeebarrRequest(item) {
 }
 
 function isHiddenByRequestedToggle(item) {
-  return fullyRequestedStates.has((item.seerr || {}).state);
+  return handledRequestStates().has(requestState(item).state);
 }
 
 function visibleItems() {
@@ -432,7 +471,7 @@ function visibleItems() {
   }
   if (state.filter !== "all") {
     items = items.filter((item) => {
-      const seerr = item.seerr || {};
+      const seerr = requestState(item);
       if (state.filter === "needs_action") {
         return seerr.requestable;
       }
@@ -501,10 +540,10 @@ function renderStats(stats) {
     return airingAt >= Date.now() && airingAt <= soonCutoff;
   }).length;
   const requestedCount = scopedItems.filter((item) =>
-    ["requested", "partial", "available"].includes((item.seerr || {}).state),
+    handledRequestStates().has(requestState(item).state),
   ).length;
   const partialCount = scopedItems.filter(
-    (item) => (item.seerr || {}).state === "partial",
+    (item) => requestState(item).state === "partial",
   ).length;
   els.stats.total.textContent = formatNumber(
     state.view === "requests" ? scopedItems.length : stats.total,
@@ -519,20 +558,28 @@ function renderStats(stats) {
 }
 
 function statusLabel(item) {
-  const seerr = item.seerr || {};
+  const seerr = requestState(item);
   return seerr.label || "Unknown";
 }
 
 function requestActionTemplate(item, inline = false) {
-  const seerr = item.seerr || {};
+  const seerr = requestState(item);
   if (!seerr || seerr.state === "disabled") {
-    return `<a class="${inline ? "request-btn" : "anilist-btn"}" href="/settings#connections" title="Open Weebarr connection settings">Configure Seerr</a>`;
+    return `<a class="${inline ? "request-btn" : "anilist-btn"}" href="/settings#connections" title="Open Weebarr connection settings">${configureRequestBackendLabel()}</a>`;
   }
   if (!seerr.requestable) {
     return "";
   }
-  const buttonText = seerr.state === "partial" ? "Request Missing" : "Request in Seerr";
-  return `<button class="request-btn" type="button" data-request="${item.id}" title="Send this title to Seerr">${buttonText}</button>`;
+  const isSonarr = activeRequestBackend() === "sonarr";
+  const buttonText = isSonarr
+    ? (["in_library", "partial"].includes(seerr.state)
+      ? "Update in Sonarr"
+      : "Request in Sonarr")
+    : (seerr.state === "partial" ? "Request Missing" : "Request in Seerr");
+  const buttonTitle = isSonarr
+    ? "Choose the Sonarr Direct options for this title"
+    : "Send this title to Seerr";
+  return `<button class="request-btn" type="button" data-request="${item.id}" title="${buttonTitle}">${buttonText}</button>`;
 }
 
 function actionButtonTemplate(item, inline = false) {
@@ -762,7 +809,6 @@ async function loadCharacters(item, force = false) {
 }
 
 function inlineActionsTemplate(item) {
-  const seerr = item.seerr || {};
   const actions = [
     externalLinkTemplate(item, "AniList", "anilist-btn external-link inline-link"),
   ];
@@ -778,7 +824,6 @@ function requestDate(item) {
 }
 
 function requestListTemplate(item) {
-  const seerr = item.seerr || {};
   const subtitle = item.romajiTitle && item.romajiTitle !== item.title ? item.romajiTitle : item.englishTitle || "";
   const summary = plainDescription(item.description, 150);
   const checked = hasWeebarrRequest(item) ? "checked" : "";
@@ -809,7 +854,7 @@ function requestListTemplate(item) {
 }
 
 function inlineDetailTemplate(item) {
-  const seerr = item.seerr || {};
+  const seerr = requestState(item);
   const audio = audioState(item);
   return `
     <div class="inline-detail inline-spotlight">
@@ -834,7 +879,7 @@ function inlineDetailTemplate(item) {
         <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span></strong></div>
         <div><span>Overview</span><strong>${plainDescription(item.description, 520)}</strong></div>
         <div><span>Start Date</span><strong>${formatDate(item.startDate)}</strong></div>
-        <div><span>Seerr Match</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
+        <div><span>${requestMatchLabel()}</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
         <div><span>Status</span><strong><span class="dot-status ${seerr.state}" title="${escapeHtml(availabilityTooltip(item))}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
       </div>
       ${inlineActionsTemplate(item)}
@@ -844,7 +889,7 @@ function inlineDetailTemplate(item) {
 }
 
 function cardTemplate(item) {
-  const seerr = item.seerr || {};
+  const seerr = requestState(item);
   const audio = audioState(item);
   const compact = isCompactDetails();
   const isSelected = String(state.selectedId) === String(item.id);
@@ -1006,13 +1051,13 @@ function renderSpotlight(item) {
       <div class="spotlight-empty">
         <span class="orb"></span>
         <h2>Select an anime</h2>
-        <p>Pick a seasonal card to see mapping status, audio signal, next airing data, and the Seerr request action.</p>
+        <p>Pick a seasonal card to see mapping status, audio signal, next airing data, and the active request action.</p>
       </div>
     `;
     return;
   }
 
-  const seerr = item.seerr || {};
+  const seerr = requestState(item);
   const audio = audioState(item);
   els.spotlight.innerHTML = `
     <button class="spotlight-close" type="button" aria-label="Close details">×</button>
@@ -1032,7 +1077,7 @@ function renderSpotlight(item) {
       <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span></strong></div>
       <div><span>Overview</span><strong>${plainDescription(item.description)}</strong></div>
       <div><span>Start Date</span><strong>${formatDate(item.startDate)}</strong></div>
-      <div><span>Seerr Match</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
+      <div><span>${requestMatchLabel()}</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
       <div><span>Status</span><strong><span class="dot-status ${seerr.state}" title="${escapeHtml(availabilityTooltip(item))}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
     </div>
     <div class="spotlight-actions">
@@ -1075,7 +1120,7 @@ function setFilterOpen(open) {
 }
 
 async function loadSeason() {
-  els.sections.innerHTML = `<div class="loading">Loading ${state.season.toLowerCase()} ${state.year} anime from AniList, Jikan, and Seerr...</div>`;
+  els.sections.innerHTML = `<div class="loading">Loading ${state.season.toLowerCase()} ${state.year} anime from AniList, Jikan, and ${activeRequestBackendName()}...</div>`;
   try {
     const url = `/api/seasonal?season=${encodeURIComponent(state.season)}&year=${encodeURIComponent(state.year)}&perPage=48`;
     const response = await fetch(url);
@@ -1124,26 +1169,99 @@ async function scanSeason() {
   }
 }
 
-async function requestItem(id) {
-  const item = state.items.find((anime) => String(anime.id) === String(id));
-  if (!item) return;
-  if (!item.seerr?.tmdbId) {
-    toast("This title does not have a usable Seerr mapping yet.");
+function closeRequestModal() {
+  state.requestModalItemId = null;
+  if (els.requestModal) {
+    els.requestModal.hidden = true;
+  }
+  document.body.classList.remove("modal-open");
+}
+
+function renderRequestModal(item) {
+  const request = requestState(item);
+  if (!els.requestModalCopy) return;
+  const catalogSeasons = Array.isArray(request.catalogSeasons)
+    ? request.catalogSeasons
+    : [];
+  const selectedSeasons = Array.isArray(request.requestSeasons)
+    ? request.requestSeasons
+    : [];
+  els.requestModalCopy.textContent =
+    request.state === "missing"
+      ? `Choose the Sonarr Direct options for ${item.title}.`
+      : `Choose how Sonarr Direct should update ${item.title}.`;
+  if (els.requestModalMonitorMode) {
+    els.requestModalMonitorMode.value = request.monitorModeDefault || "all";
+  }
+  if (els.requestModalSearchOnAdd) {
+    els.requestModalSearchOnAdd.checked = Boolean(request.searchOnAddDefault);
+  }
+  if (els.requestModalSeasonFolder) {
+    els.requestModalSeasonFolder.checked = Boolean(request.seasonFolderDefault);
+  }
+  if (els.requestModalSeasonGroup && els.requestModalSeasons) {
+    const canSelect = Boolean(request.seasonSelectionEnabled && catalogSeasons.length);
+    els.requestModalSeasonGroup.hidden = !canSelect;
+    els.requestModalSeasonFallback.hidden = canSelect;
+    els.requestModalSeasons.innerHTML = canSelect
+      ? catalogSeasons
+        .map((seasonNumber) => `
+          <label class="request-modal-season-option">
+            <input
+              type="checkbox"
+              value="${seasonNumber}"
+              ${selectedSeasons.includes(seasonNumber) ? "checked" : ""}
+            />
+            <span>Season ${seasonNumber}</span>
+          </label>
+        `)
+        .join("")
+      : "";
+  }
+  syncCustomSelects(["requestModalMonitorMode"]);
+}
+
+function openRequestModal(item) {
+  state.requestModalItemId = String(item.id);
+  renderRequestModal(item);
+  if (els.requestModal) {
+    els.requestModal.hidden = false;
+  }
+  document.body.classList.add("modal-open");
+}
+
+function selectedRequestModalSeasons() {
+  if (!els.requestModalSeasons) return [];
+  return [...els.requestModalSeasons.querySelectorAll('input[type="checkbox"]:checked')]
+    .map((input) => Number(input.value))
+    .filter((value) => Number.isFinite(value));
+}
+
+async function performRequest(item, extraOptions = null) {
+  const request = requestState(item);
+  const mediaId = request.tmdbId || request.seriesId || request.tvdbId;
+  if (!mediaId) {
+    toast(`This title does not have a usable ${activeRequestBackendName()} match yet.`);
     return;
   }
   try {
-    toast(`Sending ${item.title} to Seerr...`);
+    toast(
+      activeRequestBackend() === "sonarr"
+        ? `Sending ${item.title} to Sonarr Direct...`
+        : `Sending ${item.title} to Seerr...`,
+    );
     const response = await fetch("/api/request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mediaId: item.seerr.tmdbId,
+        mediaId,
         animeId: item.id,
-        tvdbId: item.seerr.tvdbId,
+        tvdbId: request.tvdbId || null,
         title: item.title,
         season: item.season,
         year: item.seasonYear,
-        seasons: item.seerr.requestSeasons,
+        seasons: request.requestSeasons,
+        options: extraOptions,
       }),
     });
     if (!response.ok) {
@@ -1151,30 +1269,56 @@ async function requestItem(id) {
       throw new Error(detail);
     }
     const payload = await response.json();
-    item.seerr.state = "requested";
-    item.seerr.label = "Requested";
-    item.seerr.requestable = false;
+    const nextRequestState = payload.requestState || {
+      backend: "seerr",
+      state: "requested",
+      label: "Requested",
+      requestable: false,
+    };
+    item.request = { ...request, ...nextRequestState };
+    item.seerr = item.request;
     item.weebarrRequest = payload.weebarrRequest || {
       requestedAt: new Date().toISOString(),
-      requestSeasons: item.seerr.requestSeasons,
-      tmdbId: item.seerr.tmdbId,
-      tvdbId: item.seerr.tvdbId,
+      backend: activeRequestBackend(),
+      requestSeasons: item.request.requestSeasons,
+      tmdbId: item.request.tmdbId,
+      tvdbId: item.request.tvdbId,
+      sonarrSeriesId: item.request.seriesId,
       title: item.title,
     };
     state.selectedId = String(item.id);
+    closeRequestModal();
     renderAll();
-    toast(`${item.title} was requested in Seerr.`);
+    toast(
+      activeRequestBackend() === "sonarr"
+        ? `${item.title} was sent to Sonarr Direct.`
+        : `${item.title} was requested in Seerr.`,
+    );
   } catch (error) {
     if (error.message === "Already requested in Seerr") {
-      item.seerr.state = "requested";
-      item.seerr.label = "Requested";
-      item.seerr.requestable = false;
+      item.request = {
+        ...request,
+        state: "requested",
+        label: "Requested",
+        requestable: false,
+      };
+      item.seerr = item.request;
       renderAll();
       toast(`${item.title} is already requested in Seerr.`);
       return;
     }
     toast(`Request failed: ${error.message}`);
   }
+}
+
+async function requestItem(id) {
+  const item = state.items.find((anime) => String(anime.id) === String(id));
+  if (!item) return;
+  if (activeRequestBackend() === "sonarr") {
+    openRequestModal(item);
+    return;
+  }
+  await performRequest(item);
 }
 
 function shouldIgnoreCardToggle(target) {
@@ -1284,6 +1428,32 @@ if (els.hideRequested) {
     renderAll();
   });
 }
+
+if (els.requestModalForm) {
+  els.requestModalForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const item = state.items.find(
+      (anime) => String(anime.id) === String(state.requestModalItemId),
+    );
+    if (!item) {
+      closeRequestModal();
+      return;
+    }
+    void performRequest(item, {
+      selectedSeasons: selectedRequestModalSeasons(),
+      monitorMode: els.requestModalMonitorMode?.value || "all",
+      searchOnAdd: Boolean(els.requestModalSearchOnAdd?.checked),
+      seasonFolder: Boolean(els.requestModalSeasonFolder?.checked),
+    });
+  });
+}
+
+document.querySelectorAll("[data-close-request-modal]").forEach((button) => {
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    closeRequestModal();
+  });
+});
 
 els.filterButton.addEventListener("click", (event) => {
   event.stopPropagation();
@@ -1400,6 +1570,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     setCustomSelectOpen(null);
     setFilterOpen(false);
+    closeRequestModal();
   }
 });
 

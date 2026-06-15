@@ -2,7 +2,7 @@
 
 <img src="src/web/static/img/weebarr-wordmark.png" alt="Weebarr wordmark" width="520"/>
 
-**Seasonal anime discovery and Seerr request management**
+**Seasonal anime discovery and request management**
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -12,19 +12,22 @@
 
 </div>
 
-Weebarr is a small self-hosted companion app for anime libraries that use Seerr. It helps you browse the current anime season, see what is already available or requested, and send new TV anime requests through Seerr without bouncing between tabs.
+Weebarr is a small self-hosted companion app for anime libraries that use Seerr, Sonarr, or both. It helps you browse the current anime season, see what is already available or tracked, and send new TV anime requests through either Seerr or the new Sonarr Direct flow without bouncing between tabs.
 
-It is built for people who want a simple seasonal anime dashboard that plays nicely with their existing Seerr and Sonarr setup.
+It is built for people who want a simple seasonal anime dashboard that plays nicely with their existing anime stack while keeping the request backend choice flexible.
 
 ## Current Features
 
 - **Seasonal anime discovery** powered by AniList.
 - **Simple popularity groups** for easier triage: `S-Tier`, `Canon`, `Bingeable`, and `Filler`.
-- **Seerr-aware availability** so you can see what is available, requested, partially available, missing, or missing a confident Seerr/TMDb match.
+- **Backend-aware availability** so you can see whether a title is missing, requested, in library, partially available, fully available, or missing a confident backend match.
 - **At-a-glance seasonal metadata** including AniList score, popularity, and total episode count directly on cards and detail views.
-- **One-click TV requests** through Seerr, using your existing anime defaults unless you choose to override them.
+- **Two request paths**:
+  - one-click TV requests through Seerr using your existing anime defaults unless you override them
+  - a Sonarr Direct request modal with season selection, monitor mode, search-on-add, and season-folder controls
 - **Expandable cast details** so character voice actors stay readable without overwhelming the spotlight or mobile card layout.
 - **Optional automation** for requesting selected seasonal groups on a saved schedule.
+- **Two-stage first-run setup** so access configuration and request-backend selection stay separate and intentional.
 - **Single-admin access** with local login, Plex login, or both.
 - **Theme support** with built-in themes and safe token-based theme imports.
 - **Docker-friendly setup** with persistent configuration stored in `/config`.
@@ -45,8 +48,9 @@ Weebarr is easiest to run with Docker Compose.
 You will need:
 
 - Docker or Docker Desktop
-- A working Seerr instance
-- A Seerr API key
+- A working Seerr instance if you want Seerr requests
+- A working Sonarr instance if you want Sonarr Direct requests
+- The API key for whichever backend you plan to use first
 - A folder for Weebarr's `/config` data
 
 Create a `compose.yml` file:
@@ -86,7 +90,10 @@ Open Weebarr:
 http://localhost:18080
 ```
 
-The first time you open the app, Weebarr walks you through setup. You can create a local admin login, use Plex login, or enable both.
+The first time you open the app, Weebarr walks you through setup in two stages:
+
+1. Create the local admin login, use Plex login, or enable both.
+2. Choose the active request backend and save either Seerr or Sonarr Direct settings.
 
 ## Documentation
 
@@ -120,9 +127,14 @@ Plex login also depends on `WEEBARR_PUBLIC_URL`, so set it before using Plex aut
 
 ## How Requests Work
 
-Weebarr sends requests to Seerr. It does not bypass Seerr or request directly into Sonarr.
+Weebarr now supports two request backends:
 
-That means your normal Seerr request flow stays in charge, including your anime defaults, Sonarr server, quality profile, root folder, approval behavior, and user rules. Weebarr is the seasonal anime front door, not a replacement for Seerr.
+- `Seerr`: Weebarr keeps the current one-click request button and forwards TV anime requests through Seerr.
+- `Sonarr Direct`: Weebarr opens a Sonarr-specific request modal and adds or updates anime directly in Sonarr.
+
+If you stay on Seerr, your normal Seerr request flow stays in charge, including your anime defaults, Sonarr server, quality profile, root folder, approval behavior, and user rules.
+
+If you switch to Sonarr Direct, Weebarr uses the saved Sonarr defaults you choose in setup or Settings, then tracks Sonarr-native states such as `In Library`, `Partially Available`, `Available`, and `No Sonarr match`.
 
 ## API
 

@@ -6,9 +6,9 @@ title: Home
 
 Welcome to the Weebarr wiki.
 
-Weebarr is a seasonal anime dashboard for people who run their own media setup. It helps you see what is airing, check what you already have or requested through Seerr, and request new anime without bouncing between a bunch of different tabs.
+Weebarr is a seasonal anime dashboard for people who run their own media setup. It helps you see what is airing, check what you already have or requested, and send new anime requests through either Seerr or Sonarr Direct without bouncing between a bunch of different tabs.
 
-You do not need to understand every setting before using it. Start with the deployment guide for your system, connect Weebarr to Seerr, then use the Seasonal page as your main dashboard.
+You do not need to understand every setting before using it. Start with the deployment guide for your system, complete the two-stage setup, choose your request backend, then use the Seasonal page as your main dashboard.
 
 ## Interface Preview
 
@@ -21,8 +21,8 @@ You do not need to understand every setting before using it. Start with the depl
 Weebarr brings together:
 
 - seasonal anime information from AniList
-- request and availability status from Seerr
-- anime request settings that flow through Seerr into Sonarr
+- request and availability status from the active request backend
+- one-click Seerr requests or Sonarr Direct request modals
 - a simple login system
 - optional Plex auth login
 - themes
@@ -74,13 +74,12 @@ If this is your first time setting up Weebarr, use this order:
    - [Docker Desktop on Linux](Deployment-Docker-Desktop-Linux.md)
    - [Docker Hub](Deployment-Docker-Hub.md)
    - [Other Deployment Options](Deployment-Other-Options.md)
-2. Start Weebarr and complete the first-run setup.
-3. Go to **Settings**.
-4. Open the **Connections** tab.
-5. Add your Seerr URL and API key.
-6. Use the connection test.
-7. Open the **Seasonal** page.
-8. Request titles manually, or enable automation later after you understand the buckets.
+2. Start Weebarr and complete the first-run access setup.
+3. Continue to the request-backend setup step.
+4. Choose `Seerr` or `Sonarr Direct`.
+5. Save the backend connection details and use the test action if needed.
+6. Open the **Seasonal** page.
+7. Request titles manually, or enable automation later after you understand the buckets.
 
 ## Main Ideas
 
@@ -90,11 +89,11 @@ The Seasonal page is the main screen. It shows current or selected seasonal anim
 
 ### Requests
 
-The Requests page only shows requests made through Weebarr. It is not meant to replace your full Seerr request history.
+The Requests page only shows requests made through Weebarr. It is not meant to replace your full Seerr request history or your full Sonarr library history.
 
 ### Availability
 
-Weebarr checks Seerr and tries to show whether a title is already available, already requested, partly available, missing, or not matched.
+Weebarr checks the active request backend and tries to show whether a title is already available, already requested or tracked, partly available, missing, or not matched.
 
 ### Automation
 
@@ -102,7 +101,7 @@ Automation can request shows for you based on the buckets you choose. It intenti
 
 ### Settings
 
-Settings control themes, content filtering, automation, login options, API-key access, and how Weebarr talks to Seerr.
+Settings control themes, content filtering, automation, login options, API-key access, and how Weebarr talks to the active request backend.
 
 ![Weebarr settings overview](assets/img/settings-weebarr.jpeg)
 
@@ -111,9 +110,9 @@ Settings control themes, content filtering, automation, login options, API-key a
 You should already have:
 
 - Docker or Docker Desktop
-- a working Seerr instance
-- a Seerr API key
-- Sonarr connected to Seerr if you want requests to become Sonarr entries
+- a working Seerr instance if you plan to use Seerr
+- a working Sonarr instance if you plan to use Sonarr Direct
+- an API key for the backend you plan to use first
 - a folder where Weebarr can save its config
 
 Your config folder matters. Keep it mounted and backed up. That is where Weebarr stores its settings, request history, theme imports, automation history, API key state, and login setup.

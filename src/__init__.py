@@ -1,4 +1,4 @@
-"""Weebarr - seasonal anime discovery and Seerr request dashboard."""
+"""Weebarr - seasonal anime discovery and request dashboard."""
 
 from .version import __version__
 

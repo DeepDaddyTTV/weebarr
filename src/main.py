@@ -86,6 +86,8 @@ API_KEY_ALLOWED_PATHS = {
 class RequestPayload(BaseModel):
     """Payload accepted by Weebarr before forwarding to Seerr."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     media_id: int = Field(..., alias="mediaId")
     anime_id: Optional[int] = Field(default=None, alias="animeId")
     title: str
@@ -93,6 +95,21 @@ class RequestPayload(BaseModel):
     season: Optional[str] = None
     year: Optional[int] = None
     seasons: Optional[Union[list[int], str]] = None
+    options: Optional["SonarrRequestOptionsPayload"] = None
+
+
+class SonarrRequestOptionsPayload(BaseModel):
+    """Optional Sonarr Direct request controls."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    selected_seasons: Optional[list[int]] = Field(
+        default=None,
+        alias="selectedSeasons",
+    )
+    monitor_mode: Optional[str] = Field(default=None, alias="monitorMode")
+    search_on_add: Optional[bool] = Field(default=None, alias="searchOnAdd")
+    season_folder: Optional[bool] = Field(default=None, alias="seasonFolder")
 
 
 class ConnectionPayload(BaseModel):
@@ -114,6 +131,45 @@ class ConnectionPayload(BaseModel):
     language_profile_id: Optional[int] = Field(default=None, alias="languageProfileId")
     request_user_id: Optional[int] = Field(default=None, alias="requestUserId")
     tags: Optional[list[int]] = None
+
+
+class SonarrConnectionPayload(BaseModel):
+    """Editable Sonarr Direct settings."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    base_url: Optional[str] = Field(default=None, alias="baseUrl")
+    api_key: Optional[str] = Field(default=None, alias="apiKey")
+    root_folder_path: Optional[str] = Field(default=None, alias="rootFolderPath")
+    quality_profile_id: Optional[int] = Field(
+        default=None,
+        alias="qualityProfileId",
+    )
+    series_type: Optional[str] = Field(default=None, alias="seriesType")
+    default_monitor_mode: Optional[str] = Field(
+        default=None,
+        alias="defaultMonitorMode",
+    )
+    default_search_on_add: Optional[bool] = Field(
+        default=None,
+        alias="defaultSearchOnAdd",
+    )
+    default_season_folder: Optional[bool] = Field(
+        default=None,
+        alias="defaultSeasonFolder",
+    )
+    language_profile_id: Optional[int] = Field(default=None, alias="languageProfileId")
+    tags: Optional[list[int]] = None
+
+
+class RequestSettingsPayload(BaseModel):
+    """Editable request backend settings."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    request_backend: Optional[str] = Field(default=None, alias="requestBackend")
+    seerr: Optional[ConnectionPayload] = None
+    sonarr: Optional[SonarrConnectionPayload] = None
 
 
 class WeebarrSettingsPayload(BaseModel):
@@ -342,6 +398,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def connection_summary() -> dict[str, Any]:
         return settings_store.connection_summary()
 
+    def request_settings_summary() -> dict[str, Any]:
+        return settings_store.request_settings_summary()
+
     def weebarr_summary() -> dict[str, Any]:
         return settings_store.weebarr_summary()
 
@@ -472,8 +531,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "requestedTitles": requested_titles,
                 }
 
-            if not settings_now.seerr_configured:
-                message = "Seerr is not configured."
+            if not settings_now.request_backend_configured:
+                backend_name = (
+                    "Sonarr Direct"
+                    if settings_now.active_request_backend == "sonarr"
+                    else "Seerr"
+                )
+                message = f"{backend_name} is not configured."
                 return build_result()
             if not active_labels:
                 message = "Enable at least one automation bucket first."
@@ -501,32 +565,50 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 if item.get("bucket") not in active_labels:
                     continue
                 matched += 1
-                seerr = dict(item.get("seerr") or {})
-                if seerr.get("state") not in {"missing", "season_missing"}:
+                request_state = dict(item.get("request") or item.get("seerr") or {})
+                if not request_state.get("requestable"):
                     skipped += 1
                     continue
-                if not seerr.get("requestable") or not seerr.get("tmdbId"):
+                media_id = request_state.get("tmdbId") or request_state.get("seriesId")
+                if media_id is None:
+                    media_id = request_state.get("tvdbId")
+                if media_id is None:
                     skipped += 1
                     continue
                 eligible += 1
                 try:
-                    request_result = await service.request_in_seerr(
-                        media_id=int(seerr["tmdbId"]),
+                    request_options = None
+                    if settings_now.active_request_backend == "sonarr":
+                        sent_seasons = request_state.get("requestSeasons") or []
+                        if sent_seasons:
+                            request_options = {"selectedSeasons": sent_seasons}
+                    request_result = await service.request_title(
+                        media_id=int(media_id),
                         title=str(item.get("title") or "Unknown"),
-                        tvdb_id=seerr.get("tvdbId"),
-                        seasons=seerr.get("requestSeasons")
+                        tvdb_id=request_state.get("tvdbId"),
+                        seasons=request_state.get("requestSeasons")
                         or settings_now.seerr_request_seasons,
+                        options=request_options,
                     )
                     record = settings_store.record_request(
                         {
                             "anilist_id": item.get("id"),
-                            "tmdb_id": seerr.get("tmdbId"),
-                            "tvdb_id": seerr.get("tvdbId"),
+                            "backend": settings_now.active_request_backend,
+                            "tmdb_id": request_state.get("tmdbId"),
+                            "tvdb_id": request_state.get("tvdbId"),
+                            "sonarr_series_id": request_result.get("seriesId")
+                            or request_state.get("seriesId"),
                             "title": item.get("title"),
                             "season": target_season,
                             "year": target_year,
                             "requested_at": now_iso,
                             "request_seasons": request_result.get("sentSeasons", []),
+                            "request_state": (
+                                (request_result.get("requestState") or {}).get("state")
+                            ),
+                            "request_label": (
+                                (request_result.get("requestState") or {}).get("label")
+                            ),
                         }
                     )
                     requested += 1
@@ -567,11 +649,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         history = settings_store.request_history(season=season, year=year)
         history_by_anilist = {
             str(record["anilist_id"]): {
+                "backend": record["backend"],
                 "requestedAt": record["requested_at"],
                 "requestSeasons": record["request_seasons"],
                 "tmdbId": record["tmdb_id"],
                 "tvdbId": record["tvdb_id"],
+                "sonarrSeriesId": record["sonarr_series_id"],
                 "title": record["title"],
+                "requestState": record["request_state"],
+                "requestLabel": record["request_label"],
             }
             for record in history
         }
@@ -580,17 +666,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             enriched = dict(item)
             weebarr_request = history_by_anilist.get(str(item.get("id")))
             enriched["weebarrRequest"] = weebarr_request
-            if weebarr_request:
-                seerr = dict(enriched.get("seerr") or {})
-                if seerr.get("state") in {
+            if weebarr_request and weebarr_request.get("backend") == "seerr":
+                request_state = dict(
+                    enriched.get("request") or enriched.get("seerr") or {}
+                )
+                if request_state.get("state") in {
                     "missing",
                     "season_missing",
                     "missing_mapping",
                 }:
-                    seerr["state"] = "requested"
-                    seerr["label"] = "Requested"
-                    seerr["requestable"] = False
-                enriched["seerr"] = seerr
+                    request_state["state"] = "requested"
+                    request_state["label"] = "Requested"
+                    request_state["requestable"] = False
+                enriched["request"] = request_state
+                enriched["seerr"] = request_state
             items.append(enriched)
         return {**payload, "items": items}
 
@@ -752,7 +841,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         page_subtitle: str,
         initial_filter: str,
     ) -> dict[str, Any]:
-        summary = connection_summary()
+        request_summary = request_settings_summary()
+        seerr_summary = connection_summary()
         season, year = service.current_season()
         return {
             "request": request,
@@ -760,8 +850,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "asset_version": asset_version,
             "default_season": season,
             "default_year": year,
-            "seerr_configured": summary["configured"],
-            "seerr_base_url": summary["baseUrl"],
+            "seerr_configured": seerr_summary["configured"],
+            "seerr_base_url": seerr_summary["baseUrl"],
+            "request_settings": request_summary,
+            "request_backend": request_summary["requestBackend"],
+            "request_backend_configured": request_summary["requestBackendConfigured"],
             "page_name": page_name,
             "page_title": page_title,
             "page_subtitle": page_subtitle,
@@ -792,6 +885,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "asset_version": asset_version,
             "setup_required": current_settings().setup_required,
             "error_message": setup_error_message(request.query_params.get("error")),
+            "theme_context": current_theme_summary(),
+        }
+
+    def backend_setup_context(request: Request) -> dict[str, Any]:
+        return {
+            "request": request,
+            "version": __version__,
+            "asset_version": asset_version,
+            "request_settings": request_settings_summary(),
+            "access": access_summary(),
             "theme_context": current_theme_summary(),
         }
 
@@ -896,6 +999,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def setup_page(request: Request):
         settings_now = current_settings()
         if not settings_now.setup_required:
+            if settings_now.request_backend_required and current_auth_user(request):
+                return RedirectResponse(url="/setup/backend")
             if current_auth_user(request):
                 return RedirectResponse(url=DEFAULT_REDIRECT_PATH)
             return RedirectResponse(url="/login")
@@ -903,6 +1008,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             request=request,
             name="setup.html",
             context=setup_context(request),
+        )
+
+    @app.get("/setup/backend", response_class=HTMLResponse, include_in_schema=False)
+    async def backend_setup_page(request: Request):
+        settings_now = current_settings()
+        if settings_now.setup_required:
+            return RedirectResponse(url="/setup")
+        if not current_auth_user(request):
+            return RedirectResponse(url="/login?next=/setup/backend")
+        if not settings_now.request_backend_required:
+            return RedirectResponse(url=DEFAULT_REDIRECT_PATH)
+        return templates.TemplateResponse(
+            request=request,
+            name="setup-backend.html",
+            context=backend_setup_context(request),
         )
 
     @app.get("/api/setup/status")
@@ -946,12 +1066,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "plex_allowed_users": None,
             }
         )
+        set_auth_user(
+            request,
+            AuthUser(
+                mode="local",
+                username=username,
+                display_name=username,
+            ),
+        )
         setup_rate_limiter.reset(rate_limit_key("setup", request))
         request.session.pop("bootstrap_authorized", None)
         return {
             "success": True,
             "mode": updated.effective_auth_mode,
-            "redirectTo": "/login",
+            "redirectTo": (
+                "/setup/backend"
+                if updated.request_backend_required
+                else DEFAULT_REDIRECT_PATH
+            ),
         }
 
     @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
@@ -962,6 +1094,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not settings_now.auth_enabled:
             return RedirectResponse(url=DEFAULT_REDIRECT_PATH)
         if current_auth_user(request):
+            if settings_now.request_backend_required:
+                return RedirectResponse(url="/setup/backend")
             return RedirectResponse(
                 url=sanitize_next_path(request.query_params.get("next"))
             )
@@ -1006,7 +1140,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         set_auth_user(request, user)
         return {
             "success": True,
-            "redirectTo": sanitize_next_path(payload.next),
+            "redirectTo": (
+                "/setup/backend"
+                if settings_now.request_backend_required
+                else sanitize_next_path(payload.next)
+            ),
         }
 
     @app.get("/auth/plex/start", include_in_schema=False)
@@ -1101,6 +1239,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return RedirectResponse(url="/login?error=plex_not_allowed")
 
         set_auth_user(request, plex_auth_user(user_payload))
+        if settings_now.request_backend_required:
+            return RedirectResponse(url="/setup/backend")
         return RedirectResponse(
             url=sanitize_next_path(str(pending.get("next") or DEFAULT_REDIRECT_PATH))
         )
@@ -1119,7 +1259,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 request,
                 page_name="seasonal",
                 page_title="Seasonal Anime",
-                page_subtitle="Track each anime season by popularity, dub signal, airing cadence, and Seerr request status.",
+                page_subtitle=(
+                    "Track each anime season by popularity, dub signal, airing "
+                    "cadence, and request-backend status."
+                ),
                 initial_filter="all",
             ),
         )
@@ -1133,7 +1276,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 request,
                 page_name="requests",
                 page_title="Requested Anime",
-                page_subtitle="Review the titles this season that are already requested, partially requested, or fully available in Seerr.",
+                page_subtitle=(
+                    "Review the titles this season that Weebarr has already sent "
+                    "through the active request backend."
+                ),
                 initial_filter="all",
             ),
         )
@@ -1149,6 +1295,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "asset_version": asset_version,
                 "weebarr": weebarr_summary(),
                 "connection": connection_summary(),
+                "request_settings": request_settings_summary(),
                 "access": access_summary(),
                 **auth_summary(request),
             },
@@ -1161,6 +1308,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "status": "healthy",
             "app": "weebarr",
             "version": __version__,
+            "requestBackend": settings_now.active_request_backend,
+            "requestBackendConfigured": settings_now.request_backend_configured,
             "seerr_configured": settings_now.seerr_configured,
         }
 
@@ -1168,23 +1317,240 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def public_config() -> dict[str, Any]:
         season, year = service.current_season()
         summary = connection_summary()
+        request_summary = request_settings_summary()
         return {
             "version": __version__,
             "defaultSeason": season,
             "defaultYear": year,
             "seasonOptions": service.season_options(year),
+            "requestBackend": request_summary["requestBackend"],
+            "requestBackendConfigured": request_summary["requestBackendConfigured"],
             "seerrConfigured": summary["configured"],
             "seerrBaseUrl": summary["baseUrl"],
             "hasApiKey": summary["hasApiKey"],
             "apiKeyPreview": summary["apiKeyPreview"],
             "requestSeasons": summary["requestSeasons"],
+            "requestSettings": request_summary,
             "weebarr": weebarr_summary(),
             "access": access_summary(),
         }
 
+    def build_seerr_overrides(
+        payload: ConnectionPayload,
+        current: Settings,
+    ) -> dict[str, Any]:
+        submitted = payload.model_dump(exclude_unset=True)
+        overrides: dict[str, Any] = {}
+        if "base_url" in submitted:
+            overrides["base_url"] = (
+                payload.base_url.strip().rstrip("/")
+                if payload.base_url is not None and payload.base_url.strip()
+                else None
+            )
+        if "api_key" in submitted:
+            overrides["api_key"] = (
+                payload.api_key.strip()
+                if payload.api_key is not None and payload.api_key.strip()
+                else None
+            )
+        if "request_seasons" in submitted:
+            overrides["request_seasons"] = (
+                payload.request_seasons.strip()
+                if payload.request_seasons is not None
+                and payload.request_seasons.strip()
+                else None
+            )
+        if "sonarr_server_id" in submitted:
+            overrides["sonarr_server_id"] = payload.sonarr_server_id
+        if "profile_id" in submitted:
+            overrides["profile_id"] = payload.profile_id
+        if "force_quality_profile" in submitted:
+            overrides["force_quality_profile"] = bool(payload.force_quality_profile)
+        if "series_type" in submitted:
+            overrides["series_type"] = (
+                payload.series_type.strip()
+                if payload.series_type is not None and payload.series_type.strip()
+                else None
+            )
+        if "root_folder" in submitted:
+            overrides["root_folder"] = (
+                payload.root_folder.strip() if payload.root_folder is not None else None
+            ) or None
+        if "language_profile_id" in submitted:
+            overrides["language_profile_id"] = payload.language_profile_id
+        if "request_user_id" in submitted:
+            overrides["request_user_id"] = payload.request_user_id
+        if "tags" in submitted:
+            overrides["tags"] = payload.tags or None
+
+        effective_force_quality_profile = (
+            bool(payload.force_quality_profile)
+            if "force_quality_profile" in submitted
+            else current.seerr_force_quality_profile
+        )
+        effective_series_type = (
+            payload.series_type.strip().lower()
+            if "series_type" in submitted
+            and payload.series_type is not None
+            and payload.series_type.strip()
+            else current.seerr_series_type
+        )
+        if effective_series_type == "default":
+            effective_series_type = None
+        effective_profile_id = (
+            payload.profile_id
+            if "profile_id" in submitted
+            else current.seerr_profile_id
+        )
+        if effective_series_type not in (None, "standard", "daily", "anime"):
+            raise HTTPException(
+                status_code=400,
+                detail="Series Type must be one of Seerr default, Standard, Anime / Absolute, or Daily.",
+            )
+        if effective_force_quality_profile and effective_profile_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Quality Profile ID is required when Force Quality Profile is enabled.",
+            )
+        return overrides
+
+    def build_sonarr_overrides(payload: SonarrConnectionPayload) -> dict[str, Any]:
+        submitted = payload.model_dump(exclude_unset=True)
+        overrides: dict[str, Any] = {}
+        if "base_url" in submitted:
+            overrides["sonarr_base_url"] = (
+                payload.base_url.strip().rstrip("/")
+                if payload.base_url is not None and payload.base_url.strip()
+                else None
+            )
+        if "api_key" in submitted:
+            overrides["sonarr_api_key"] = (
+                payload.api_key.strip()
+                if payload.api_key is not None and payload.api_key.strip()
+                else None
+            )
+        if "root_folder_path" in submitted:
+            overrides["sonarr_root_folder_path"] = (
+                payload.root_folder_path.strip()
+                if payload.root_folder_path is not None
+                and payload.root_folder_path.strip()
+                else None
+            )
+        if "quality_profile_id" in submitted:
+            overrides["sonarr_quality_profile_id"] = payload.quality_profile_id
+        if "series_type" in submitted:
+            overrides["sonarr_series_type"] = (
+                payload.series_type.strip()
+                if payload.series_type is not None and payload.series_type.strip()
+                else None
+            )
+        if "default_monitor_mode" in submitted:
+            overrides["sonarr_default_monitor_mode"] = (
+                payload.default_monitor_mode.strip()
+                if payload.default_monitor_mode is not None
+                and payload.default_monitor_mode.strip()
+                else None
+            )
+        if "default_search_on_add" in submitted:
+            overrides["sonarr_default_search_on_add"] = bool(
+                payload.default_search_on_add
+            )
+        if "default_season_folder" in submitted:
+            overrides["sonarr_default_season_folder"] = bool(
+                payload.default_season_folder
+            )
+        if "language_profile_id" in submitted:
+            overrides["sonarr_language_profile_id"] = payload.language_profile_id
+        if "tags" in submitted:
+            overrides["sonarr_tags"] = payload.tags or None
+        return overrides
+
     @app.get("/api/settings/weebarr")
     async def app_settings() -> dict[str, Any]:
         return weebarr_summary()
+
+    @app.get("/api/settings/requests")
+    async def request_settings() -> dict[str, Any]:
+        return request_settings_summary()
+
+    @app.post("/api/settings/requests/test")
+    async def test_request_settings(payload: RequestSettingsPayload) -> dict[str, Any]:
+        backend = (
+            (payload.request_backend or request_settings_summary()["requestBackend"])
+            .strip()
+            .lower()
+        )
+        current = current_settings()
+        if backend == "sonarr":
+            sonarr_payload = payload.sonarr or SonarrConnectionPayload()
+            base_url = (
+                sonarr_payload.base_url.strip().rstrip("/")
+                if sonarr_payload.base_url and sonarr_payload.base_url.strip()
+                else current.sonarr_base_url
+            )
+            api_key = (
+                sonarr_payload.api_key.strip()
+                if sonarr_payload.api_key and sonarr_payload.api_key.strip()
+                else current.sonarr_api_key
+            )
+            if not base_url or not api_key:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Base URL and API key are required to test Sonarr Direct.",
+                )
+            result = await service.test_sonarr_connection(base_url, api_key)
+            result["requestBackend"] = "sonarr"
+            result["connection"] = {"baseUrl": base_url}
+            return result
+
+        seerr_payload = payload.seerr or ConnectionPayload()
+        base_url = (
+            seerr_payload.base_url.strip().rstrip("/")
+            if seerr_payload.base_url and seerr_payload.base_url.strip()
+            else current.seerr_base_url
+        )
+        api_key = (
+            seerr_payload.api_key.strip()
+            if seerr_payload.api_key and seerr_payload.api_key.strip()
+            else current.seerr_api_key
+        )
+        if not base_url or not api_key:
+            raise HTTPException(
+                status_code=400,
+                detail="Base URL and API key are required to test Seerr.",
+            )
+
+        result = await service.test_seerr_connection(base_url, api_key)
+        result["requestBackend"] = "seerr"
+        result["connection"] = {
+            "baseUrl": base_url,
+            "requestSeasons": seerr_payload.request_seasons
+            or current.seerr_request_seasons,
+        }
+        return result
+
+    @app.put("/api/settings/requests")
+    async def save_request_settings(payload: RequestSettingsPayload) -> dict[str, Any]:
+        current = current_settings()
+        try:
+            if payload.request_backend is not None:
+                settings_store.save_requests(
+                    {"backend": payload.request_backend.strip()}
+                )
+            if payload.seerr is not None:
+                settings_store.save_seerr(build_seerr_overrides(payload.seerr, current))
+            if payload.sonarr is not None:
+                settings_store.save_requests(build_sonarr_overrides(payload.sonarr))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        service.clear_cache()
+        updated = current_settings()
+        return {
+            "success": True,
+            "requests": request_settings_summary(),
+            "requestBackend": updated.active_request_backend,
+            "requestBackendConfigured": updated.request_backend_configured,
+        }
 
     @app.get("/api/settings/seerr")
     async def seerr_settings() -> dict[str, Any]:
@@ -1410,76 +1776,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.put("/api/settings/seerr")
     async def save_seerr_settings(payload: ConnectionPayload) -> dict[str, Any]:
-        submitted = payload.model_dump(exclude_unset=True)
         current = current_settings()
-        overrides: dict[str, Any] = {}
-        if "base_url" in submitted:
-            if payload.base_url is not None and payload.base_url.strip():
-                overrides["base_url"] = payload.base_url.strip().rstrip("/")
-        if "api_key" in submitted:
-            if payload.api_key is not None and payload.api_key.strip():
-                overrides["api_key"] = payload.api_key.strip()
-        if "request_seasons" in submitted:
-            overrides["request_seasons"] = (
-                payload.request_seasons.strip()
-                if payload.request_seasons is not None
-                and payload.request_seasons.strip()
-                else None
-            )
-        if "sonarr_server_id" in submitted:
-            overrides["sonarr_server_id"] = payload.sonarr_server_id
-        if "profile_id" in submitted:
-            overrides["profile_id"] = payload.profile_id
-        if "force_quality_profile" in submitted:
-            overrides["force_quality_profile"] = bool(payload.force_quality_profile)
-        if "series_type" in submitted:
-            overrides["series_type"] = (
-                payload.series_type.strip()
-                if payload.series_type is not None and payload.series_type.strip()
-                else None
-            )
-        if "root_folder" in submitted:
-            overrides["root_folder"] = (
-                payload.root_folder.strip() if payload.root_folder is not None else None
-            ) or None
-        if "language_profile_id" in submitted:
-            overrides["language_profile_id"] = payload.language_profile_id
-        if "request_user_id" in submitted:
-            overrides["request_user_id"] = payload.request_user_id
-        if "tags" in submitted:
-            overrides["tags"] = payload.tags or None
-
-        effective_force_quality_profile = (
-            bool(payload.force_quality_profile)
-            if "force_quality_profile" in submitted
-            else current.seerr_force_quality_profile
-        )
-        effective_series_type = (
-            payload.series_type.strip().lower()
-            if "series_type" in submitted
-            and payload.series_type is not None
-            and payload.series_type.strip()
-            else current.seerr_series_type
-        )
-        if effective_series_type == "default":
-            effective_series_type = None
-        effective_profile_id = (
-            payload.profile_id
-            if "profile_id" in submitted
-            else current.seerr_profile_id
-        )
-        if effective_series_type not in (None, "standard", "daily", "anime"):
-            raise HTTPException(
-                status_code=400,
-                detail="Series Type must be one of Seerr default, Standard, Anime / Absolute, or Daily.",
-            )
-        if effective_force_quality_profile and effective_profile_id is None:
-            raise HTTPException(
-                status_code=400,
-                detail="Quality Profile ID is required when Force Quality Profile is enabled.",
-            )
-
-        updated = settings_store.save_seerr(overrides)
+        updated = settings_store.save_seerr(build_seerr_overrides(payload, current))
         service.clear_cache()
         return {
             "success": True,
@@ -1520,17 +1818,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     @app.post("/api/request")
-    async def request_in_seerr(payload: RequestPayload) -> dict[str, Any]:
-        if not current_settings().seerr_configured:
-            raise HTTPException(status_code=503, detail="Seerr is not configured")
+    async def request_in_backend(payload: RequestPayload) -> dict[str, Any]:
+        settings_now = current_settings()
+        backend_name = (
+            "Sonarr Direct"
+            if settings_now.active_request_backend == "sonarr"
+            else "Seerr"
+        )
+        if not settings_now.request_backend_configured:
+            raise HTTPException(
+                status_code=503,
+                detail=f"{backend_name} is not configured",
+            )
 
         try:
-            result = await service.request_in_seerr(
+            request_options = (
+                payload.options.model_dump(by_alias=True, exclude_none=True)
+                if payload.options is not None
+                else None
+            )
+            default_seasons: list[int] | str = (
+                settings_now.seerr_request_seasons
+                if settings_now.active_request_backend == "seerr"
+                else "all"
+            )
+            result = await service.request_title(
                 media_id=payload.media_id,
                 title=payload.title,
                 tvdb_id=payload.tvdb_id,
-                seasons=payload.seasons or current_settings().seerr_request_seasons,
+                seasons=payload.seasons or default_seasons,
+                options=request_options,
             )
+            request_state = result.get("requestState") or {
+                "backend": "seerr",
+                "state": "requested",
+                "label": "Requested",
+                "requestable": False,
+            }
             if (
                 payload.anime_id is not None
                 and payload.season
@@ -1539,27 +1863,40 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 record = settings_store.record_request(
                     {
                         "anilist_id": payload.anime_id,
-                        "tmdb_id": payload.media_id,
+                        "backend": settings_now.active_request_backend,
+                        "tmdb_id": (
+                            payload.media_id
+                            if settings_now.active_request_backend == "seerr"
+                            else None
+                        ),
                         "tvdb_id": payload.tvdb_id,
+                        "sonarr_series_id": result.get("seriesId"),
                         "title": payload.title,
                         "season": payload.season,
                         "year": payload.year,
                         "requested_at": datetime.now(timezone.utc).isoformat(),
                         "request_seasons": result.get("sentSeasons", []),
+                        "request_state": request_state.get("state"),
+                        "request_label": request_state.get("label"),
                     }
                 )
                 result["weebarrRequest"] = {
+                    "backend": record["backend"],
                     "requestedAt": record["requested_at"],
                     "requestSeasons": record["request_seasons"],
                     "tmdbId": record["tmdb_id"],
                     "tvdbId": record["tvdb_id"],
+                    "sonarrSeriesId": record["sonarr_series_id"],
                     "title": record["title"],
+                    "requestState": record["request_state"],
+                    "requestLabel": record["request_label"],
                 }
+            result["requestState"] = request_state
             return result
         except HTTPException:
             raise
         except Exception as exc:
-            logger.exception("Seerr request failed")
+            logger.exception("%s request failed", backend_name)
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return app

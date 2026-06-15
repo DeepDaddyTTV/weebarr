@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Weebarr - Request Backend Setup</title>
+    <link rel="icon" href="/static/img/weebarr-mark.svg?v={{ asset_version }}" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/img/weebarr-mark.png?v={{ asset_version }}" />
+    <link rel="stylesheet" href="/static/css/weebarr.css?v={{ asset_version }}" />
+  </head>
+  <body data-theme="dark" data-page="setup-backend">
+    <main class="auth-screen">
+      <section class="auth-panel auth-panel-setup auth-panel-backend">
+        <div class="auth-brand">
+          <span class="wordmark-swap auth-wordmark-swap" role="img" aria-label="Weebarr">
+            <img class="auth-wordmark wordmark-dark" src="/static/img/weebarr-wordmark.svg?v={{ asset_version }}" alt="" aria-hidden="true" />
+            <img class="auth-wordmark wordmark-light" src="/static/img/weebarr-wordmark-light.png?v={{ asset_version }}" alt="" aria-hidden="true" />
+          </span>
+          <p>Finish setup by choosing the backend Weebarr should use for anime requests. Seerr keeps the current one-click request path. Sonarr Direct uses the new Sonarr-native request flow.</p>
+        </div>
+
+        <div id="setupBackendBanner" class="auth-banner" hidden></div>
+
+        <div class="setup-mode-grid" role="tablist" aria-label="Request backend">
+          <button
+            id="setupBackendModeSeerr"
+            class="setup-mode {{ 'active' if request_settings.requestBackend != 'sonarr' else '' }}"
+            type="button"
+            data-backend-mode="seerr"
+            aria-pressed="{{ 'false' if request_settings.requestBackend == 'sonarr' else 'true' }}"
+          >
+            <strong>Seerr</strong>
+            <span>Keep the existing Weebarr request button behavior and forward requests through Seerr.</span>
+          </button>
+          <button
+            id="setupBackendModeSonarr"
+            class="setup-mode {{ 'active' if request_settings.requestBackend == 'sonarr' else '' }}"
+            type="button"
+            data-backend-mode="sonarr"
+            aria-pressed="{{ 'true' if request_settings.requestBackend == 'sonarr' else 'false' }}"
+          >
+            <strong>Sonarr Direct</strong>
+            <span>Use direct Sonarr lookup, Sonarr state labels, and the new season-aware request modal.</span>
+          </button>
+        </div>
+
+        <form id="setupBackendForm" class="auth-form setup-backend-form" novalidate>
+          <div class="auth-section-head">
+            <h2>Request Backend</h2>
+            <p>The saved backend can be changed later in Settings without deleting the other backend's stored values.</p>
+          </div>
+
+          <section id="setupBackendSeerrPanel" class="setup-api-panel setup-backend-panel" {% if request_settings.requestBackend == 'sonarr' %}hidden{% endif %}>
+            <div class="setup-api-header">
+              <strong>Seerr Connection</strong>
+              <small>Current one-click request path</small>
+            </div>
+            <div class="form-grid setup-backend-grid">
+              <label>
+                <span>Seerr Base URL</span>
+                <input id="setupSeerrBaseUrl" type="url" placeholder="http://seerr:5055" value="{{ request_settings.seerr.baseUrl or '' }}" />
+                <small>Use the internal container URL Weebarr can reach.</small>
+              </label>
+
+              <label>
+                <span>API Key</span>
+                <input id="setupSeerrApiKey" type="password" placeholder="{{ 'Stored ' ~ request_settings.seerr.apiKeyPreview if request_settings.seerr.hasApiKey else 'Paste a Seerr API key' }}" />
+                <small>Leave blank to keep the currently stored key.</small>
+              </label>
+
+              <label class="full-width">
+                <span>Request Seasons</span>
+                <select id="setupSeerrRequestSeasons">
+                  <option value="all" {{ 'selected' if request_settings.seerr.requestSeasons == 'all' else '' }}>All seasons</option>
+                  <option value="first" {{ 'selected' if request_settings.seerr.requestSeasons == 'first' else '' }}>First season only</option>
+                  <option value="latest" {{ 'selected' if request_settings.seerr.requestSeasons == 'latest' else '' }}>Latest season only</option>
+                </select>
+                <small>Choose what Weebarr sends to Seerr when you click Request.</small>
+              </label>
+            </div>
+          </section>
+
+          <section id="setupBackendSonarrPanel" class="setup-api-panel setup-backend-panel" {% if request_settings.requestBackend != 'sonarr' %}hidden{% endif %}>
+            <div class="setup-api-header">
+              <strong>Sonarr Direct Defaults</strong>
+              <small>Required for the new Sonarr-native flow</small>
+            </div>
+            <div class="form-grid setup-backend-grid">
+              <label>
+                <span>Sonarr Base URL</span>
+                <input id="setupSonarrBaseUrl" type="url" placeholder="http://sonarr:8989" value="{{ request_settings.sonarr.baseUrl or '' }}" />
+                <small>Use the internal container URL Weebarr can reach.</small>
+              </label>
+
+              <label>
+                <span>API Key</span>
+                <input id="setupSonarrApiKey" type="password" placeholder="{{ 'Stored ' ~ request_settings.sonarr.apiKeyPreview if request_settings.sonarr.hasApiKey else 'Paste a Sonarr API key' }}" />
+                <small>Leave blank to keep the currently stored key.</small>
+              </label>
+
+              <label>
+                <span>Root Folder Path</span>
+                <input id="setupSonarrRootFolderPath" type="text" placeholder="/data/media/anime" value="{{ request_settings.sonarr.rootFolderPath or '' }}" />
+                <small>The root folder used when Weebarr adds a new Sonarr series.</small>
+              </label>
+
+              <label>
+                <span>Quality Profile ID</span>
+                <input id="setupSonarrQualityProfileId" type="number" min="1" placeholder="Required" value="{{ request_settings.sonarr.qualityProfileId or '' }}" />
+                <small>The Sonarr quality profile applied to new adds.</small>
+              </label>
+
+              <label>
+                <span>Series Type</span>
+                <select id="setupSonarrSeriesType">
+                  <option value="anime" {{ 'selected' if request_settings.sonarr.seriesType == 'anime' else '' }}>Anime / Absolute</option>
+                  <option value="standard" {{ 'selected' if request_settings.sonarr.seriesType == 'standard' else '' }}>Standard</option>
+                  <option value="daily" {{ 'selected' if request_settings.sonarr.seriesType == 'daily' else '' }}>Daily</option>
+                </select>
+                <small>The Sonarr series type Weebarr saves for direct adds.</small>
+              </label>
+
+              <label>
+                <span>Default Monitor Mode</span>
+                <select id="setupSonarrDefaultMonitorMode">
+                  <option value="all" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'all' else '' }}>All episodes</option>
+                  <option value="future" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'future' else '' }}>Future episodes</option>
+                  <option value="missing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'missing' else '' }}>Missing episodes</option>
+                  <option value="existing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'existing' else '' }}>Existing episodes</option>
+                  <option value="firstSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'firstSeason' else '' }}>First season</option>
+                  <option value="latestSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'latestSeason' else '' }}>Latest season</option>
+                  <option value="none" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'none' else '' }}>Do not monitor</option>
+                </select>
+                <small>The default monitoring mode for Sonarr Direct requests.</small>
+              </label>
+
+              <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
+                <span class="settings-plain-toggle-title">Search On Add</span>
+                <label class="toggle-switch" for="setupSonarrDefaultSearchOnAdd" aria-label="Search in Sonarr after add">
+                  <input id="setupSonarrDefaultSearchOnAdd" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSearchOnAdd else '' }} />
+                  <i aria-hidden="true"></i>
+                </label>
+                <small>Trigger Sonarr to search immediately after Weebarr adds or updates a title.</small>
+              </div>
+
+              <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
+                <span class="settings-plain-toggle-title">Season Folder</span>
+                <label class="toggle-switch" for="setupSonarrDefaultSeasonFolder" aria-label="Use Sonarr season folders">
+                  <input id="setupSonarrDefaultSeasonFolder" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSeasonFolder else '' }} />
+                  <i aria-hidden="true"></i>
+                </label>
+                <small>Use season folders by default for Sonarr Direct adds and updates.</small>
+              </div>
+
+              <label class="full-width">
+                <span>Language Profile ID</span>
+                <input id="setupSonarrLanguageProfileId" type="number" min="1" placeholder="Optional" value="{{ request_settings.sonarr.languageProfileId or '' }}" />
+                <small>Optional. Tag IDs stay editable later in Settings and are not required during setup.</small>
+              </label>
+            </div>
+          </section>
+
+          <section class="setup-api-panel setup-backend-results">
+            <div class="setup-api-header">
+              <strong>Latest Test Result</strong>
+              <small>Use this before saving if you want Weebarr to verify the endpoint first.</small>
+            </div>
+            <div class="settings-summary-grid settings-summary-grid-compact settings-summary-grid-test">
+              <div class="pill-card">
+                <span id="setupBackendMetricOneLabel">Server Count</span>
+                <strong id="setupBackendMetricOneValue">--</strong>
+              </div>
+              <div class="pill-card">
+                <span id="setupBackendMetricTwoLabel">Default Server</span>
+                <strong id="setupBackendMetricTwoValue">--</strong>
+              </div>
+              <div class="pill-card">
+                <span id="setupBackendMetricThreeLabel">Detected Profile</span>
+                <strong id="setupBackendMetricThreeValue">--</strong>
+              </div>
+              <div class="pill-card">
+                <span id="setupBackendMetricFourLabel">Detected Series Type</span>
+                <strong id="setupBackendMetricFourValue">--</strong>
+              </div>
+              <div class="pill-card">
+                <span id="setupBackendMetricFiveLabel">Detected Root</span>
+                <strong id="setupBackendMetricFiveValue">--</strong>
+              </div>
+            </div>
+          </section>
+
+          <div class="setup-backend-actions">
+            <button id="setupBackendTestBtn" class="secondary-btn" type="button">Test Connection</button>
+            <button id="setupBackendSaveBtn" class="refresh-btn auth-submit" type="submit">Save and Continue</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <script>
+      window.WEEBARR_THEME_CONTEXT = {{ theme_context | tojson }};
+      window.WEEBARR_SETUP_BACKEND = {
+        requestSettings: {{ request_settings | tojson }},
+        access: {{ access | tojson }},
+      };
+    </script>
+    <script src="/static/js/theme.js?v={{ asset_version }}"></script>
+    <script src="/static/js/setup-backend.js?v={{ asset_version }}"></script>
+  </body>
+</html>

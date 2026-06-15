@@ -113,11 +113,20 @@ async function submitSetup(event) {
   const payload = await response.json();
   if (authEls.setupForm) authEls.setupForm.hidden = true;
   if (authEls.setupSuccess) authEls.setupSuccess.hidden = false;
+  const redirectTo = payload.redirectTo || "/login";
+  const continuesToBackend = redirectTo.startsWith("/setup/backend");
   if (authEls.setupSuccessCopy) {
     authEls.setupSuccessCopy.textContent =
-      "The admin account is ready. Continue to the sign-in screen.";
+      continuesToBackend
+        ? "The admin account is ready. Continue to request-backend setup."
+        : "The admin account is ready. Continue to the sign-in screen.";
   }
-  authEls.setupContinueBtn.dataset.redirectTo = payload.redirectTo || "/login";
+  if (authEls.setupContinueBtn) {
+    authEls.setupContinueBtn.textContent = continuesToBackend
+      ? "Continue to Request Backend"
+      : "Continue";
+  }
+  authEls.setupContinueBtn.dataset.redirectTo = redirectTo;
 }
 
 function continueAfterSetup() {

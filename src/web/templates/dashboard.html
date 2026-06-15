@@ -49,13 +49,13 @@
             <strong
               class="tooltip-anchor"
               tabindex="0"
-              data-tooltip="{{ 'Weebarr can reach Seerr with the saved connection settings.' if seerr_configured else 'Add your Seerr base URL and API key in Settings to enable requests.' }}"
-            >{{ "Connected" if seerr_configured else "Seerr missing" }}</strong>
+              data-tooltip="{% if request_backend_configured %}Weebarr can reach the active {{ 'Sonarr Direct' if request_backend == 'sonarr' else 'Seerr' }} backend with the saved connection settings.{% else %}Add your {{ 'Sonarr Direct' if request_backend == 'sonarr' else 'Seerr' }} connection details in Settings to enable requests.{% endif %}"
+            >{{ "Connected" if request_backend_configured else ("Sonarr missing" if request_backend == "sonarr" else "Seerr missing") }}</strong>
             <span
               class="connection-head-detail tooltip-anchor"
               tabindex="0"
-              data-tooltip="{{ seerr_base_url if seerr_base_url else 'No live Seerr endpoint is configured yet.' }}"
-            >Seerr</span>
+              data-tooltip="{% if request_backend == 'sonarr' %}{{ request_settings.sonarr.baseUrl if request_settings.sonarr.baseUrl else 'No live Sonarr Direct endpoint is configured yet.' }}{% else %}{{ seerr_base_url if seerr_base_url else 'No live Seerr endpoint is configured yet.' }}{% endif %}"
+            >{{ "Sonarr Direct" if request_backend == "sonarr" else "Seerr" }}</span>
           </div>
           <a class="connection-cta" href="/settings#connections">Manage Connections</a>
           <a class="connection-cta connection-cta-subtle" href="/logout">Sign Out</a>
@@ -95,27 +95,27 @@
         </header>
 
         <section class="stats-grid" aria-label="Season stats">
-          <article class="stat-card stat-cyan" title="{{ 'Requested titles tracked through Weebarr this season' if page_name == 'requests' else 'Total anime surfaced for this season' }}">
+          <article class="stat-card stat-cyan" title="{{ 'Titles tracked through Weebarr this season' if page_name == 'requests' else 'Total anime surfaced for this season' }}">
             <span class="stat-icon stat-icon-total" aria-hidden="true"></span>
             <div class="stat-copy">
               <span class="stat-title">{{ "Requested This Season" if page_name == "requests" else "Anime This Season" }}</span>
-              <small class="stat-subcopy">{{ "Tracked in Seerr" if page_name == "requests" else "Total shows" }}</small>
+              <small class="stat-subcopy">{{ "Tracked by Weebarr" if page_name == "requests" else "Total shows" }}</small>
             </div>
             <strong id="statTotal">--</strong>
           </article>
-          <article class="stat-card stat-pink" title="{{ 'Requested titles that still need more seasons covered' if page_name == 'requests' else 'Anime that still need a request or explicit season coverage' }}">
+          <article class="stat-card stat-pink" title="{{ 'Tracked titles that still need more action' if page_name == 'requests' else 'Anime that still need a request or explicit season coverage' }}">
             <span class="stat-icon stat-icon-requestable" aria-hidden="true"></span>
             <div class="stat-copy">
-              <span class="stat-title">{{ "Missing Seasons" if page_name == "requests" else "Requestable" }}</span>
-              <small class="stat-subcopy">{{ "Partial requests" if page_name == "requests" else "Actionable titles" }}</small>
+              <span class="stat-title">{{ "Needs Action" if page_name == "requests" or request_backend == "sonarr" else "Requestable" }}</span>
+              <small class="stat-subcopy">{{ "Actionable titles" if page_name != "requests" else "Still requestable" }}</small>
             </div>
             <strong id="statRequestable">--</strong>
           </article>
-          <article class="stat-card stat-purple" title="Anime already requested, partially available, or fully available in Seerr">
+          <article class="stat-card stat-purple" title="{% if request_backend == 'sonarr' %}Anime already tracked, partially available, or fully available in Sonarr{% else %}Anime already requested, partially available, or fully available in Seerr{% endif %}">
             <span class="stat-icon stat-icon-requested" aria-hidden="true"></span>
             <div class="stat-copy">
-              <span class="stat-title">{{ "Already Requested" if page_name == "requests" else "Already Requested" }}</span>
-              <small class="stat-subcopy">{{ "Fully tracked" if page_name == "requests" else "Tracked in Seerr" }}</small>
+              <span class="stat-title">{{ "Tracked in Sonarr" if request_backend == "sonarr" else "Already Requested" }}</span>
+              <small class="stat-subcopy">{{ "In Sonarr" if request_backend == "sonarr" else "Tracked in Seerr" }}</small>
             </div>
             <strong id="statRequested">--</strong>
           </article>
@@ -140,11 +140,18 @@
               <select id="statusFilter">
                 <option value="all">All</option>
                 <option value="missing">Missing</option>
+                {% if request_backend == "sonarr" %}
+                <option value="in_library">In Library</option>
+                <option value="partial">Partially Available</option>
+                <option value="available">Available</option>
+                <option value="missing_mapping">No Sonarr match</option>
+                {% else %}
                 <option value="requested">Requested</option>
                 <option value="partial">Partially Available</option>
                 <option value="available">Available</option>
                 <option value="season_missing">Season Missing</option>
                 <option value="missing_mapping">Missing mapping</option>
+                {% endif %}
               </select>
               <button id="statusFilterTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="statusFilterMenu">
                 <span class="ui-select-value"></span>
@@ -198,7 +205,7 @@
               <button type="button" data-quick-filter="needs_action">Needs action</button>
               <button type="button" data-quick-filter="en_dubbed">English dubbed</button>
               <button type="button" data-quick-filter="source_only">JA/CH only</button>
-              <button type="button" data-quick-filter="missing_mapping">Missing mapping</button>
+              <button type="button" data-quick-filter="missing_mapping">{{ "No Sonarr match" if request_backend == "sonarr" else "Missing mapping" }}</button>
               <button type="button" data-quick-filter="clear">Clear filters</button>
             </div>
           </div>
@@ -209,7 +216,7 @@
           <div class="spotlight-empty">
             <span class="orb"></span>
             <h2>Select an anime</h2>
-            <p>Pick a seasonal card to see mapping status, next airing data, and the Seerr request action.</p>
+            <p>Pick a seasonal card to see mapping status, next airing data, and the active request action.</p>
           </div>
         </aside>
         </div>
@@ -217,6 +224,66 @@
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="requestModal" class="connection-modal" role="dialog" aria-modal="true" aria-labelledby="requestModalTitle" hidden>
+      <div class="modal-backdrop" data-close-request-modal></div>
+      <section class="modal-panel request-modal-panel">
+        <button class="modal-close" type="button" aria-label="Close request modal" data-close-request-modal>×</button>
+        <span class="modal-eyebrow">Sonarr Direct</span>
+        <h2 id="requestModalTitle">Request in Sonarr</h2>
+        <p id="requestModalCopy">Choose the Sonarr options for this title.</p>
+        <form id="requestModalForm" class="request-modal-form">
+          <div id="requestModalSeasonGroup" class="request-modal-season-group" hidden>
+            <span class="request-modal-label">Seasons</span>
+            <div id="requestModalSeasons" class="request-modal-season-list"></div>
+          </div>
+          <div id="requestModalSeasonFallback" class="settings-note" hidden>
+            <p>Sonarr lookup did not expose usable season details for this title, so only monitor and search controls are available for this request.</p>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span>Monitor Mode</span>
+              <div class="ui-select" data-ui-select="requestModalMonitorMode">
+                <select id="requestModalMonitorMode" name="monitorMode">
+                  <option value="all">All episodes</option>
+                  <option value="future">Future episodes</option>
+                  <option value="missing">Missing episodes</option>
+                  <option value="existing">Existing episodes</option>
+                  <option value="firstSeason">First season</option>
+                  <option value="latestSeason">Latest season</option>
+                  <option value="none">Do not monitor</option>
+                </select>
+                <button id="requestModalMonitorModeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="requestModalMonitorModeMenu">
+                  <span class="ui-select-value"></span>
+                  <i class="ui-select-chevron" aria-hidden="true"></i>
+                </button>
+                <div id="requestModalMonitorModeMenu" class="ui-select-menu" role="listbox" hidden></div>
+              </div>
+            </label>
+
+            <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
+              <span class="settings-plain-toggle-title">Search On Add</span>
+              <label class="toggle-switch" for="requestModalSearchOnAdd" aria-label="Search in Sonarr after this request">
+                <input id="requestModalSearchOnAdd" name="searchOnAdd" type="checkbox" checked />
+                <i aria-hidden="true"></i>
+              </label>
+              <small>Trigger Sonarr to search right after the add or update is submitted.</small>
+            </div>
+
+            <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
+              <span class="settings-plain-toggle-title">Season Folder</span>
+              <label class="toggle-switch" for="requestModalSeasonFolder" aria-label="Use season folders in Sonarr">
+                <input id="requestModalSeasonFolder" name="seasonFolder" type="checkbox" checked />
+                <i aria-hidden="true"></i>
+              </label>
+              <small>Use the saved Sonarr season-folder behavior for this title.</small>
+            </div>
+          </div>
+          <div class="settings-actions">
+            <button id="requestModalSubmit" class="refresh-btn" type="submit">Send to Sonarr</button>
+          </div>
+        </form>
+      </section>
+    </div>
     <script>
       window.WEEBARR_DEFAULT_SEASON = "{{ default_season }}";
       window.WEEBARR_DEFAULT_YEAR = {{ default_year }};
@@ -224,6 +291,7 @@
       window.WEEBARR_INITIAL_FILTER = "{{ initial_filter }}";
       window.WEEBARR_THEME_CONTEXT = {{ weebarr.theme | tojson }};
       window.WEEBARR_WEEBARR = {{ weebarr | tojson }};
+      window.WEEBARR_REQUEST_SETTINGS = {{ request_settings | tojson }};
     </script>
     <script src="/static/js/theme.js?v={{ asset_version }}"></script>
     <script src="/static/js/weebarr.js?v={{ asset_version }}"></script>

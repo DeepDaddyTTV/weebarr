@@ -167,7 +167,7 @@ No matter how you deploy Weebarr, the safe upgrade flow is:
 2. Pull the new image.
 3. Recreate the container.
 4. Check the health endpoint.
-5. Open the UI and confirm Seerr still connects.
+5. Open the UI and confirm the intended request backend still connects.
 
 Health check:
 
@@ -175,4 +175,4 @@ Health check:
 /api/health
 ```
 
-If the app starts but requests fail, check the **Connections** tab and run the Seerr connection test.
+If the app starts but requests fail, check the **Connections** tab, confirm the intended backend is selected, and run the backend connection test.

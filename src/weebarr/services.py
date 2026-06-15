@@ -15,7 +15,7 @@ from urllib.parse import quote
 import httpx
 from fastapi import HTTPException
 
-from src.weebarr.settings import Settings
+from src.weebarr.settings import SONARR_MONITOR_TYPES, Settings
 
 ANILIST_URL = "https://graphql.anilist.co"
 JIKAN_CHARACTERS_URL = "https://api.jikan.moe/v4/anime/{mal_id}/characters"
@@ -38,6 +38,8 @@ SOURCE_AUDIO = {
     "HK": {"language": "zh", "label": "CH", "state": "ch_only"},
     "KR": {"language": "ko", "label": "KO", "state": "ko_only"},
 }
+SEERR_REQUESTED_STATES = {"requested", "partial", "available"}
+SONARR_REQUESTED_STATES = {"in_library", "partial", "available"}
 TITLE_SUFFIX_PATTERNS = (
     (
         re.compile(r"\s+(season|cour|part)\s+\d+\s*$", flags=re.IGNORECASE),
@@ -449,6 +451,44 @@ class WeebarrService:
     def clear_cache(self) -> None:
         self.cache.clear()
 
+    @property
+    def request_backend(self) -> str:
+        return self.settings.active_request_backend
+
+    def requested_states(self) -> set[str]:
+        if self.request_backend == "sonarr":
+            return SONARR_REQUESTED_STATES
+        return SEERR_REQUESTED_STATES
+
+    async def resolve_request_state(self, anime: dict[str, Any]) -> dict[str, Any]:
+        if self.request_backend == "sonarr":
+            return await self._resolve_sonarr(anime)
+        return await self._resolve_seerr(anime)
+
+    async def request_title(
+        self,
+        *,
+        media_id: int,
+        title: str,
+        tvdb_id: int | None,
+        seasons: list[int] | str,
+        options: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if self.request_backend == "sonarr":
+            return await self.request_in_sonarr(
+                media_id=media_id,
+                title=title,
+                tvdb_id=tvdb_id,
+                seasons=seasons,
+                options=options,
+            )
+        return await self.request_in_seerr(
+            media_id=media_id,
+            title=title,
+            tvdb_id=tvdb_id,
+            seasons=seasons,
+        )
+
     def current_season(self) -> tuple[str, int]:
         now = datetime.now()
         if now.month <= 3:
@@ -469,38 +509,45 @@ class WeebarrService:
     async def seasonal_anime(
         self, season: str, year: int, per_page: int
     ) -> dict[str, Any]:
-        cache_key = f"seasonal:{season}:{year}:{per_page}:{self.settings.seerr_configured}:{self.settings.content_filter_mode}"
+        cache_key = (
+            f"seasonal:{season}:{year}:{per_page}:{self.request_backend}:"
+            f"{self.settings.request_backend_configured}:"
+            f"{self.settings.content_filter_mode}"
+        )
         cached = self.cache.get(cache_key)
         if cached:
             return cast(dict[str, Any], cached)
 
         anime = await self._fetch_anilist(season, year, per_page)
-        seerr_semaphore = asyncio.Semaphore(8)
+        request_semaphore = asyncio.Semaphore(8)
         # Jikan is rate-limited, but serializing dub lookups makes cold loads feel stuck.
         # A moderate fan-out keeps the first render responsive while still falling back
         # quickly when Jikan returns 429s.
         audio_semaphore = asyncio.Semaphore(6)
 
         async def enrich(item: dict[str, Any]) -> dict[str, Any]:
-            async def resolve_seerr() -> dict[str, Any]:
-                async with seerr_semaphore:
-                    return await self._resolve_seerr(item)
+            async def resolve_request() -> dict[str, Any]:
+                async with request_semaphore:
+                    return await self.resolve_request_state(item)
 
             async def resolve_audio() -> dict[str, Any]:
                 async with audio_semaphore:
                     return await self._resolve_audio(item)
 
-            item["seerr"], item["audio"] = await asyncio.gather(
-                resolve_seerr(),
+            request_state, item["audio"] = await asyncio.gather(
+                resolve_request(),
                 resolve_audio(),
             )
+            item["request"] = request_state
+            item["seerr"] = request_state
             return self._apply_seerr_art(item)
 
         enriched = await asyncio.gather(*(enrich(item) for item in anime))
-        stats = Counter(item["seerr"]["state"] for item in enriched)
+        stats = Counter((item.get("request") or {}).get("state") for item in enriched)
         requestable_count = sum(
-            1 for item in enriched if (item.get("seerr") or {}).get("requestable")
+            1 for item in enriched if (item.get("request") or {}).get("requestable")
         )
+        requested_states = self.requested_states()
         result = {
             "season": season,
             "year": year,
@@ -508,11 +555,7 @@ class WeebarrService:
             "stats": {
                 "total": len(enriched),
                 "requestable": requestable_count,
-                "requested": (
-                    stats.get("requested", 0)
-                    + stats.get("partial", 0)
-                    + stats.get("available", 0)
-                ),
+                "requested": sum(stats.get(state, 0) for state in requested_states),
                 "available": stats.get("available", 0),
                 "partial": stats.get("partial", 0),
                 "seasonMissing": stats.get("season_missing", 0),
@@ -853,6 +896,70 @@ class WeebarrService:
             return target_season, target_label or f"Season {target_season}"
         return None, None
 
+    @staticmethod
+    def _anime_titles(anime: dict[str, Any]) -> list[str]:
+        raw_titles = [
+            anime.get("englishTitle"),
+            anime.get("title"),
+            anime.get("romajiTitle"),
+            anime.get("nativeTitle"),
+        ]
+        return [
+            title
+            for title in dict.fromkeys(raw_titles)
+            if isinstance(title, str) and title.strip()
+        ]
+
+    @staticmethod
+    def _score_titles(titles: list[str]) -> list[str]:
+        return list(
+            dict.fromkeys(
+                titles
+                + [
+                    variant
+                    for title in titles
+                    for variant in title_search_variants(title)
+                ]
+            )
+        )
+
+    @staticmethod
+    def _catalog_seasons(details: dict[str, Any]) -> list[int]:
+        return sorted(
+            {
+                season_number
+                for season_number in (
+                    _coerce_int(item.get("seasonNumber"))
+                    for item in cast(list[dict[str, Any]], details.get("seasons") or [])
+                )
+                if season_number is not None and season_number > 0
+            }
+        )
+
+    @staticmethod
+    def _resolve_catalog_request_seasons(
+        catalog_seasons: list[int],
+        seasons: list[int] | str,
+    ) -> list[int]:
+        if isinstance(seasons, list):
+            return sorted(
+                {
+                    season_number
+                    for season_number in (_coerce_int(value) for value in seasons)
+                    if season_number is not None and season_number > 0
+                }
+            )
+
+        if not catalog_seasons:
+            return []
+
+        choice = seasons.strip().lower()
+        if choice == "first":
+            return [catalog_seasons[0]]
+        if choice == "latest":
+            return [catalog_seasons[-1]]
+        return catalog_seasons
+
     def _classify_seerr_state(
         self,
         anime: dict[str, Any],
@@ -970,6 +1077,7 @@ class WeebarrService:
             state, label, requestable = "missing", "Missing", True
 
         return {
+            "backend": "seerr",
             "state": state,
             "label": label,
             "requestable": requestable,
@@ -1001,6 +1109,7 @@ class WeebarrService:
     async def _resolve_seerr(self, anime: dict[str, Any]) -> dict[str, Any]:
         if not self.settings.seerr_configured:
             return {
+                "backend": "seerr",
                 "state": "disabled",
                 "label": "Seerr not configured",
                 "requestable": False,
@@ -1061,6 +1170,7 @@ class WeebarrService:
 
         if not best or best_score < 45:
             return {
+                "backend": "seerr",
                 "state": "missing_mapping",
                 "label": "No Seerr match",
                 "requestable": False,
@@ -1096,6 +1206,461 @@ class WeebarrService:
 
         self.cache.set(cache_key, results, self.settings.seerr_cache_ttl_seconds)
         return results
+
+    async def _sonarr_request(
+        self,
+        method: str,
+        path: str,
+        *,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        resolved_base_url = (base_url or self.settings.sonarr_base_url).rstrip("/")
+        resolved_api_key = api_key or self.settings.sonarr_api_key
+        async with httpx.AsyncClient(
+            timeout=self.settings.request_timeout_seconds
+        ) as client:
+            return await client.request(
+                method,
+                f"{resolved_base_url}{path}",
+                params=params,
+                json=json,
+                headers={"X-Api-Key": resolved_api_key},
+            )
+
+    async def _sonarr_request_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+    ) -> Any:
+        response = await self._sonarr_request(
+            method,
+            path,
+            base_url=base_url,
+            api_key=api_key,
+            params=params,
+            json=json,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def _sonarr_series(self) -> list[dict[str, Any]]:
+        cache_key = "sonarr-series"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cast(list[dict[str, Any]], cached)
+
+        payload = cast(
+            list[dict[str, Any]],
+            await self._sonarr_request_json("GET", "/api/v3/series"),
+        )
+        self.cache.set(cache_key, payload, self.settings.seerr_cache_ttl_seconds)
+        return payload
+
+    async def _sonarr_series_details(self, series_id: int) -> dict[str, Any]:
+        cache_key = f"sonarr-series:{series_id}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cast(dict[str, Any], cached)
+
+        payload = cast(
+            dict[str, Any],
+            await self._sonarr_request_json("GET", f"/api/v3/series/{series_id}"),
+        )
+        self.cache.set(cache_key, payload, self.settings.seerr_cache_ttl_seconds)
+        return payload
+
+    async def _sonarr_lookup(self, term: str) -> list[dict[str, Any]]:
+        cache_key = f"sonarr-lookup:{term}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cast(list[dict[str, Any]], cached)
+
+        payload = cast(
+            list[dict[str, Any]],
+            await self._sonarr_request_json(
+                "GET",
+                "/api/v3/series/lookup",
+                params={"term": term},
+            ),
+        )
+        self.cache.set(cache_key, payload, self.settings.seerr_cache_ttl_seconds)
+        return payload
+
+    async def _sonarr_root_folders(
+        self, base_url: str, api_key: str
+    ) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._sonarr_request_json(
+                "GET",
+                "/api/v3/rootfolder",
+                base_url=base_url,
+                api_key=api_key,
+            ),
+        )
+
+    async def _sonarr_quality_profiles(
+        self, base_url: str, api_key: str
+    ) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._sonarr_request_json(
+                "GET",
+                "/api/v3/qualityprofile",
+                base_url=base_url,
+                api_key=api_key,
+            ),
+        )
+
+    async def _sonarr_language_profiles(
+        self, base_url: str, api_key: str
+    ) -> list[dict[str, Any]]:
+        response = await self._sonarr_request(
+            "GET",
+            "/api/v3/languageprofile",
+            base_url=base_url,
+            api_key=api_key,
+        )
+        if response.status_code == 404:
+            return []
+        response.raise_for_status()
+        return cast(list[dict[str, Any]], response.json())
+
+    async def _sonarr_tags(self, base_url: str, api_key: str) -> list[dict[str, Any]]:
+        return cast(
+            list[dict[str, Any]],
+            await self._sonarr_request_json(
+                "GET",
+                "/api/v3/tag",
+                base_url=base_url,
+                api_key=api_key,
+            ),
+        )
+
+    def _best_scored_candidate(
+        self,
+        titles: list[str],
+        candidates: list[dict[str, Any]],
+        start_year: int | None,
+    ) -> tuple[dict[str, Any] | None, int]:
+        best: dict[str, Any] | None = None
+        best_score = 0
+        score_titles = self._score_titles(titles)
+        for candidate in candidates:
+            score = candidate_score(score_titles, candidate, start_year)
+            if score > best_score:
+                best = candidate
+                best_score = score
+        return best, best_score
+
+    @staticmethod
+    def _sonarr_season_has_files(season: dict[str, Any]) -> bool:
+        statistics = cast(dict[str, Any], season.get("statistics") or {})
+        count = _coerce_int(statistics.get("episodeFileCount")) or 0
+        return count > 0
+
+    @staticmethod
+    def _sonarr_season_is_available(season: dict[str, Any]) -> bool:
+        statistics = cast(dict[str, Any], season.get("statistics") or {})
+        percent = statistics.get("percentOfEpisodes")
+        if isinstance(percent, (int, float)) and percent >= 99.9:
+            return True
+        episode_count = _coerce_int(statistics.get("totalEpisodeCount")) or _coerce_int(
+            statistics.get("episodeCount")
+        )
+        file_count = _coerce_int(statistics.get("episodeFileCount")) or 0
+        return bool(episode_count and file_count >= episode_count)
+
+    def _classify_sonarr_state(
+        self,
+        anime: dict[str, Any],
+        matched: dict[str, Any],
+        best_score: int,
+        *,
+        in_library: bool,
+        lookup_match: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        season_source = lookup_match or matched
+        catalog_seasons = self._catalog_seasons(season_source)
+        target_season, target_label = self._resolve_target_season(anime, season_source)
+        season_selection_enabled = bool(catalog_seasons)
+        default_request_seasons = (
+            [target_season] if target_season is not None else list(catalog_seasons)
+        )
+        images = cast(list[dict[str, Any]], matched.get("images") or [])
+        poster_url = next(
+            (
+                str(image.get("remoteUrl") or "").strip()
+                for image in images
+                if image.get("coverType") == "poster"
+                and str(image.get("remoteUrl") or "").strip()
+            ),
+            None,
+        )
+        backdrop_url = next(
+            (
+                str(image.get("remoteUrl") or "").strip()
+                for image in images
+                if image.get("coverType") == "fanart"
+                and str(image.get("remoteUrl") or "").strip()
+            ),
+            None,
+        )
+
+        state = "missing"
+        label = "Missing"
+        requestable = True
+        if in_library:
+            required_seasons = (
+                list(range(1, target_season + 1))
+                if target_season is not None
+                else list(catalog_seasons)
+            )
+            available_seasons: set[int] = set()
+            covered_seasons: set[int] = set()
+            monitored_seasons: set[int] = set()
+            for season in cast(list[dict[str, Any]], matched.get("seasons") or []):
+                season_number = _coerce_int(season.get("seasonNumber"))
+                if season_number is None or season_number == 0:
+                    continue
+                if season.get("monitored") is True:
+                    monitored_seasons.add(season_number)
+                if self._sonarr_season_has_files(season):
+                    covered_seasons.add(season_number)
+                if self._sonarr_season_is_available(season):
+                    available_seasons.add(season_number)
+
+            statistics = cast(dict[str, Any], matched.get("statistics") or {})
+            overall_episode_files = _coerce_int(statistics.get("episodeFileCount")) or 0
+            overall_episode_count = _coerce_int(
+                statistics.get("totalEpisodeCount")
+            ) or _coerce_int(statistics.get("episodeCount"))
+            overall_complete = bool(
+                overall_episode_count and overall_episode_files >= overall_episode_count
+            )
+            overall_has_files = overall_episode_files > 0
+
+            if required_seasons and all(
+                season_number in available_seasons for season_number in required_seasons
+            ):
+                state, label, requestable = "available", "Available", False
+            elif required_seasons and any(
+                season_number in covered_seasons or season_number in available_seasons
+                for season_number in required_seasons
+            ):
+                state, label, requestable = (
+                    "partial",
+                    "Partially Available",
+                    True,
+                )
+            elif not required_seasons and overall_complete:
+                state, label, requestable = "available", "Available", False
+            elif not required_seasons and overall_has_files:
+                state, label, requestable = (
+                    "partial",
+                    "Partially Available",
+                    True,
+                )
+            else:
+                state, label, requestable = "in_library", "In Library", True
+
+        return {
+            "backend": "sonarr",
+            "state": state,
+            "label": label,
+            "requestable": requestable,
+            "seriesId": _coerce_int(matched.get("id")) if in_library else None,
+            "tmdbId": None,
+            "tvdbId": _coerce_int(matched.get("tvdbId"))
+            or _coerce_int((lookup_match or {}).get("tvdbId")),
+            "title": matched.get("title")
+            or matched.get("sortTitle")
+            or anime.get("title"),
+            "matchScore": best_score,
+            "posterUrl": poster_url,
+            "backdropUrl": backdrop_url,
+            "targetSeason": target_season,
+            "targetSeasonLabel": target_label,
+            "catalogSeasons": catalog_seasons,
+            "requestSeasons": default_request_seasons,
+            "seasonSelectionEnabled": season_selection_enabled,
+            "monitorModeDefault": self.settings.sonarr_default_monitor_mode,
+            "searchOnAddDefault": self.settings.sonarr_default_search_on_add,
+            "seasonFolderDefault": self.settings.sonarr_default_season_folder,
+        }
+
+    async def _resolve_sonarr(self, anime: dict[str, Any]) -> dict[str, Any]:
+        if not self.settings.sonarr_configured:
+            return {
+                "backend": "sonarr",
+                "state": "disabled",
+                "label": "Sonarr Direct not configured",
+                "requestable": False,
+            }
+
+        titles = self._anime_titles(anime)
+        raw_start_year = anime.get("startYear")
+        start_year = raw_start_year if isinstance(raw_start_year, int) else None
+
+        lookup_best: dict[str, Any] | None = None
+        lookup_score = 0
+        for title in titles:
+            for query in title_search_variants(title):
+                results = await self._sonarr_lookup(query)
+                candidate, score = self._best_scored_candidate(
+                    titles,
+                    results,
+                    start_year,
+                )
+                if score > lookup_score:
+                    lookup_best = candidate
+                    lookup_score = score
+                if lookup_score >= 95:
+                    break
+            if lookup_score >= 95:
+                break
+
+        series_list = await self._sonarr_series()
+        existing_best, existing_score = self._best_scored_candidate(
+            titles,
+            series_list,
+            start_year,
+        )
+
+        if lookup_best is not None:
+            lookup_tvdb_id = _coerce_int(lookup_best.get("tvdbId"))
+            if lookup_tvdb_id is not None:
+                existing_by_tvdb = next(
+                    (
+                        series
+                        for series in series_list
+                        if _coerce_int(series.get("tvdbId")) == lookup_tvdb_id
+                    ),
+                    None,
+                )
+                if existing_by_tvdb is not None:
+                    return self._classify_sonarr_state(
+                        anime,
+                        existing_by_tvdb,
+                        max(existing_score, lookup_score, 110),
+                        in_library=True,
+                        lookup_match=lookup_best,
+                    )
+
+        if existing_best is not None and existing_score >= 45:
+            return self._classify_sonarr_state(
+                anime,
+                existing_best,
+                existing_score,
+                in_library=True,
+                lookup_match=lookup_best if lookup_score >= 45 else None,
+            )
+        if lookup_best is not None and lookup_score >= 45:
+            return self._classify_sonarr_state(
+                anime,
+                lookup_best,
+                lookup_score,
+                in_library=False,
+                lookup_match=lookup_best,
+            )
+        return {
+            "backend": "sonarr",
+            "state": "missing_mapping",
+            "label": "No Sonarr match",
+            "requestable": False,
+            "matchScore": max(existing_score, lookup_score),
+        }
+
+    async def test_sonarr_connection(
+        self,
+        base_url: str,
+        api_key: str,
+    ) -> dict[str, Any]:
+        try:
+            root_folders, quality_profiles, language_profiles, tags = (
+                await asyncio.gather(
+                    self._sonarr_root_folders(base_url, api_key),
+                    self._sonarr_quality_profiles(base_url, api_key),
+                    self._sonarr_language_profiles(base_url, api_key),
+                    self._sonarr_tags(base_url, api_key),
+                )
+            )
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text.strip() or exc.response.reason_phrase
+            raise HTTPException(
+                status_code=exc.response.status_code, detail=detail
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+        normalized_root_folders = [
+            {
+                "id": _coerce_int(item.get("id")),
+                "path": str(item.get("path") or "").strip(),
+            }
+            for item in root_folders
+            if str(item.get("path") or "").strip()
+        ]
+        normalized_quality_profiles = [
+            {
+                "id": _coerce_int(item.get("id")),
+                "name": str(item.get("name") or "").strip(),
+            }
+            for item in quality_profiles
+            if _coerce_int(item.get("id")) is not None
+        ]
+        normalized_language_profiles = [
+            {
+                "id": _coerce_int(item.get("id")),
+                "name": str(item.get("name") or "").strip(),
+            }
+            for item in language_profiles
+            if _coerce_int(item.get("id")) is not None
+        ]
+        normalized_tags = [
+            {
+                "id": _coerce_int(item.get("id")),
+                "label": str(item.get("label") or "").strip(),
+            }
+            for item in tags
+            if _coerce_int(item.get("id")) is not None
+        ]
+
+        return {
+            "success": True,
+            "rootFolderCount": len(normalized_root_folders),
+            "qualityProfileCount": len(normalized_quality_profiles),
+            "languageProfileCount": len(normalized_language_profiles),
+            "tagCount": len(normalized_tags),
+            "rootFolders": normalized_root_folders,
+            "qualityProfiles": normalized_quality_profiles,
+            "languageProfiles": normalized_language_profiles,
+            "tags": normalized_tags,
+            "defaults": {
+                "rootFolderPath": (
+                    normalized_root_folders[0]["path"]
+                    if normalized_root_folders
+                    else None
+                ),
+                "qualityProfileId": (
+                    normalized_quality_profiles[0]["id"]
+                    if normalized_quality_profiles
+                    else None
+                ),
+                "seriesType": self.settings.sonarr_series_type or "anime",
+                "defaultMonitorMode": self.settings.sonarr_default_monitor_mode,
+                "defaultSearchOnAdd": self.settings.sonarr_default_search_on_add,
+                "defaultSeasonFolder": self.settings.sonarr_default_season_folder,
+            },
+        }
 
     async def _sonarr_servers(
         self,
@@ -1272,35 +1837,302 @@ class WeebarrService:
         seasons: list[int] | str,
     ) -> list[int]:
         if isinstance(seasons, list):
-            normalized = sorted(
-                {
-                    season
-                    for season in (_coerce_int(value) for value in seasons)
-                    if season is not None and season > 0
-                }
-            )
-            return normalized
+            return self._resolve_catalog_request_seasons([], seasons)
 
         details = await self._seerr_tv_details(media_id)
-        available_seasons = sorted(
-            {
-                season_number
-                for season_number in (
-                    _coerce_int(item.get("seasonNumber"))
-                    for item in details.get("seasons", [])
-                )
-                if season_number is not None and season_number > 0
-            }
+        return self._resolve_catalog_request_seasons(
+            self._catalog_seasons(details),
+            seasons,
         )
-        if not available_seasons:
-            return []
 
-        choice = seasons.strip().lower()
-        if choice == "first":
-            return [available_seasons[0]]
-        if choice == "latest":
-            return [available_seasons[-1]]
-        return available_seasons
+    async def _find_existing_sonarr_series(
+        self,
+        media_id: int,
+        tvdb_id: int | None,
+    ) -> dict[str, Any] | None:
+        series_list = await self._sonarr_series()
+        existing = next(
+            (
+                series
+                for series in series_list
+                if _coerce_int(series.get("id")) == media_id
+            ),
+            None,
+        )
+        if existing is not None:
+            return existing
+        if tvdb_id is None:
+            return None
+        return next(
+            (
+                series
+                for series in series_list
+                if _coerce_int(series.get("tvdbId")) == tvdb_id
+            ),
+            None,
+        )
+
+    async def _lookup_sonarr_series(
+        self,
+        title: str,
+        tvdb_id: int | None,
+    ) -> tuple[dict[str, Any] | None, int]:
+        lookup_best: dict[str, Any] | None = None
+        lookup_score = 0
+        titles = [title]
+        for query in title_search_variants(title):
+            results = await self._sonarr_lookup(query)
+            if tvdb_id is not None:
+                exact = next(
+                    (
+                        candidate
+                        for candidate in results
+                        if _coerce_int(candidate.get("tvdbId")) == tvdb_id
+                    ),
+                    None,
+                )
+                if exact is not None:
+                    return exact, 120
+            candidate, score = self._best_scored_candidate(titles, results, None)
+            if score > lookup_score:
+                lookup_best = candidate
+                lookup_score = score
+            if lookup_score >= 95:
+                break
+        return lookup_best, lookup_score
+
+    async def request_in_sonarr(
+        self,
+        media_id: int,
+        title: str,
+        tvdb_id: int | None,
+        seasons: list[int] | str,
+        options: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        options = options or {}
+        monitor_mode = (
+            str(
+                options.get("monitorMode") or self.settings.sonarr_default_monitor_mode
+            ).strip()
+            or self.settings.sonarr_default_monitor_mode
+        )
+        if monitor_mode == "lastSeason":
+            monitor_mode = "latestSeason"
+        if monitor_mode not in SONARR_MONITOR_TYPES:
+            raise HTTPException(status_code=400, detail="Invalid Sonarr monitor mode.")
+        search_on_add = (
+            bool(options.get("searchOnAdd"))
+            if "searchOnAdd" in options
+            else self.settings.sonarr_default_search_on_add
+        )
+        season_folder = (
+            bool(options.get("seasonFolder"))
+            if "seasonFolder" in options
+            else self.settings.sonarr_default_season_folder
+        )
+
+        existing_series = await self._find_existing_sonarr_series(media_id, tvdb_id)
+        lookup_series: dict[str, Any] | None = None
+        lookup_score = 0
+        if existing_series is None:
+            lookup_series, lookup_score = await self._lookup_sonarr_series(
+                title,
+                tvdb_id,
+            )
+            if lookup_series is None or lookup_score < 45:
+                raise HTTPException(status_code=404, detail="No Sonarr match found.")
+
+        season_source = lookup_series or existing_series or {}
+        catalog_seasons = self._catalog_seasons(season_source)
+        default_selected_seasons = self._resolve_catalog_request_seasons(
+            catalog_seasons,
+            seasons,
+        )
+        selected_seasons = self._resolve_catalog_request_seasons(
+            catalog_seasons,
+            (
+                cast(list[int], options.get("selectedSeasons"))
+                if isinstance(options.get("selectedSeasons"), list)
+                else default_selected_seasons
+            ),
+        )
+
+        if existing_series is None:
+            payload = dict(lookup_series or {})
+            payload["rootFolderPath"] = self.settings.sonarr_root_folder_path
+            payload["qualityProfileId"] = self.settings.sonarr_quality_profile_id
+            payload["seriesType"] = self.settings.sonarr_series_type
+            payload["seasonFolder"] = season_folder
+            payload["monitored"] = True
+            if self.settings.sonarr_language_profile_id is not None:
+                payload["languageProfileId"] = self.settings.sonarr_language_profile_id
+            if self.settings.sonarr_tags:
+                payload["tags"] = self.settings.sonarr_tags
+            if catalog_seasons:
+                payload["seasons"] = [
+                    {
+                        **dict(season),
+                        "monitored": (
+                            _coerce_int(season.get("seasonNumber")) in selected_seasons
+                            if selected_seasons
+                            else bool(season.get("monitored"))
+                        ),
+                    }
+                    for season in cast(
+                        list[dict[str, Any]], payload.get("seasons") or []
+                    )
+                ]
+            payload["addOptions"] = {
+                "monitor": monitor_mode,
+                "searchForMissingEpisodes": search_on_add,
+                "searchForCutoffUnmetEpisodes": False,
+                "ignoreEpisodesWithFiles": False,
+                "ignoreEpisodesWithoutFiles": False,
+            }
+            response = await self._sonarr_request(
+                "POST",
+                "/api/v3/series",
+                json=payload,
+            )
+            if response.status_code not in (200, 201, 202):
+                if response.status_code == 409:
+                    raise HTTPException(status_code=409, detail="Already in Sonarr")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=response.text,
+                )
+            response_payload = (
+                cast(dict[str, Any], response.json()) if response.content else payload
+            )
+            series_id = _coerce_int(response_payload.get("id"))
+            request_context = {
+                "title": title,
+                "installment": {
+                    "seasonNumber": selected_seasons[-1] if selected_seasons else None,
+                    "label": (
+                        f"Season {selected_seasons[-1]}" if selected_seasons else None
+                    ),
+                },
+            }
+            request_state = self._classify_sonarr_state(
+                request_context,
+                response_payload,
+                max(lookup_score, 110),
+                in_library=True,
+                lookup_match=lookup_series,
+            )
+            self.clear_cache()
+            return {
+                "success": True,
+                "statusCode": response.status_code,
+                "title": title,
+                "sentSeasons": selected_seasons,
+                "seriesId": series_id,
+                "tvdbId": _coerce_int(response_payload.get("tvdbId")),
+                "requestState": request_state,
+                "response": response_payload,
+            }
+
+        series_id = _coerce_int(existing_series.get("id"))
+        if series_id is None:
+            raise HTTPException(status_code=400, detail="Sonarr series ID is missing.")
+        current_series = await self._sonarr_series_details(series_id)
+
+        if catalog_seasons:
+            seasonpass_payload = {
+                "series": [
+                    {
+                        "id": series_id,
+                        "monitored": True,
+                        "seasons": [
+                            {
+                                **dict(season),
+                                "monitored": (
+                                    _coerce_int(season.get("seasonNumber"))
+                                    in selected_seasons
+                                    if selected_seasons
+                                    else bool(season.get("monitored"))
+                                ),
+                            }
+                            for season in cast(
+                                list[dict[str, Any]],
+                                current_series.get("seasons") or [],
+                            )
+                        ],
+                    }
+                ],
+                "monitoringOptions": {
+                    "monitor": monitor_mode,
+                    "ignoreEpisodesWithFiles": False,
+                    "ignoreEpisodesWithoutFiles": False,
+                },
+            }
+            response = await self._sonarr_request(
+                "POST",
+                "/api/v3/seasonpass",
+                json=seasonpass_payload,
+            )
+            if response.status_code not in (200, 201, 202):
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=response.text,
+                )
+
+        if bool(current_series.get("seasonFolder")) != season_folder:
+            update_payload = dict(current_series)
+            update_payload["seasonFolder"] = season_folder
+            response = await self._sonarr_request(
+                "PUT",
+                f"/api/v3/series/{series_id}",
+                json=update_payload,
+            )
+            if response.status_code not in (200, 201, 202):
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=response.text,
+                )
+
+        if search_on_add:
+            response = await self._sonarr_request(
+                "POST",
+                "/api/v3/command",
+                json={"name": "SeriesSearch", "seriesId": series_id},
+            )
+            if response.status_code not in (200, 201, 202):
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=response.text,
+                )
+
+        self.clear_cache()
+        updated_series = await self._sonarr_series_details(series_id)
+        request_context = {
+            "title": title,
+            "installment": {
+                "seasonNumber": selected_seasons[-1] if selected_seasons else None,
+                "label": (
+                    f"Season {selected_seasons[-1]}" if selected_seasons else None
+                ),
+            },
+        }
+        request_state = self._classify_sonarr_state(
+            request_context,
+            updated_series,
+            110,
+            in_library=True,
+            lookup_match=updated_series,
+        )
+        self.clear_cache()
+        return {
+            "success": True,
+            "statusCode": 200,
+            "title": title,
+            "sentSeasons": selected_seasons,
+            "seriesId": series_id,
+            "tvdbId": _coerce_int(updated_series.get("tvdbId")),
+            "requestState": request_state,
+            "response": updated_series,
+        }
 
     async def request_in_seerr(
         self,

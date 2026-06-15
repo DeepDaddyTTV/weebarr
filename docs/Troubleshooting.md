@@ -26,25 +26,27 @@ The health check should show:
 
 - app status
 - current version
-- whether Seerr is configured
+- the active request backend
+- whether the active request backend is configured
 
 If this does not load, Weebarr itself may not be reachable yet.
 
-## The UI Says Seerr Is Not Configured
+## The UI Says The Request Backend Is Not Configured
 
-This usually means Weebarr does not have working Seerr connection details saved.
+This usually means Weebarr does not have working connection details saved for whichever backend is active.
 
 Check:
 
-- `SEERR_BASE_URL`
-- `SEERR_API_KEY`
-- whether Seerr is reachable from inside the Weebarr container
+- whether `Seerr` or `Sonarr Direct` is selected
+- the saved base URL
+- the saved API key
+- whether that backend is reachable from inside the Weebarr container
 
-Go to **Settings** → **Connections** and use the connection test first.
+Go to **Settings** → **Connections** and use the backend connection test first.
 
 ### Common Cause
 
-The Seerr URL works from your browser, but not from inside Docker.
+The backend URL works from your browser, but not from inside Docker.
 
 If Seerr is also in Docker, try using the Docker service name:
 
@@ -54,28 +56,29 @@ http://seerr:5055
 
 If Seerr is outside Docker, use a URL the container can reach.
 
-## A Title Shows `No Seerr match`
+## A Title Shows `No Seerr match` Or `No Sonarr match`
 
-This means Weebarr could not confidently match the anime to a TV entry in Seerr or TMDb.
+This means Weebarr could not confidently match the anime to the active backend's TV entry.
 
 Common reasons:
 
 - the anime title does not match cleanly
-- Seerr or TMDb metadata is different from AniList metadata
+- Seerr, Sonarr, or TMDb metadata is different from AniList metadata
 - an external ID is missing or wrong
 - the show exists under a different name
 
 This does not always mean Weebarr is broken. Sometimes anime metadata is just a maze with wallpaper.
 
-## Requests Use the Wrong Profile, Root Folder, or Series Type
+## Requests Use The Wrong Profile, Root Folder, Or Series Type
 
 Go to **Settings** → **Connections**.
 
-Check whether you are forcing any request values.
+Check which backend is active first, then check whether you are forcing or saving any request values.
 
 Important behavior:
 
 - `Use Seerr default` means Weebarr follows Seerr's saved anime/default behavior.
+- Sonarr Direct uses the defaults saved in Weebarr itself.
 - Forced values in Weebarr override what gets sent in the request payload.
 - Forcing the wrong series type can conflict with your Seerr or Sonarr setup.
 
@@ -103,14 +106,12 @@ Check these first:
 
 - at least one automation bucket is enabled
 - the cadence is valid
-- Seerr is configured
-- the title is actually `Missing` or `Season Missing`
+- the active request backend is configured
+- the title is actually requestable for that backend
 
 Automation intentionally skips:
 
-- `Requested`
-- `Partially Available`
-- `Available`
+- fully handled states such as `Requested`, `Available`, or other non-requestable backend states
 
 That skip behavior prevents duplicate or unnecessary requests.
 

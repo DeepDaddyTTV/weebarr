@@ -10,7 +10,7 @@ This page explains what Weebarr does from a normal user point of view. It is not
 
 The **Seasonal** page is the main dashboard.
 
-This is where you browse anime by season, see what is already available, and request anything you want Seerr to handle.
+This is where you browse anime by season, see what is already available, and request anything you want the active backend to handle.
 
 ![Seasonal page overview](assets/img/dark-mode.jpeg)
 
@@ -22,7 +22,7 @@ You can use it to:
 - search for a title
 - filter by status
 - sort the list
-- see how many titles are requestable, requested, tracked, or airing soon
+- see how many titles are requestable, tracked, requested, or airing soon
 
 ## Seasonal Buckets
 
@@ -75,7 +75,7 @@ The detail view can include:
 - summary
 - next airing information
 - start date
-- Seerr match details
+- backend match details
 - availability status
 - cast and expandable per-character voice actor information from AniList
 
@@ -85,7 +85,7 @@ Use this view when you are deciding whether a show is worth requesting.
 
 The **Requests** page shows requests made through Weebarr.
 
-It is not a full copy of your Seerr request history. If you requested something directly in Seerr, it may not appear here.
+It is not a full copy of your Seerr request history or your Sonarr library history. If something was requested outside Weebarr, it may not appear here.
 
 ![Requests page](assets/img/requests-page.jpeg)
 
@@ -96,43 +96,41 @@ Each row can show:
 - short description
 - request date
 - air date
-- current Weebarr or Seerr status
+- current Weebarr or backend status
 
 Use this page to answer: “What did I request from Weebarr?”
 
 ## Availability States
 
-Weebarr uses availability states to explain what it found in Seerr.
+Weebarr uses availability states to explain what it found in the active request backend.
 
-### `Available`
+### Seerr States
 
-The required season or seasons appear to be available in Seerr.
+- `Available`
+  - The required season or seasons appear to be available in Seerr.
+- `Partially Available`
+  - Seerr knows about the show, and at least some required season coverage exists.
+- `Requested`
+  - A request exists, but Weebarr does not see enough availability yet to call it partially or fully available.
+- `Missing`
+  - Weebarr does not see a usable request or tracked entry for the title yet.
+- `Season Missing`
+  - Strict Monitoring is enabled, and Weebarr sees that a later season is not explicitly covered.
+- `No Seerr match`
+  - Weebarr could not confidently match the anime to a TV entry in Seerr or TMDb.
 
-### `Partially Available`
+### Sonarr Direct States
 
-Seerr knows about the show, and at least some required season coverage exists. This usually means the title is not totally missing, but it may not be fully complete either.
-
-### `Requested`
-
-A request exists, but Weebarr does not see enough availability yet to call it partially or fully available.
-
-### `Missing`
-
-Weebarr does not see a usable request or tracked entry for the title yet.
-
-This is usually the state you will request from.
-
-### `Season Missing`
-
-Strict Monitoring is enabled, and Weebarr sees that a later season is not explicitly covered.
-
-This is useful if you care about sequel seasons being tracked individually instead of assuming the base show is enough.
-
-### `No Seerr match`
-
-Weebarr could not confidently match the anime to a TV entry in Seerr or TMDb.
-
-This can happen when names, metadata, or external IDs do not line up cleanly.
+- `Available`
+  - Sonarr coverage is complete enough for the target season or seasons.
+- `Partially Available`
+  - Some target coverage exists, but not enough to call the title fully available.
+- `In Library`
+  - The show is already tracked in Sonarr, but the target coverage still is not sufficiently available.
+- `Missing`
+  - The title is not in Sonarr yet and can be added.
+- `No Sonarr match`
+  - Sonarr lookup did not produce a confident usable candidate.
 
 ## Audio Badges
 
@@ -151,25 +149,15 @@ Do not treat the badge as a perfect streaming availability guarantee. Treat it a
 
 ## Requesting Anime
 
-Weebarr sends TV requests through Seerr.
+Weebarr can now request anime in two different ways:
 
-That means:
-
-- Weebarr does not send requests directly to Sonarr.
-- Seerr remains the request gatekeeper.
-- Your Seerr anime/default settings are used unless you override them in Weebarr.
-
-Optional settings can force specific request values, such as:
-
-- Sonarr server
-- quality profile
-- series type
-- root folder
-- language profile
-- request user
-- tags
-
-For most users, `Use Seerr default` is the safest choice. Only force values if you know why you need them.
+- `Seerr`
+  - keeps the current one-click request flow
+  - uses your Seerr anime/default settings unless you override them in Weebarr
+- `Sonarr Direct`
+  - opens a request modal instead of sending immediately
+  - can expose season selection, monitor mode, search-on-add, and season-folder controls
+  - uses the saved Sonarr defaults from setup or Settings
 
 ## Automation
 
@@ -177,10 +165,18 @@ Automation can request seasonal titles for you.
 
 You choose which buckets are allowed, then Weebarr scans on the cadence you save.
 
-Automation only requests titles in these states:
+Automation only requests titles that are requestable in the active backend.
+
+Typical Seerr-requestable states:
 
 - `Missing`
 - `Season Missing`
+
+Typical Sonarr Direct requestable states:
+
+- `Missing`
+- `In Library`
+- `Partially Available`
 
 Automation skips titles that are already:
 

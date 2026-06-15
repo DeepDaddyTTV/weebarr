@@ -51,8 +51,11 @@ def test_health_endpoint_without_seerr():
     response = client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json()["app"] == "weebarr"
-    assert response.json()["seerr_configured"] is False
+    payload = response.json()
+    assert payload["app"] == "weebarr"
+    assert payload["requestBackend"] == "seerr"
+    assert payload["requestBackendConfigured"] is False
+    assert payload["seerr_configured"] is False
 
 
 def test_configured_auth_requires_explicit_session_secret(tmp_path):
@@ -118,7 +121,7 @@ def test_settings_page_renders(tmp_path):
     assert response.status_code == 200
     assert "App Behavior" in response.text
     assert "Single-Admin Access" in response.text
-    assert "Seerr Integration" in response.text
+    assert "Request Backend" in response.text
     assert "Strict Monitoring" in response.text
     assert "Content Filter" in response.text
     assert "Force Series Type" in response.text
@@ -132,10 +135,30 @@ def test_settings_page_renders(tmp_path):
     assert "Season Auto-Requests" in response.text
     assert "Named Theme" in response.text
     assert "Automation API Key" in response.text
+    assert 'data-ui-select="settingsRequestBackend"' in response.text
     assert 'data-ui-select="settingsRequestSeasons"' in response.text
     assert 'data-ui-select="settingsContentFilterMode"' in response.text
     assert 'data-ui-select="settingsSeriesType"' in response.text
     assert 'data-ui-select="settingsActiveThemeId"' in response.text
+
+
+def test_public_config_exposes_request_backend_metadata(tmp_path):
+    client = authenticated_client(
+        tmp_path,
+        seerr_base_url="https://seerr.example.test",
+        seerr_api_key="secret-value",
+    )
+
+    response = client.get("/api/config")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["requestBackend"] == "seerr"
+    assert payload["requestBackendConfigured"] is True
+    assert payload["requestSettings"]["requestBackend"] == "seerr"
+    assert (
+        payload["requestSettings"]["seerr"]["baseUrl"] == "https://seerr.example.test"
+    )
 
 
 def test_settings_store_persists_overrides(tmp_path):
@@ -294,6 +317,107 @@ def test_settings_endpoint_saves_connection(tmp_path):
     assert payload["connection"]["profileId"] == 22
     assert payload["connection"]["seriesType"] == "standard"
     assert payload["connection"]["tags"] == [9, 11]
+
+
+def test_request_settings_endpoint_saves_seerr_backend(tmp_path):
+    client = authenticated_client(tmp_path)
+
+    response = client.put(
+        "/api/settings/requests",
+        json={
+            "requestBackend": "seerr",
+            "seerr": {
+                "baseUrl": "https://seerr.example.test",
+                "apiKey": "abc123",
+                "requestSeasons": "latest",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["requestBackend"] == "seerr"
+    assert payload["requestBackendConfigured"] is True
+    assert payload["requests"]["requestBackend"] == "seerr"
+    assert payload["requests"]["seerr"]["baseUrl"] == "https://seerr.example.test"
+    assert payload["requests"]["seerr"]["requestSeasons"] == "latest"
+
+
+def test_request_settings_endpoint_saves_sonarr_backend(tmp_path):
+    client = authenticated_client(tmp_path)
+
+    response = client.put(
+        "/api/settings/requests",
+        json={
+            "requestBackend": "sonarr",
+            "sonarr": {
+                "baseUrl": "https://sonarr.example.test",
+                "apiKey": "sonarr-secret",
+                "rootFolderPath": "/data/media/anime",
+                "qualityProfileId": 7,
+                "seriesType": "anime",
+                "defaultMonitorMode": "future",
+                "defaultSearchOnAdd": True,
+                "defaultSeasonFolder": True,
+                "languageProfileId": 2,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["requestBackend"] == "sonarr"
+    assert payload["requestBackendConfigured"] is True
+    assert payload["requests"]["requestBackend"] == "sonarr"
+    assert payload["requests"]["sonarr"]["baseUrl"] == "https://sonarr.example.test"
+    assert payload["requests"]["sonarr"]["rootFolderPath"] == "/data/media/anime"
+    assert payload["requests"]["sonarr"]["qualityProfileId"] == 7
+    assert payload["requests"]["sonarr"]["seriesType"] == "anime"
+
+
+def test_request_settings_test_endpoint_uses_sonarr_backend(tmp_path, monkeypatch):
+    client = authenticated_client(tmp_path)
+
+    async def fake_test_sonarr_connection(self, base_url, api_key):
+        assert base_url == "https://sonarr.example.test"
+        assert api_key == "sonarr-secret"
+        return {
+            "success": True,
+            "rootFolderCount": 2,
+            "qualityProfileCount": 4,
+            "languageProfileCount": 1,
+            "defaults": {
+                "rootFolderPath": "/data/media/anime",
+                "qualityProfileId": 7,
+                "seriesType": "anime",
+            },
+        }
+
+    monkeypatch.setattr(
+        WeebarrService,
+        "test_sonarr_connection",
+        fake_test_sonarr_connection,
+    )
+
+    response = client.post(
+        "/api/settings/requests/test",
+        json={
+            "requestBackend": "sonarr",
+            "sonarr": {
+                "baseUrl": "https://sonarr.example.test",
+                "apiKey": "sonarr-secret",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["requestBackend"] == "sonarr"
+    assert payload["rootFolderCount"] == 2
+    assert payload["qualityProfileCount"] == 4
+    assert payload["defaults"]["rootFolderPath"] == "/data/media/anime"
 
 
 def test_settings_endpoint_can_clear_saved_request_overrides(tmp_path):
@@ -751,6 +875,90 @@ def test_settings_store_persists_weebarr_request_history(tmp_path):
     assert history[0]["request_seasons"] == [1]
 
 
+def test_request_endpoint_supports_sonarr_options_and_records_backend_history(
+    tmp_path, monkeypatch
+):
+    client = authenticated_client(
+        tmp_path,
+        request_backend="sonarr",
+        sonarr_base_url="https://sonarr.example.test",
+        sonarr_api_key="secret",
+        sonarr_root_folder_path="/data/media/anime",
+        sonarr_quality_profile_id=7,
+        sonarr_series_type="anime",
+    )
+    captured: dict[str, object] = {}
+
+    async def fake_request_title(
+        self,
+        media_id,
+        title,
+        tvdb_id=None,
+        seasons=None,
+        options=None,
+    ):
+        captured["media_id"] = media_id
+        captured["title"] = title
+        captured["tvdb_id"] = tvdb_id
+        captured["seasons"] = seasons
+        captured["options"] = options
+        return {
+            "success": True,
+            "seriesId": 991,
+            "sentSeasons": [4],
+            "requestState": {
+                "backend": "sonarr",
+                "state": "in_library",
+                "label": "In Library",
+                "requestable": True,
+                "seriesId": 991,
+                "requestSeasons": [4],
+            },
+        }
+
+    monkeypatch.setattr(WeebarrService, "request_title", fake_request_title)
+
+    response = client.post(
+        "/api/request",
+        json={
+            "mediaId": 991,
+            "animeId": 178701,
+            "title": "Re:ZERO Season 4",
+            "tvdbId": 12345,
+            "season": "SPRING",
+            "year": 2026,
+            "seasons": [4],
+            "options": {
+                "selectedSeasons": [4],
+                "monitorMode": "future",
+                "searchOnAdd": True,
+                "seasonFolder": True,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert captured["media_id"] == 991
+    assert captured["options"] == {
+        "selectedSeasons": [4],
+        "monitorMode": "future",
+        "searchOnAdd": True,
+        "seasonFolder": True,
+    }
+    assert payload["requestState"]["backend"] == "sonarr"
+    assert payload["weebarrRequest"]["backend"] == "sonarr"
+    assert payload["weebarrRequest"]["sonarrSeriesId"] == 991
+
+    history = SettingsStore(
+        Settings(config_path=str(tmp_path / "weebarr.json"))
+    ).request_history(season="SPRING", year=2026)
+    assert len(history) == 1
+    assert history[0]["backend"] == "sonarr"
+    assert history[0]["sonarr_series_id"] == 991
+    assert history[0]["request_state"] == "in_library"
+
+
 def test_title_normalization_and_candidate_score():
     candidate = {"name": "Witch Hat Atelier", "firstAirDate": "2026-04-06"}
 
@@ -1148,12 +1356,16 @@ def test_local_setup_persists_access_and_requires_session_auth(tmp_path):
     assert response.status_code == 200
     payload = response.json()
     assert payload["mode"] == "local"
-    assert payload["redirectTo"] == "/login"
+    assert payload["redirectTo"] == "/setup/backend"
     assert "generatedApiKey" not in payload
 
-    protected_page = client.get("/seasonal", follow_redirects=False)
-    assert protected_page.status_code in {302, 307}
-    assert protected_page.headers["location"].startswith("/login")
+    backend_setup = client.get("/setup/backend")
+    assert backend_setup.status_code == 200
+    assert "Request Backend" in backend_setup.text
+
+    login_redirect = client.get("/login", follow_redirects=False)
+    assert login_redirect.status_code in {302, 307}
+    assert login_redirect.headers["location"] == "/setup/backend"
 
     new_client = TestClient(
         create_app(
@@ -1266,7 +1478,7 @@ def test_local_login_rejects_bad_password_and_accepts_good_password(tmp_path):
         },
     )
     assert good.status_code == 200
-    assert good.json()["redirectTo"] == "/seasonal"
+    assert good.json()["redirectTo"] == "/setup/backend"
 
 
 def test_local_login_rate_limit_returns_429(tmp_path):
@@ -1336,6 +1548,21 @@ def test_login_page_offers_only_local_sign_in_after_local_setup(tmp_path):
     assert "Username" in login_page.text
     assert "Password" in login_page.text
     assert "Continue with Plex" not in login_page.text
+
+
+def test_backend_setup_redirects_to_dashboard_once_request_backend_is_configured(
+    tmp_path,
+):
+    client = authenticated_client(
+        tmp_path,
+        seerr_base_url="https://seerr.example.test",
+        seerr_api_key="secret",
+    )
+
+    response = client.get("/setup/backend", follow_redirects=False)
+
+    assert response.status_code in {302, 307}
+    assert response.headers["location"] == "/seasonal"
 
 
 def test_plex_only_login_page_hides_local_form(tmp_path):
@@ -1575,10 +1802,11 @@ def test_plex_setup_claims_single_admin_account(tmp_path, monkeypatch):
 
     callback = client.get("/auth/plex/callback", follow_redirects=False)
     assert callback.status_code in {302, 307}
-    assert callback.headers["location"] == "/seasonal"
+    assert callback.headers["location"] == "/setup/backend"
 
-    seasonal = client.get("/seasonal")
-    assert seasonal.status_code == 200
+    backend_setup = client.get("/setup/backend")
+    assert backend_setup.status_code == 200
+    assert "Request Backend" in backend_setup.text
 
     access = client.get("/api/setup/status")
     payload = access.json()
@@ -2121,3 +2349,50 @@ def test_request_in_seerr_rejects_forced_series_type_when_seerr_hides_it():
 
     assert exc.value.status_code == 400
     assert "does not expose Anime Series Type" in exc.value.detail
+
+
+def test_request_title_dispatches_to_sonarr_when_active_backend_is_sonarr():
+    service = WeebarrService(
+        Settings(
+            request_backend="sonarr",
+            sonarr_base_url="https://sonarr.example.test",
+            sonarr_api_key="secret",
+            sonarr_root_folder_path="/data/media/anime",
+            sonarr_quality_profile_id=7,
+            sonarr_series_type="anime",
+        )
+    )
+    captured: dict[str, object] = {}
+
+    async def fake_request_in_sonarr(
+        media_id,
+        title,
+        tvdb_id=None,
+        seasons=None,
+        options=None,
+    ):
+        captured["media_id"] = media_id
+        captured["title"] = title
+        captured["tvdb_id"] = tvdb_id
+        captured["seasons"] = seasons
+        captured["options"] = options
+        return {"success": True, "requestState": {"backend": "sonarr"}}
+
+    service.request_in_sonarr = fake_request_in_sonarr  # type: ignore[method-assign]
+
+    result = asyncio.run(
+        service.request_title(
+            media_id=991,
+            title="Re:ZERO Season 4",
+            tvdb_id=12345,
+            seasons=[4],
+            options={"selectedSeasons": [4]},
+        )
+    )
+
+    assert result["success"] is True
+    assert captured["media_id"] == 991
+    assert captured["title"] == "Re:ZERO Season 4"
+    assert captured["tvdb_id"] == 12345
+    assert captured["seasons"] == [4]
+    assert captured["options"] == {"selectedSeasons": [4]}

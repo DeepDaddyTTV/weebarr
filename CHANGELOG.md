@@ -2,6 +2,14 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.54] - 2026-06-15
+
+### Added
+
+- Added an optional `Sonarr Direct` request backend alongside the existing Seerr flow, including backend-aware setup, settings, request dispatch, automation routing, and request history metadata.
+- Added a dedicated `/setup/backend` onboarding step so first-run setup now finishes by choosing and configuring the active request backend.
+- Added a Sonarr-specific request modal with season selection, monitor mode, search-on-add, and season-folder controls for direct Sonarr adds and updates.
+
 ## [0.1.53] - 2026-06-15
 
 ### Fixed

@@ -13,8 +13,9 @@ If you are using standard Docker Engine instead of Docker Desktop, see [Other De
 Before starting, make sure you have:
 
 - Docker Desktop for Linux installed and running
-- a working Seerr instance
-- a Seerr API key
+- a working Seerr instance if you plan to use Seerr
+- a working Sonarr instance if you plan to use Sonarr Direct
+- an API key for the backend you plan to use first
 - a folder where Weebarr can save its config
 
 The config folder is what keeps your settings, themes, auth setup, automation history, API key state, and request history between updates.
@@ -97,7 +98,7 @@ Open:
 http://localhost:18080
 ```
 
-Then complete the first-run setup.
+Then complete the first-run setup and continue to the request-backend step to choose either `Seerr` or `Sonarr Direct`.
 
 ## Important Linux Notes
 

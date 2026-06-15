@@ -467,7 +467,7 @@
                 </div>
                 <div class="settings-note">
                   <p>Allowed: health checks, public config reads, seasonal reads, character reads, and request creation.</p>
-                  <p>Not allowed: first-run setup, local account changes, Weebarr settings writes, theme imports, or Seerr connection changes.</p>
+                  <p>Not allowed: first-run setup, local account changes, Weebarr settings writes, theme imports, or request-backend changes.</p>
                 </div>
               </div>
             </div>
@@ -496,10 +496,10 @@
             <div class="panel-heading">
               <div>
                 <span class="panel-eyebrow">Connections</span>
-                <h2>Seerr Integration</h2>
+                <h2>Request Backend</h2>
               </div>
-              <span id="settingsStatusPill" class="status-pill {{ 'connected' if connection.configured else 'missing' }}">
-                {{ "Configured" if connection.configured else "Missing" }}
+              <span id="settingsStatusPill" class="status-pill {{ 'connected' if request_settings.requestBackendConfigured else 'missing' }}">
+                {{ "Configured" if request_settings.requestBackendConfigured else "Missing" }}
               </span>
             </div>
 
@@ -508,10 +508,33 @@
               <div class="settings-section-grid">
                 <div class="settings-subpanel">
                   <div class="settings-subheading">
-                    <h3>Connection Details</h3>
-                    <p>Use the internal URL and API key Weebarr can reach from inside the container network.</p>
+                    <h3>Backend Selection</h3>
+                    <p>Choose whether Weebarr should send requests through Seerr or directly to Sonarr.</p>
                   </div>
                   <div class="form-grid connection-form-grid">
+                    <label class="full-width">
+                      <span>Active Backend</span>
+                      <div class="ui-select" data-ui-select="settingsRequestBackend">
+                        <select id="settingsRequestBackend" name="requestBackend">
+                          <option value="seerr" {{ 'selected' if request_settings.requestBackend == 'seerr' else '' }}>Seerr</option>
+                          <option value="sonarr" {{ 'selected' if request_settings.requestBackend == 'sonarr' else '' }}>Sonarr Direct</option>
+                        </select>
+                        <button id="settingsRequestBackendTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="settingsRequestBackendMenu">
+                          <span class="ui-select-value"></span>
+                          <i class="ui-select-chevron" aria-hidden="true"></i>
+                        </button>
+                        <div id="settingsRequestBackendMenu" class="ui-select-menu" role="listbox" hidden></div>
+                      </div>
+                      <small>Existing installs stay on Seerr until you deliberately switch this selector.</small>
+                    </label>
+                  </div>
+
+                  <div id="seerrSettingsPanel" class="request-backend-panel">
+                    <div class="settings-subheading">
+                      <h3>Seerr Settings</h3>
+                      <p>Use the internal URL and API key Weebarr can reach from inside the container network.</p>
+                    </div>
+                    <div class="form-grid connection-form-grid">
                     <label>
                       <span>Seerr Base URL</span>
                       <input id="settingsBaseUrl" name="baseUrl" type="url" placeholder="http://seerr:5055" value="{{ connection.baseUrl or '' }}" />
@@ -603,66 +626,171 @@
                       <input id="settingsTags" name="tags" type="text" placeholder="12, 34, 56" value="{{ connection.tags | join(', ') if connection.tags else '' }}" />
                       <small>Optional comma-separated Sonarr tag IDs to attach through Seerr. Leave blank to use Seerr’s own default tags.</small>
                     </label>
+                    </div>
+                  </div>
+
+                  <div id="sonarrSettingsPanel" class="request-backend-panel" hidden>
+                    <div class="settings-subheading">
+                      <h3>Sonarr Direct Settings</h3>
+                      <p>These saved defaults are used when Weebarr adds or updates anime directly in Sonarr.</p>
+                    </div>
+                    <div class="form-grid connection-form-grid">
+                      <label>
+                        <span>Sonarr Base URL</span>
+                        <input id="sonarrBaseUrl" name="sonarrBaseUrl" type="url" placeholder="http://sonarr:8989" value="{{ request_settings.sonarr.baseUrl or '' }}" />
+                        <small>Use the internal container URL Weebarr can actually reach.</small>
+                      </label>
+
+                      <label>
+                        <span>API Key</span>
+                        <input id="sonarrApiKey" name="sonarrApiKey" type="password" placeholder="{{ 'Stored ' ~ request_settings.sonarr.apiKeyPreview if request_settings.sonarr.hasApiKey else 'Paste a Sonarr API key' }}" />
+                        <small>Leave blank to keep the currently stored key.</small>
+                      </label>
+
+                      <label>
+                        <span>Root Folder Path</span>
+                        <input id="sonarrRootFolderPath" name="sonarrRootFolderPath" type="text" placeholder="/data/media/anime" value="{{ request_settings.sonarr.rootFolderPath or '' }}" />
+                        <small>The root folder Weebarr should use when adding new titles directly to Sonarr.</small>
+                      </label>
+
+                      <label>
+                        <span>Quality Profile ID</span>
+                        <input id="sonarrQualityProfileId" name="sonarrQualityProfileId" type="number" min="1" placeholder="Required" value="{{ request_settings.sonarr.qualityProfileId or '' }}" />
+                        <small>The Sonarr quality profile applied to new series adds.</small>
+                      </label>
+
+                      <label>
+                        <span>Series Type</span>
+                        <div class="ui-select" data-ui-select="sonarrSeriesType">
+                          <select id="sonarrSeriesType" name="sonarrSeriesType">
+                            <option value="anime" {{ 'selected' if request_settings.sonarr.seriesType == 'anime' else '' }}>Anime / Absolute</option>
+                            <option value="standard" {{ 'selected' if request_settings.sonarr.seriesType == 'standard' else '' }}>Standard</option>
+                            <option value="daily" {{ 'selected' if request_settings.sonarr.seriesType == 'daily' else '' }}>Daily</option>
+                          </select>
+                          <button id="sonarrSeriesTypeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrSeriesTypeMenu">
+                            <span class="ui-select-value"></span>
+                            <i class="ui-select-chevron" aria-hidden="true"></i>
+                          </button>
+                          <div id="sonarrSeriesTypeMenu" class="ui-select-menu" role="listbox" hidden></div>
+                        </div>
+                        <small>The Sonarr series type saved for direct adds.</small>
+                      </label>
+
+                      <label>
+                        <span>Default Monitor Mode</span>
+                        <div class="ui-select" data-ui-select="sonarrDefaultMonitorMode">
+                          <select id="sonarrDefaultMonitorMode" name="sonarrDefaultMonitorMode">
+                            <option value="all" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'all' else '' }}>All episodes</option>
+                            <option value="future" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'future' else '' }}>Future episodes</option>
+                            <option value="missing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'missing' else '' }}>Missing episodes</option>
+                            <option value="existing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'existing' else '' }}>Existing episodes</option>
+                            <option value="firstSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'firstSeason' else '' }}>First season</option>
+                            <option value="latestSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'latestSeason' else '' }}>Latest season</option>
+                            <option value="none" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'none' else '' }}>Do not monitor</option>
+                          </select>
+                          <button id="sonarrDefaultMonitorModeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrDefaultMonitorModeMenu">
+                            <span class="ui-select-value"></span>
+                            <i class="ui-select-chevron" aria-hidden="true"></i>
+                          </button>
+                          <div id="sonarrDefaultMonitorModeMenu" class="ui-select-menu" role="listbox" hidden></div>
+                        </div>
+                        <small>The default monitoring mode Weebarr uses for Sonarr Direct requests.</small>
+                      </label>
+
+                      <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
+                        <span class="settings-plain-toggle-title">Search On Add</span>
+                        <label class="toggle-switch" for="sonarrDefaultSearchOnAdd" aria-label="Search in Sonarr after add">
+                          <input id="sonarrDefaultSearchOnAdd" name="sonarrDefaultSearchOnAdd" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSearchOnAdd else '' }} />
+                          <i aria-hidden="true"></i>
+                        </label>
+                        <small>Trigger Sonarr to search immediately after Weebarr adds or updates a title.</small>
+                      </div>
+
+                      <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
+                        <span class="settings-plain-toggle-title">Season Folder</span>
+                        <label class="toggle-switch" for="sonarrDefaultSeasonFolder" aria-label="Use season folders in Sonarr">
+                          <input id="sonarrDefaultSeasonFolder" name="sonarrDefaultSeasonFolder" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSeasonFolder else '' }} />
+                          <i aria-hidden="true"></i>
+                        </label>
+                        <small>Use Sonarr season folders by default for direct adds and updates.</small>
+                      </div>
+
+                      <label>
+                        <span>Language Profile ID</span>
+                        <input id="sonarrLanguageProfileId" name="sonarrLanguageProfileId" type="number" min="1" placeholder="Optional" value="{{ request_settings.sonarr.languageProfileId or '' }}" />
+                        <small>Optional. Only needed if your Sonarr instance still depends on language profiles.</small>
+                      </label>
+
+                      <label class="full-width">
+                        <span>Tag IDs</span>
+                        <input id="sonarrTags" name="sonarrTags" type="text" placeholder="12, 34, 56" value="{{ request_settings.sonarr.tags | join(', ') if request_settings.sonarr.tags else '' }}" />
+                        <small>Optional comma-separated Sonarr tag IDs to attach to direct adds.</small>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
                 <div class="settings-subpanel">
                   <div class="settings-subheading">
-                    <h3>Live Connection</h3>
-                    <p>Review the currently saved Seerr values and the latest test results without leaving the page.</p>
+                    <h3>Live Summary</h3>
+                    <p>Review the currently saved backend values and the latest test results without leaving the page.</p>
                   </div>
                   <div class="settings-summary-grid settings-summary-grid-compact settings-summary-grid-connection">
                     <div class="pill-card">
+                      <span>Active Backend</span>
+                      <strong id="currentRequestBackend">{{ "Sonarr Direct" if request_settings.requestBackend == "sonarr" else "Seerr" }}</strong>
+                    </div>
+                    <div class="pill-card">
                       <span>Base URL</span>
-                      <strong id="currentBaseUrl">{{ connection.baseUrl or "Not set" }}</strong>
+                      <strong id="currentBaseUrl">{{ request_settings.sonarr.baseUrl if request_settings.requestBackend == "sonarr" else (connection.baseUrl or "Not set") }}</strong>
                     </div>
                     <div class="pill-card">
                       <span>API Key</span>
-                      <strong id="currentApiKey">{{ connection.apiKeyPreview or "Not set" }}</strong>
+                      <strong id="currentApiKey">{{ request_settings.sonarr.apiKeyPreview if request_settings.requestBackend == "sonarr" else (connection.apiKeyPreview or "Not set") }}</strong>
                     </div>
                     <div class="pill-card">
-                      <span>Request Seasons</span>
-                      <strong id="currentRequestSeasons">{{ connection.requestSeasons }}</strong>
+                      <span>Request Mode</span>
+                      <strong id="currentRequestSeasons">{{ request_settings.sonarr.defaultMonitorMode if request_settings.requestBackend == "sonarr" else connection.requestSeasons }}</strong>
                     </div>
                     <div class="pill-card">
                       <span>Server / Series Type</span>
-                      <strong id="currentProfileSummary">{{ connection.sonarrServerId or "Default" }} / {{ "Seerr default" if connection.seriesType == "default" else connection.seriesType|title }}</strong>
+                      <strong id="currentProfileSummary">{% if request_settings.requestBackend == "sonarr" %}Direct / {{ request_settings.sonarr.seriesType|title if request_settings.sonarr.seriesType else "Not set" }}{% else %}{{ connection.sonarrServerId or "Default" }} / {{ "Seerr default" if connection.seriesType == "default" else connection.seriesType|title }}{% endif %}</strong>
                     </div>
                     <div class="pill-card">
                       <span>Quality Profile</span>
-                      <strong id="currentQualityProfileMode">{{ connection.profileId if connection.forceQualityProfile and connection.profileId else "Seerr default" }}</strong>
+                      <strong id="currentQualityProfileMode">{% if request_settings.requestBackend == "sonarr" %}{{ request_settings.sonarr.qualityProfileId or "Not set" }}{% else %}{{ connection.profileId if connection.forceQualityProfile and connection.profileId else "Seerr default" }}{% endif %}</strong>
                     </div>
                     <div class="pill-card">
                       <span>Root Folder</span>
-                      <strong id="currentRootFolder">{{ connection.rootFolder or "Default" }}</strong>
+                      <strong id="currentRootFolder">{% if request_settings.requestBackend == "sonarr" %}{{ request_settings.sonarr.rootFolderPath or "Not set" }}{% else %}{{ connection.rootFolder or "Default" }}{% endif %}</strong>
                     </div>
                     <div class="pill-card">
                       <span>Tags</span>
-                      <strong id="currentTags">{{ connection.tags | join(', ') if connection.tags else "None" }}</strong>
+                      <strong id="currentTags">{% if request_settings.requestBackend == "sonarr" %}{{ request_settings.sonarr.tags | join(', ') if request_settings.sonarr.tags else "None" }}{% else %}{{ connection.tags | join(', ') if connection.tags else "None" }}{% endif %}</strong>
                     </div>
                   </div>
 
                   <div id="testResults" class="settings-note settings-test-results">
-                    <p>Run a connection test to verify the URL and API key, then inspect the Sonarr defaults Seerr reports back.</p>
+                    <p>Run a connection test to verify the URL and API key, then inspect the latest defaults Weebarr can detect from the active backend.</p>
                     <div class="settings-summary-grid settings-summary-grid-compact settings-summary-grid-test">
                       <div class="pill-card">
-                        <span>Server Count</span>
+                        <span id="testMetricOneLabel">Server Count</span>
                         <strong id="testServerCount">--</strong>
                       </div>
                       <div class="pill-card">
-                        <span>Default Server</span>
+                        <span id="testMetricTwoLabel">Default Server</span>
                         <strong id="testServerName">--</strong>
                       </div>
                       <div class="pill-card">
-                        <span>Detected Profile</span>
+                        <span id="testMetricThreeLabel">Detected Profile</span>
                         <strong id="testProfileId">--</strong>
                       </div>
                       <div class="pill-card">
-                        <span>Detected Series Type</span>
+                        <span id="testMetricFourLabel">Detected Series Type</span>
                         <strong id="testSeriesType">--</strong>
                       </div>
                       <div class="pill-card">
-                        <span>Detected Root</span>
+                        <span id="testMetricFiveLabel">Detected Root</span>
                         <strong id="testRootFolder">--</strong>
                       </div>
                     </div>
@@ -671,8 +799,8 @@
               </div>
 
               <div class="settings-actions">
-                <button id="testConnectionBtn" class="secondary-btn" type="button">Test Connection</button>
-                <button id="saveConnectionBtn" class="refresh-btn" type="submit">Save Connection</button>
+                <button id="testConnectionBtn" class="secondary-btn" type="button">Test Backend</button>
+                <button id="saveConnectionBtn" class="refresh-btn" type="submit">Save Backend</button>
               </div>
             </form>
           </section>
@@ -685,6 +813,7 @@
     <script>
       window.WEEBARR_WEEBARR = {{ weebarr | tojson }};
       window.WEEBARR_CONNECTION = {{ connection | tojson }};
+      window.WEEBARR_REQUEST_SETTINGS = {{ request_settings | tojson }};
       window.WEEBARR_ACCESS = {{ access | tojson }};
       window.WEEBARR_THEME_CONTEXT = {{ weebarr.theme | tojson }};
     </script>

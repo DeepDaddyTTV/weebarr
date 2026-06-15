@@ -13,8 +13,9 @@ Use this guide if your Docker setup is on a normal Windows machine and you want 
 Before starting, make sure you have:
 
 - Docker Desktop for Windows installed and running
-- a working Seerr instance
-- a Seerr API key
+- a working Seerr instance if you plan to use Seerr
+- a working Sonarr instance if you plan to use Sonarr Direct
+- an API key for the backend you plan to use first
 - a folder where Weebarr can save its config
 
 The config folder is important. It keeps your Weebarr settings safe when the container updates or restarts.
@@ -110,6 +111,8 @@ Complete the first-run setup. You can choose:
 - Plex login
 - both local and Plex login
 
+Then continue to the request-backend step and choose either `Seerr` or `Sonarr Direct`.
+
 ## Important Windows Notes
 
 ### Keep the config folder mounted
@@ -161,7 +164,7 @@ C:\Docker\Weebarr\config
 That folder preserves:
 
 - access settings
-- Seerr integration settings
+- request backend settings
 - automation history
 - theme imports
 - API key state

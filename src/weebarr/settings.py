@@ -30,6 +30,17 @@ DEFAULT_AUTOMATION_BUCKETS = {
 }
 DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS = 30
 DEFAULT_AUTOMATION_SCAN_INTERVAL_HOURS = 0
+REQUEST_BACKENDS = {"seerr", "sonarr"}
+SONARR_MONITOR_TYPES = {
+    "all",
+    "future",
+    "missing",
+    "existing",
+    "firstSeason",
+    "lastSeason",
+    "latestSeason",
+    "none",
+}
 THEME_TOKEN_KEYS = (
     "bg",
     "bg2",
@@ -279,6 +290,27 @@ def _normalize_series_type(value: Any) -> str | None:
     raise ValueError("series_type must be one of default, standard, daily, or anime")
 
 
+def _normalize_request_backend(value: Any) -> str:
+    normalized = str(value or "seerr").strip().lower()
+    if normalized in {"", "default"}:
+        return "seerr"
+    if normalized in REQUEST_BACKENDS:
+        return normalized
+    raise ValueError("request_backend must be one of seerr or sonarr")
+
+
+def _normalize_sonarr_monitor_mode(value: Any) -> str:
+    normalized = str(value or "all").strip() or "all"
+    if normalized == "lastSeason":
+        normalized = "latestSeason"
+    if normalized in SONARR_MONITOR_TYPES:
+        return normalized
+    raise ValueError(
+        "sonarr_default_monitor_mode must be one of all, future, missing, "
+        "existing, firstSeason, latestSeason, or none"
+    )
+
+
 def _normalize_theme_color(value: Any) -> str:
     candidate = str(value or "").strip()
     if not candidate:
@@ -399,6 +431,10 @@ def _normalize_request_record(value: Any) -> dict[str, Any] | None:
     requested_at = _normalize_optional_str(value.get("requested_at"))
     if anilist_id is None or not season or year is None or not requested_at:
         return None
+    try:
+        backend = _normalize_request_backend(value.get("backend"))
+    except ValueError:
+        backend = "seerr"
     request_seasons = value.get("request_seasons")
     normalized_request_seasons = (
         sorted(
@@ -415,13 +451,17 @@ def _normalize_request_record(value: Any) -> dict[str, Any] | None:
     )
     return {
         "anilist_id": anilist_id,
+        "backend": backend,
         "tmdb_id": _normalize_optional_int(value.get("tmdb_id")),
         "tvdb_id": _normalize_optional_int(value.get("tvdb_id")),
+        "sonarr_series_id": _normalize_optional_int(value.get("sonarr_series_id")),
         "title": _normalize_optional_str(value.get("title")) or "",
         "season": season,
         "year": year,
         "requested_at": requested_at,
         "request_seasons": normalized_request_seasons,
+        "request_state": _normalize_optional_str(value.get("request_state")) or "",
+        "request_label": _normalize_optional_str(value.get("request_label")) or "",
     }
 
 
@@ -438,6 +478,7 @@ class Settings:
     log_level: str = "INFO"
     anilist_cache_ttl_seconds: int = 21600
     seerr_cache_ttl_seconds: int = 900
+    request_backend: str = "seerr"
     seerr_base_url: str = ""
     seerr_api_key: str = ""
     seerr_sonarr_server_id: int | None = None
@@ -449,6 +490,16 @@ class Settings:
     seerr_tags: list[int] | None = None
     seerr_request_user_id: int | None = None
     seerr_request_seasons: str = "all"
+    sonarr_base_url: str = ""
+    sonarr_api_key: str = ""
+    sonarr_root_folder_path: str | None = None
+    sonarr_quality_profile_id: int | None = None
+    sonarr_series_type: str | None = None
+    sonarr_default_monitor_mode: str = "all"
+    sonarr_default_search_on_add: bool = True
+    sonarr_default_season_folder: bool = True
+    sonarr_language_profile_id: int | None = None
+    sonarr_tags: list[int] | None = None
     request_timeout_seconds: float = 20.0
     audio_lookup_enabled: bool = True
     audio_cache_ttl_seconds: int = 86400
@@ -493,6 +544,30 @@ class Settings:
     @property
     def seerr_configured(self) -> bool:
         return bool(self.seerr_base_url and self.seerr_api_key)
+
+    @property
+    def sonarr_configured(self) -> bool:
+        return bool(
+            self.sonarr_base_url
+            and self.sonarr_api_key
+            and self.sonarr_root_folder_path
+            and self.sonarr_quality_profile_id is not None
+            and self.sonarr_series_type is not None
+        )
+
+    @property
+    def active_request_backend(self) -> str:
+        return _normalize_request_backend(self.request_backend)
+
+    @property
+    def request_backend_configured(self) -> bool:
+        if self.active_request_backend == "sonarr":
+            return self.sonarr_configured
+        return self.seerr_configured
+
+    @property
+    def request_backend_required(self) -> bool:
+        return not self.request_backend_configured
 
     @property
     def auth_enabled(self) -> bool:
@@ -587,6 +662,9 @@ class Settings:
                 os.getenv("ANILIST_CACHE_TTL_SECONDS", "21600")
             ),
             seerr_cache_ttl_seconds=int(os.getenv("SEERR_CACHE_TTL_SECONDS", "900")),
+            request_backend=_normalize_request_backend(
+                os.getenv("WEEBARR_REQUEST_BACKEND", "seerr")
+            ),
             seerr_base_url=os.getenv("SEERR_BASE_URL", "").rstrip("/"),
             seerr_api_key=os.getenv("SEERR_API_KEY", ""),
             seerr_sonarr_server_id=_optional_int(os.getenv("SEERR_SONARR_SERVER_ID")),
@@ -603,6 +681,30 @@ class Settings:
             seerr_tags=_optional_csv_int(os.getenv("SEERR_TAGS")),
             seerr_request_user_id=_optional_int(os.getenv("SEERR_REQUEST_USER_ID")),
             seerr_request_seasons=os.getenv("SEERR_REQUEST_SEASONS", "all"),
+            sonarr_base_url=os.getenv("SONARR_BASE_URL", "").rstrip("/"),
+            sonarr_api_key=os.getenv("SONARR_API_KEY", ""),
+            sonarr_root_folder_path=os.getenv("SONARR_ROOT_FOLDER_PATH")
+            or os.getenv("SONARR_ROOT_FOLDER")
+            or None,
+            sonarr_quality_profile_id=_optional_int(
+                os.getenv("SONARR_QUALITY_PROFILE_ID")
+            ),
+            sonarr_series_type=_normalize_series_type(os.getenv("SONARR_SERIES_TYPE")),
+            sonarr_default_monitor_mode=_normalize_sonarr_monitor_mode(
+                os.getenv("SONARR_DEFAULT_MONITOR_MODE", "all")
+            ),
+            sonarr_default_search_on_add=_normalize_bool(
+                os.getenv("SONARR_DEFAULT_SEARCH_ON_ADD"),
+                default=True,
+            ),
+            sonarr_default_season_folder=_normalize_bool(
+                os.getenv("SONARR_DEFAULT_SEASON_FOLDER"),
+                default=True,
+            ),
+            sonarr_language_profile_id=_optional_int(
+                os.getenv("SONARR_LANGUAGE_PROFILE_ID")
+            ),
+            sonarr_tags=_optional_csv_int(os.getenv("SONARR_TAGS")),
             request_timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "20")),
             audio_lookup_enabled=os.getenv("AUDIO_LOOKUP_ENABLED", "true").lower()
             not in ("0", "false", "no", "off"),
@@ -716,6 +818,19 @@ class SettingsStore:
             self._current = self._build_settings(payload)
             return self._current
 
+    def save_requests(self, overrides: dict[str, Any]) -> Settings:
+        with self._lock:
+            payload = self._load_payload()
+            request_settings = payload.setdefault("request_settings", {})
+            for key, value in overrides.items():
+                if value is None:
+                    request_settings.pop(key, None)
+                else:
+                    request_settings[key] = value
+            self._write_payload(payload)
+            self._current = self._build_settings(payload)
+            return self._current
+
     def save_auth(self, overrides: dict[str, Any]) -> Settings:
         with self._lock:
             payload = self._load_payload()
@@ -801,6 +916,33 @@ class SettingsStore:
             "tags": current.seerr_tags or [],
         }
 
+    def request_settings_summary(self) -> dict[str, Any]:
+        current = self.get()
+        return {
+            "configured": current.request_backend_configured,
+            "requestBackend": current.active_request_backend,
+            "requestBackendConfigured": current.request_backend_configured,
+            "seerr": self.connection_summary(),
+            "sonarr": {
+                "configured": current.sonarr_configured,
+                "baseUrl": current.sonarr_base_url,
+                "hasApiKey": bool(current.sonarr_api_key),
+                "apiKeyPreview": (
+                    f"••••{current.sonarr_api_key[-4:]}"
+                    if current.sonarr_api_key
+                    else ""
+                ),
+                "rootFolderPath": current.sonarr_root_folder_path,
+                "qualityProfileId": current.sonarr_quality_profile_id,
+                "seriesType": current.sonarr_series_type,
+                "defaultMonitorMode": current.sonarr_default_monitor_mode,
+                "defaultSearchOnAdd": current.sonarr_default_search_on_add,
+                "defaultSeasonFolder": current.sonarr_default_season_folder,
+                "languageProfileId": current.sonarr_language_profile_id,
+                "tags": current.sonarr_tags or [],
+            },
+        }
+
     def weebarr_summary(self) -> dict[str, Any]:
         current = self.get()
         return {
@@ -825,6 +967,9 @@ class SettingsStore:
         current = self.get()
         return {
             "setupRequired": current.setup_required,
+            "requestBackendRequired": current.request_backend_required,
+            "requestBackend": current.active_request_backend,
+            "requestBackendConfigured": current.request_backend_configured,
             "configured": current.auth_configured,
             "authMode": current.effective_auth_mode,
             "authUsername": current.auth_username,
@@ -856,14 +1001,25 @@ class SettingsStore:
         seerr = (
             payload.get("seerr", {}) if isinstance(payload.get("seerr"), dict) else {}
         )
+        request_settings = (
+            payload.get("request_settings", {})
+            if isinstance(payload.get("request_settings"), dict)
+            else {}
+        )
         weebarr = (
             payload.get("weebarr", {})
             if isinstance(payload.get("weebarr"), dict)
             else {}
         )
         auth = payload.get("auth", {}) if isinstance(payload.get("auth"), dict) else {}
+        raw_request_backend = (
+            request_settings.get("backend")
+            if "backend" in request_settings
+            else payload.get("request_backend", self._base.request_backend)
+        )
         return replace(
             self._base,
+            request_backend=_normalize_request_backend(raw_request_backend),
             seerr_base_url=(
                 _normalize_optional_str(seerr.get("base_url"))
                 or self._base.seerr_base_url
@@ -911,6 +1067,70 @@ class SettingsStore:
                 _normalize_tags(seerr.get("tags"))
                 if "tags" in seerr
                 else self._base.seerr_tags
+            ),
+            sonarr_base_url=(
+                _normalize_optional_str(request_settings.get("sonarr_base_url"))
+                if "sonarr_base_url" in request_settings
+                else self._base.sonarr_base_url
+            )
+            or "",
+            sonarr_api_key=(
+                _normalize_optional_str(request_settings.get("sonarr_api_key"))
+                if "sonarr_api_key" in request_settings
+                else self._base.sonarr_api_key
+            )
+            or "",
+            sonarr_root_folder_path=(
+                _normalize_optional_str(request_settings.get("sonarr_root_folder_path"))
+                if "sonarr_root_folder_path" in request_settings
+                else self._base.sonarr_root_folder_path
+            ),
+            sonarr_quality_profile_id=(
+                _normalize_optional_int(
+                    request_settings.get("sonarr_quality_profile_id")
+                )
+                if "sonarr_quality_profile_id" in request_settings
+                else self._base.sonarr_quality_profile_id
+            ),
+            sonarr_series_type=(
+                _normalize_series_type(request_settings.get("sonarr_series_type"))
+                if "sonarr_series_type" in request_settings
+                else self._base.sonarr_series_type
+            ),
+            sonarr_default_monitor_mode=(
+                _normalize_sonarr_monitor_mode(
+                    request_settings.get("sonarr_default_monitor_mode")
+                )
+                if "sonarr_default_monitor_mode" in request_settings
+                else self._base.sonarr_default_monitor_mode
+            ),
+            sonarr_default_search_on_add=(
+                _normalize_bool(
+                    request_settings.get("sonarr_default_search_on_add"),
+                    default=True,
+                )
+                if "sonarr_default_search_on_add" in request_settings
+                else self._base.sonarr_default_search_on_add
+            ),
+            sonarr_default_season_folder=(
+                _normalize_bool(
+                    request_settings.get("sonarr_default_season_folder"),
+                    default=True,
+                )
+                if "sonarr_default_season_folder" in request_settings
+                else self._base.sonarr_default_season_folder
+            ),
+            sonarr_language_profile_id=(
+                _normalize_optional_int(
+                    request_settings.get("sonarr_language_profile_id")
+                )
+                if "sonarr_language_profile_id" in request_settings
+                else self._base.sonarr_language_profile_id
+            ),
+            sonarr_tags=(
+                _normalize_tags(request_settings.get("sonarr_tags"))
+                if "sonarr_tags" in request_settings
+                else self._base.sonarr_tags
             ),
             content_filter_mode=(
                 _normalize_content_filter_mode(weebarr.get("content_filter_mode"))

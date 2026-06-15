@@ -30,7 +30,7 @@ When writing scripts, expect normal HTTP status codes:
 - `401`: missing or invalid authentication
 - `409`: already requested or conflict
 - `502`: upstream metadata source failed
-- `503`: Seerr is not configured or unavailable
+- `503`: the active request backend is not configured or unavailable
 
 ## UI Routes
 
@@ -43,6 +43,10 @@ Redirects to the correct starting page based on setup and login state.
 ### `GET /setup`
 
 Shows the first-run setup page.
+
+### `GET /setup/backend`
+
+Shows the request-backend setup page after access is configured.
 
 ### `GET /login`
 
@@ -68,7 +72,7 @@ Shows the Settings page.
 
 ### `GET /api/setup/status`
 
-Returns whether first-run setup is still required.
+Returns whether first-run setup is still required, plus the current request-backend setup state.
 
 ### `POST /api/setup/access`
 
@@ -98,6 +102,8 @@ Typical output includes:
 
 - app status
 - version
+- the active request backend
+- whether the active request backend is configured
 - whether Seerr is configured
 
 Use this for uptime checks.
@@ -111,7 +117,7 @@ This can include:
 - current version
 - default season and year
 - available season options
-- Seerr summary
+- request backend summary
 - Weebarr summary
 - access summary
 
@@ -122,6 +128,10 @@ Returns the current Weebarr settings summary.
 ### `GET /api/settings/seerr`
 
 Returns the current Seerr settings summary.
+
+### `GET /api/settings/requests`
+
+Returns the active request backend summary plus the saved Seerr and Sonarr Direct settings.
 
 ### `GET /api/seasonal`
 
@@ -192,15 +202,35 @@ Imports a theme from a zip file containing `theme.json`.
 
 Tests Seerr connection settings without saving them.
 
-Use this before saving a new Seerr URL or API key.
-
 ### `PUT /api/settings/seerr`
 
 Saves Seerr request settings and overrides.
 
+### `POST /api/settings/requests/test`
+
+Tests the currently selected request backend without saving changes.
+
+This can test either:
+
+- Seerr connection details
+- Sonarr Direct connection details and detected defaults
+
+### `PUT /api/settings/requests`
+
+Saves the active request backend plus backend-specific settings.
+
 ### `POST /api/request`
 
-Creates a Seerr TV request and records a Weebarr request entry when applicable.
+Creates a request through the active backend and records a Weebarr request entry when applicable.
+
+In Seerr mode, the existing request payload still works.
+
+In Sonarr Direct mode, the payload can also include an `options` object with:
+
+- `selectedSeasons`
+- `monitorMode`
+- `searchOnAdd`
+- `seasonFolder`
 
 ## Automation API Key
 

@@ -1,6 +1,7 @@
 const state = {
   weebarr: window.WEEBARR_WEEBARR || {},
   connection: window.WEEBARR_CONNECTION || {},
+  requestSettings: window.WEEBARR_REQUEST_SETTINGS || {},
   access: window.WEEBARR_ACCESS || {},
   openDropdown: null,
   activeTab: "weebarr",
@@ -17,6 +18,11 @@ const validSettingsTabs = new Set([
 const contentFilterLabels = {
   hide_nsfw: "Hide NSFW",
   show_all: "Show all",
+};
+
+const requestBackendLabels = {
+  seerr: "Seerr",
+  sonarr: "Sonarr Direct",
 };
 
 const seriesTypeLabels = {
@@ -71,6 +77,9 @@ const els = {
   automationScanIntervalDays: document.querySelector("#automationScanIntervalDays"),
   automationScanIntervalHours: document.querySelector("#automationScanIntervalHours"),
   automationScanNowBtn: document.querySelector("#automationScanNowBtn"),
+  requestBackend: document.querySelector("#settingsRequestBackend"),
+  seerrSettingsPanel: document.querySelector("#seerrSettingsPanel"),
+  sonarrSettingsPanel: document.querySelector("#sonarrSettingsPanel"),
   baseUrl: document.querySelector("#settingsBaseUrl"),
   apiKey: document.querySelector("#settingsApiKey"),
   requestSeasons: document.querySelector("#settingsRequestSeasons"),
@@ -82,6 +91,16 @@ const els = {
   languageProfileId: document.querySelector("#settingsLanguageProfileId"),
   requestUserId: document.querySelector("#settingsRequestUserId"),
   tags: document.querySelector("#settingsTags"),
+  sonarrBaseUrl: document.querySelector("#sonarrBaseUrl"),
+  sonarrApiKey: document.querySelector("#sonarrApiKey"),
+  sonarrRootFolderPath: document.querySelector("#sonarrRootFolderPath"),
+  sonarrQualityProfileId: document.querySelector("#sonarrQualityProfileId"),
+  sonarrSeriesType: document.querySelector("#sonarrSeriesType"),
+  sonarrDefaultMonitorMode: document.querySelector("#sonarrDefaultMonitorMode"),
+  sonarrDefaultSearchOnAdd: document.querySelector("#sonarrDefaultSearchOnAdd"),
+  sonarrDefaultSeasonFolder: document.querySelector("#sonarrDefaultSeasonFolder"),
+  sonarrLanguageProfileId: document.querySelector("#sonarrLanguageProfileId"),
+  sonarrTags: document.querySelector("#sonarrTags"),
   localAccountUsername: document.querySelector("#localAccountUsername"),
   localAccountPassword: document.querySelector("#localAccountPassword"),
   localAccountConfirmPassword: document.querySelector(
@@ -106,11 +125,17 @@ const els = {
   automationLastProcessed: document.querySelector("#automationLastProcessed"),
   currentBaseUrl: document.querySelector("#currentBaseUrl"),
   currentApiKey: document.querySelector("#currentApiKey"),
+  currentRequestBackend: document.querySelector("#currentRequestBackend"),
   currentRequestSeasons: document.querySelector("#currentRequestSeasons"),
   currentProfileSummary: document.querySelector("#currentProfileSummary"),
   currentQualityProfileMode: document.querySelector("#currentQualityProfileMode"),
   currentRootFolder: document.querySelector("#currentRootFolder"),
   currentTags: document.querySelector("#currentTags"),
+  testMetricOneLabel: document.querySelector("#testMetricOneLabel"),
+  testMetricTwoLabel: document.querySelector("#testMetricTwoLabel"),
+  testMetricThreeLabel: document.querySelector("#testMetricThreeLabel"),
+  testMetricFourLabel: document.querySelector("#testMetricFourLabel"),
+  testMetricFiveLabel: document.querySelector("#testMetricFiveLabel"),
   testServerCount: document.querySelector("#testServerCount"),
   testServerName: document.querySelector("#testServerName"),
   testProfileId: document.querySelector("#testProfileId"),
@@ -171,9 +196,27 @@ function parseTags(value) {
     .filter((part) => Number.isFinite(part));
 }
 
+function activeRequestBackend() {
+  return els.requestBackend?.value || state.requestSettings?.requestBackend || "seerr";
+}
+
+function activeRequestBackendName() {
+  return requestBackendLabels[activeRequestBackend()] || "Seerr";
+}
+
 function applyConnectionOverrideState() {
   if (els.profileId) {
     els.profileId.disabled = !Boolean(els.forceQualityProfile?.checked);
+  }
+}
+
+function applyRequestBackendPanels() {
+  const sonarrActive = activeRequestBackend() === "sonarr";
+  if (els.seerrSettingsPanel) {
+    els.seerrSettingsPanel.hidden = sonarrActive;
+  }
+  if (els.sonarrSettingsPanel) {
+    els.sonarrSettingsPanel.hidden = !sonarrActive;
   }
 }
 
@@ -453,52 +496,76 @@ function updateWeebarr(summary) {
   syncCustomSelects(["settingsContentFilterMode"]);
 }
 
-function updateConnection(connection) {
-  state.connection = connection || {};
+function updateConnection(summary) {
+  state.requestSettings = summary || {};
+  state.connection = summary?.seerr || {};
+  const connection = state.connection;
+  const sonarr = summary?.sonarr || {};
+  const selectedBackend =
+    summary?.requestBackend || els.requestBackend?.value || "seerr";
+  if (els.requestBackend && summary?.requestBackend) {
+    els.requestBackend.value = summary.requestBackend;
+  }
+  const sonarrActive = selectedBackend === "sonarr";
+  const selectedBackendName = requestBackendLabels[selectedBackend] || "Seerr";
+  const activeSummary = sonarrActive ? sonarr : connection;
+
+  if (els.currentRequestBackend) {
+    els.currentRequestBackend.textContent = selectedBackendName;
+  }
   if (els.currentBaseUrl) {
-    els.currentBaseUrl.textContent = connection.baseUrl || "Not set";
+    els.currentBaseUrl.textContent = activeSummary.baseUrl || "Not set";
   }
   if (els.currentApiKey) {
-    els.currentApiKey.textContent = connection.apiKeyPreview || "Not set";
+    els.currentApiKey.textContent = activeSummary.apiKeyPreview || "Not set";
   }
   if (els.currentRequestSeasons) {
-    els.currentRequestSeasons.textContent = connection.requestSeasons || "all";
+    els.currentRequestSeasons.textContent = sonarrActive
+      ? sonarr.defaultMonitorMode || "all"
+      : connection.requestSeasons || "all";
   }
   if (els.currentProfileSummary) {
-    const seriesTypeLabel =
-      seriesTypeLabels[connection.seriesType] || "Use Seerr default";
-    els.currentProfileSummary.textContent = `${connection.sonarrServerId || "Default"} / ${seriesTypeLabel}`;
+    els.currentProfileSummary.textContent = sonarrActive
+      ? `Direct / ${seriesTypeLabels[sonarr.seriesType] || "Not set"}`
+      : `${connection.sonarrServerId || "Default"} / ${seriesTypeLabels[connection.seriesType] || "Use Seerr default"}`;
   }
   if (els.currentQualityProfileMode) {
-    els.currentQualityProfileMode.textContent = connection.forceQualityProfile
-      ? connection.profileId || "Missing ID"
-      : "Seerr default";
+    els.currentQualityProfileMode.textContent = sonarrActive
+      ? sonarr.qualityProfileId || "Not set"
+      : connection.forceQualityProfile
+        ? connection.profileId || "Missing ID"
+        : "Seerr default";
   }
   if (els.currentRootFolder) {
-    els.currentRootFolder.textContent = connection.rootFolder || "Default";
+    els.currentRootFolder.textContent = sonarrActive
+      ? sonarr.rootFolderPath || "Not set"
+      : connection.rootFolder || "Default";
   }
   if (els.currentTags) {
-    els.currentTags.textContent = connection.tags?.length
-      ? connection.tags.join(", ")
-      : "None";
+    const tags = sonarrActive ? sonarr.tags : connection.tags;
+    els.currentTags.textContent = tags?.length ? tags.join(", ") : "None";
   }
   if (els.connectionStatusPill) {
-    els.connectionStatusPill.textContent = connection.configured
+    els.connectionStatusPill.textContent = summary?.requestBackendConfigured
       ? "Configured"
       : "Missing";
-    els.connectionStatusPill.classList.toggle("connected", connection.configured);
-    els.connectionStatusPill.classList.toggle("missing", !connection.configured);
+    els.connectionStatusPill.classList.toggle(
+      "connected",
+      Boolean(summary?.requestBackendConfigured),
+    );
+    els.connectionStatusPill.classList.toggle(
+      "missing",
+      !summary?.requestBackendConfigured,
+    );
   }
+
   if (els.baseUrl && !document.activeElement?.isSameNode(els.baseUrl)) {
     els.baseUrl.value = connection.baseUrl || "";
   }
   if (els.requestSeasons && connection.requestSeasons) {
     els.requestSeasons.value = connection.requestSeasons;
   }
-  if (
-    els.sonarrServerId &&
-    !document.activeElement?.isSameNode(els.sonarrServerId)
-  ) {
+  if (els.sonarrServerId && !document.activeElement?.isSameNode(els.sonarrServerId)) {
     els.sonarrServerId.value = connection.sonarrServerId || "";
   }
   if (els.profileId && !document.activeElement?.isSameNode(els.profileId)) {
@@ -513,16 +580,10 @@ function updateConnection(connection) {
   if (els.rootFolder && !document.activeElement?.isSameNode(els.rootFolder)) {
     els.rootFolder.value = connection.rootFolder || "";
   }
-  if (
-    els.languageProfileId &&
-    !document.activeElement?.isSameNode(els.languageProfileId)
-  ) {
+  if (els.languageProfileId && !document.activeElement?.isSameNode(els.languageProfileId)) {
     els.languageProfileId.value = connection.languageProfileId || "";
   }
-  if (
-    els.requestUserId &&
-    !document.activeElement?.isSameNode(els.requestUserId)
-  ) {
+  if (els.requestUserId && !document.activeElement?.isSameNode(els.requestUserId)) {
     els.requestUserId.value = connection.requestUserId || "";
   }
   if (els.tags && !document.activeElement?.isSameNode(els.tags)) {
@@ -533,22 +594,73 @@ function updateConnection(connection) {
       ? `Stored ${connection.apiKeyPreview} (leave blank to keep)`
       : "Paste a Seerr API key";
   }
+
+  if (els.sonarrBaseUrl && !document.activeElement?.isSameNode(els.sonarrBaseUrl)) {
+    els.sonarrBaseUrl.value = sonarr.baseUrl || "";
+  }
+  if (els.sonarrApiKey) {
+    els.sonarrApiKey.placeholder = sonarr.hasApiKey
+      ? `Stored ${sonarr.apiKeyPreview} (leave blank to keep)`
+      : "Paste a Sonarr API key";
+  }
+  if (
+    els.sonarrRootFolderPath &&
+    !document.activeElement?.isSameNode(els.sonarrRootFolderPath)
+  ) {
+    els.sonarrRootFolderPath.value = sonarr.rootFolderPath || "";
+  }
+  if (
+    els.sonarrQualityProfileId &&
+    !document.activeElement?.isSameNode(els.sonarrQualityProfileId)
+  ) {
+    els.sonarrQualityProfileId.value = sonarr.qualityProfileId || "";
+  }
+  if (els.sonarrSeriesType && sonarr.seriesType) {
+    els.sonarrSeriesType.value = sonarr.seriesType;
+  }
+  if (els.sonarrDefaultMonitorMode && sonarr.defaultMonitorMode) {
+    els.sonarrDefaultMonitorMode.value = sonarr.defaultMonitorMode;
+  }
+  if (els.sonarrDefaultSearchOnAdd) {
+    els.sonarrDefaultSearchOnAdd.checked = Boolean(sonarr.defaultSearchOnAdd);
+  }
+  if (els.sonarrDefaultSeasonFolder) {
+    els.sonarrDefaultSeasonFolder.checked = Boolean(sonarr.defaultSeasonFolder);
+  }
+  if (
+    els.sonarrLanguageProfileId &&
+    !document.activeElement?.isSameNode(els.sonarrLanguageProfileId)
+  ) {
+    els.sonarrLanguageProfileId.value = sonarr.languageProfileId || "";
+  }
+  if (els.sonarrTags && !document.activeElement?.isSameNode(els.sonarrTags)) {
+    els.sonarrTags.value = sonarr.tags?.length ? sonarr.tags.join(", ") : "";
+  }
+
   if (els.connectionSidebarStatus) {
-    els.connectionSidebarStatus.textContent = connection.configured
+    els.connectionSidebarStatus.textContent = summary?.requestBackendConfigured
       ? "Connected"
-      : "Seerr missing";
-    els.connectionSidebarStatus.dataset.tooltip = connection.configured
-      ? "Weebarr can reach Seerr with the saved connection settings."
-      : "Save a Seerr base URL and API key to enable requests.";
+      : `${selectedBackendName} missing`;
+    els.connectionSidebarStatus.dataset.tooltip = summary?.requestBackendConfigured
+      ? `Weebarr can reach ${selectedBackendName} with the saved connection settings.`
+      : `Save a ${selectedBackendName} URL and API key to enable requests.`;
   }
   if (els.connectionSidebarHost) {
-    els.connectionSidebarHost.textContent = "Seerr";
-    els.connectionSidebarHost.dataset.tooltip = connection.baseUrl
-      ? `Current Seerr endpoint: ${connection.baseUrl}`
-      : "No live Seerr endpoint is configured yet.";
+    els.connectionSidebarHost.textContent = selectedBackendName;
+    els.connectionSidebarHost.dataset.tooltip = activeSummary.baseUrl
+      ? `Current ${selectedBackendName} endpoint: ${activeSummary.baseUrl}`
+      : `No live ${selectedBackendName} endpoint is configured yet.`;
   }
+
+  applyRequestBackendPanels();
   applyConnectionOverrideState();
-  syncCustomSelects(["settingsRequestSeasons", "settingsSeriesType"]);
+  syncCustomSelects([
+    "settingsRequestBackend",
+    "settingsRequestSeasons",
+    "settingsSeriesType",
+    "sonarrSeriesType",
+    "sonarrDefaultMonitorMode",
+  ]);
 }
 
 function updateAccess(access) {
@@ -675,7 +787,7 @@ function automationPayload() {
   };
 }
 
-function connectionPayload() {
+function seerrConnectionPayload() {
   return {
     baseUrl: els.baseUrl.value.trim(),
     requestSeasons: els.requestSeasons.value,
@@ -690,6 +802,28 @@ function connectionPayload() {
   };
 }
 
+function sonarrConnectionPayload() {
+  return {
+    baseUrl: els.sonarrBaseUrl.value.trim(),
+    rootFolderPath: els.sonarrRootFolderPath.value.trim() || null,
+    qualityProfileId: parseOptionalInt(els.sonarrQualityProfileId.value),
+    seriesType: els.sonarrSeriesType?.value || "anime",
+    defaultMonitorMode: els.sonarrDefaultMonitorMode?.value || "all",
+    defaultSearchOnAdd: Boolean(els.sonarrDefaultSearchOnAdd?.checked),
+    defaultSeasonFolder: Boolean(els.sonarrDefaultSeasonFolder?.checked),
+    languageProfileId: parseOptionalInt(els.sonarrLanguageProfileId.value),
+    tags: parseTags(els.sonarrTags.value),
+  };
+}
+
+function requestSettingsPayload() {
+  return {
+    requestBackend: els.requestBackend?.value || "seerr",
+    seerr: seerrConnectionPayload(),
+    sonarr: sonarrConnectionPayload(),
+  };
+}
+
 function localAccountPayload() {
   return {
     username: els.localAccountUsername.value.trim(),
@@ -701,7 +835,7 @@ function localAccountPayload() {
 async function refreshSettings() {
   const [weebarrResponse, connectionResponse, accessResponse] = await Promise.all([
     fetch("/api/settings/weebarr"),
-    fetch("/api/settings/seerr"),
+    fetch("/api/settings/requests"),
     fetch("/api/setup/status"),
   ]);
   if (!weebarrResponse.ok) throw new Error(await readError(weebarrResponse));
@@ -849,22 +983,35 @@ async function copyGeneratedApiKey() {
 
 async function testConnection() {
   clearBanner(els.connectionBanner);
-  const payload = connectionPayload();
-  if (!payload.baseUrl && !state.connection.baseUrl) {
+  const sonarrActive = activeRequestBackend() === "sonarr";
+  const payload = requestSettingsPayload();
+  const baseUrl = sonarrActive
+    ? payload.sonarr.baseUrl || state.requestSettings?.sonarr?.baseUrl
+    : payload.seerr.baseUrl || state.connection.baseUrl;
+  if (!baseUrl) {
     showBanner(
       els.connectionBanner,
-      "Add a Seerr base URL before testing the connection.",
+      `Add a ${activeRequestBackendName()} base URL before testing the connection.`,
       "warn",
     );
     return;
   }
-  const apiKey = els.apiKey.value.trim();
-  const response = await fetch("/api/settings/seerr/test", {
+  const apiKey = sonarrActive
+    ? els.sonarrApiKey.value.trim()
+    : els.apiKey.value.trim();
+  const response = await fetch("/api/settings/requests/test", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      ...payload,
-      apiKey: apiKey || null,
+      requestBackend: activeRequestBackend(),
+      seerr: {
+        ...payload.seerr,
+        apiKey: sonarrActive ? undefined : (apiKey || undefined),
+      },
+      sonarr: {
+        ...payload.sonarr,
+        apiKey: sonarrActive ? (apiKey || undefined) : undefined,
+      },
     }),
   });
   if (!response.ok) {
@@ -872,6 +1019,33 @@ async function testConnection() {
   }
   const result = await response.json();
   const defaults = result.defaults || {};
+  if (sonarrActive) {
+    els.testMetricOneLabel.textContent = "Root Folders";
+    els.testMetricTwoLabel.textContent = "Quality Profiles";
+    els.testMetricThreeLabel.textContent = "Language Profiles";
+    els.testMetricFourLabel.textContent = "Default Series Type";
+    els.testMetricFiveLabel.textContent = "Detected Root";
+    els.testServerCount.textContent = result.rootFolderCount ?? "--";
+    els.testServerName.textContent = result.qualityProfileCount ?? "--";
+    els.testProfileId.textContent = result.languageProfileCount ?? "--";
+    els.testSeriesType.textContent =
+      defaults.seriesType
+        ? seriesTypeLabels[defaults.seriesType] || defaults.seriesType
+        : "Not set";
+    els.testRootFolder.textContent = defaults.rootFolderPath || "Not detected";
+    showBanner(
+      els.connectionBanner,
+      "Connection test succeeded. Sonarr Direct responded and Weebarr detected the available root folders, profiles, and defaults.",
+      "success",
+    );
+    toast("Sonarr Direct connection test passed.");
+    return;
+  }
+  els.testMetricOneLabel.textContent = "Server Count";
+  els.testMetricTwoLabel.textContent = "Default Server";
+  els.testMetricThreeLabel.textContent = "Detected Profile";
+  els.testMetricFourLabel.textContent = "Detected Series Type";
+  els.testMetricFiveLabel.textContent = "Detected Root";
   els.testServerCount.textContent = result.serverCount ?? "--";
   els.testServerName.textContent = defaults.serverName || "None";
   els.testProfileId.textContent = defaults.profileId || "Default";
@@ -891,24 +1065,38 @@ async function testConnection() {
 async function saveConnection(event) {
   event.preventDefault();
   clearBanner(els.connectionBanner);
-  const apiKey = els.apiKey.value.trim();
-  const response = await fetch("/api/settings/seerr", {
+  const sonarrActive = activeRequestBackend() === "sonarr";
+  const apiKey = sonarrActive
+    ? els.sonarrApiKey.value.trim()
+    : els.apiKey.value.trim();
+  const payload = requestSettingsPayload();
+  const response = await fetch("/api/settings/requests", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      ...connectionPayload(),
-      apiKey: apiKey || null,
+      requestBackend: payload.requestBackend,
+      seerr: {
+        ...payload.seerr,
+        apiKey: sonarrActive ? undefined : (apiKey || undefined),
+      },
+      sonarr: {
+        ...payload.sonarr,
+        apiKey: sonarrActive ? (apiKey || undefined) : undefined,
+      },
     }),
   });
   if (!response.ok) {
     throw new Error(await readError(response));
   }
   const result = await response.json();
-  updateConnection(result.connection || {});
+  updateConnection(result.requests || {});
   els.apiKey.value = "";
+  if (els.sonarrApiKey) {
+    els.sonarrApiKey.value = "";
+  }
   showBanner(
     els.connectionBanner,
-    "Connection settings saved. New requests will use the updated Seerr settings immediately.",
+    `${activeRequestBackendName()} settings saved. New requests will use the updated backend settings immediately.`,
     "success",
   );
   toast("Connection settings saved.");
@@ -1081,6 +1269,22 @@ if (els.copyAppApiKeyBtn) {
 if (els.forceQualityProfile) {
   els.forceQualityProfile.addEventListener("change", () => {
     applyConnectionOverrideState();
+  });
+}
+
+if (els.requestBackend) {
+  els.requestBackend.addEventListener("change", () => {
+    if (state.requestSettings) {
+      state.requestSettings = {
+        ...state.requestSettings,
+        requestBackend: els.requestBackend.value,
+      };
+    }
+    applyRequestBackendPanels();
+    if (els.currentRequestBackend) {
+      els.currentRequestBackend.textContent = activeRequestBackendName();
+    }
+    syncCustomSelects(["settingsRequestBackend"]);
   });
 }
 
