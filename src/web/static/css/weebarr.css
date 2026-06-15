@@ -2309,7 +2309,15 @@ body[data-page="requests"] .spotlight {
 
 .anime-card.selected:hover,
 .anime-card.selected:focus-within {
-  box-shadow: 0 0 0 1px var(--pink-64), 0 0 38px var(--pink-22), 0 0 30px var(--cyan-12), var(--shadow);
+  box-shadow: 0 0 0 1px var(--pink-64), 0 0 34px var(--pink-18), var(--shadow);
+  transform: none;
+}
+
+.anime-card.selected:hover::before,
+.anime-card.selected:hover::after,
+.anime-card.selected:focus-within::before,
+.anime-card.selected:focus-within::after {
+  opacity: 0;
 }
 
 body[data-theme-palette="monochrome"] .anime-card.selected {
@@ -2448,7 +2456,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
 .score-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 10px 12px;
   align-items: center;
   margin-top: 10px;
   color: #aeb8c5;
@@ -2456,12 +2464,53 @@ body[data-theme-palette="monochrome"] .rank-chip {
   font-weight: 900;
 }
 
-.score-row span:first-child {
+.media-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.media-stat-icon {
+  display: inline-flex;
+  flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.media-stat-icon-image {
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(255, 94, 154, 0.24));
+}
+
+.media-stat-value {
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.media-stat-suffix {
+  line-height: 1;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.media-stat-rating {
   color: var(--warning);
 }
 
-.score-row span:nth-child(2) {
+.media-stat-popularity {
   color: #ff5e9a;
+}
+
+.media-stat-episodes {
+  color: var(--cyan);
 }
 
 .audio-chip {
@@ -2880,6 +2929,8 @@ body[data-theme-palette="monochrome"] .rank-chip {
 }
 
 .cast-card {
+  display: grid;
+  gap: 14px;
   padding: 14px;
   background:
     linear-gradient(180deg, rgba(7, 13, 23, 0.88), rgba(11, 18, 30, 0.94)),
@@ -2995,8 +3046,67 @@ body[data-theme-palette="monochrome"] .rank-chip {
 .cast-actor-block {
   display: grid;
   gap: 10px;
-  grid-column: 1 / -1;
-  padding-top: 2px;
+}
+
+.cast-actor-disclosure {
+  display: grid;
+  gap: 12px;
+  padding: 12px 14px 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+}
+
+.cast-actor-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.cast-actor-toggle-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.cast-actor-toggle-copy strong {
+  color: #eef5ff;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.cast-actor-toggle-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--cyan);
+  font-size: 18px;
+  background: var(--cyan-10);
+  border: 1px solid var(--cyan-42);
+  border-radius: 999px;
+  box-shadow: 0 0 14px var(--cyan-12);
+  transition: transform 160ms ease;
+}
+
+.cast-actor-disclosure.is-open .cast-actor-toggle-icon {
+  transform: rotate(180deg);
+}
+
+.cast-empty-copy-card {
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
 }
 
 .cast-actor-list {

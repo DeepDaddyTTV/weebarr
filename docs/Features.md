@@ -49,6 +49,7 @@ Depending on the available data, a card may show:
 - season label
 - AniList score
 - AniList popularity
+- AniList total episode count
 - next episode timing
 - audio badge, such as `EN Dub` or `EN Sub`
 - availability state
@@ -68,7 +69,7 @@ The detail view can include:
 - larger poster or banner art
 - title and subtitle
 - rank and audio badges
-- score and popularity
+- score, popularity, and total episode count
 - genres
 - trailer
 - summary
@@ -76,7 +77,7 @@ The detail view can include:
 - start date
 - Seerr match details
 - availability status
-- cast and voice actor information from AniList
+- cast and expandable per-character voice actor information from AniList
 
 Use this view when you are deciding whether a show is worth requesting.
 

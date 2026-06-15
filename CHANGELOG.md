@@ -2,6 +2,14 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.46] - 2026-06-14
+
+### Fixed
+
+- Removed the extra cyan hover glow from already-selected seasonal anime cards so the active state keeps its intended single pink treatment.
+- Added total episode counts beside the score and popularity metadata on seasonal cards and expanded detail views.
+- Changed character voice-cast sections into per-character disclosures so large casts stay easier to scan on both desktop and mobile.
+
 ## [0.1.45] - 2026-06-12
 
 ### Fixed

@@ -50,6 +50,7 @@ const customSelectRoots = [...document.querySelectorAll("[data-ui-select]")];
 const customSelects = new Map();
 const seasonOrder = ["WINTER", "SPRING", "SUMMER", "FALL"];
 const fullyRequestedStates = new Set(["partial", "requested", "available"]);
+const popularityIconSrc = "/static/img/popularity.png";
 
 els.filter.value = state.filter;
 els.sort.value = state.sort;
@@ -271,6 +272,41 @@ function popularityTooltip(item) {
   return item.popularity
     ? `AniList popularity: ${formatNumber(item.popularity)} users`
     : "AniList popularity is not available yet.";
+}
+
+function totalEpisodesValue(item) {
+  const episodes = Number(item?.episodes);
+  if (!Number.isFinite(episodes) || episodes <= 0) return null;
+  return episodes;
+}
+
+function totalEpisodesTooltip(item) {
+  const episodes = totalEpisodesValue(item);
+  return episodes
+    ? `AniList total episodes: ${formatNumber(episodes)}`
+    : "AniList total episode count is not available yet.";
+}
+
+function statsRowTemplate(item, extraClass = "") {
+  const rating = item.averageScore ? (item.averageScore / 10).toFixed(2) : "--";
+  const episodes = totalEpisodesValue(item);
+  const classes = ["score-row", extraClass].filter(Boolean).join(" ");
+  return `
+    <div class="${classes}">
+      <span class="media-stat media-stat-rating" title="${escapeHtml(ratingTooltip(item))}">
+        <span class="media-stat-icon" aria-hidden="true">★</span>
+        <span class="media-stat-value">${rating}</span>
+      </span>
+      <span class="media-stat media-stat-popularity" title="${escapeHtml(popularityTooltip(item))}">
+        <img class="media-stat-icon media-stat-icon-image" src="${popularityIconSrc}" alt="" aria-hidden="true" />
+        <span class="media-stat-value">${formatNumber(item.popularity)}</span>
+      </span>
+      <span class="media-stat media-stat-episodes" title="${escapeHtml(totalEpisodesTooltip(item))}">
+        <span class="media-stat-value">${episodes ? formatNumber(episodes) : "TBD"}</span>
+        <span class="media-stat-suffix">Total Episode${episodes === 1 ? "" : "s"}</span>
+      </span>
+    </div>
+  `;
 }
 
 function rankTooltip(item) {
@@ -563,6 +599,7 @@ function voiceActorTemplate(actor) {
 
 function characterCardTemplate(character) {
   const voiceActors = Array.isArray(character.voiceActors) ? character.voiceActors : [];
+  const voiceActorLabel = `${voiceActors.length} Voice Actor${voiceActors.length === 1 ? "" : "s"}`;
   return `
     <article class="cast-card">
       <div class="cast-character">
@@ -586,25 +623,28 @@ function characterCardTemplate(character) {
               ? `<a class="cast-link cast-character-link external-link" href="${character.siteUrl}" target="_blank" rel="noreferrer" title="Open ${escapeHtml(character.name)} on AniList">Character Page</a>`
               : ""
           }
-          ${
-            !voiceActors.length
-              ? `<p class="cast-empty-copy">No voice actor data is listed for this character yet.</p>`
-              : ""
-          }
         </div>
-        ${
-          voiceActors.length
-            ? `
-              <div class="cast-actor-block">
-                <span class="cast-actor-kicker">Voice Cast</span>
+      </div>
+      ${
+        voiceActors.length
+          ? `
+            <div class="cast-actor-disclosure">
+              <button class="cast-actor-toggle" type="button" aria-expanded="false">
+                <div class="cast-actor-toggle-copy">
+                  <span class="cast-actor-kicker">Voice Cast</span>
+                  <strong>${escapeHtml(voiceActorLabel)}</strong>
+                </div>
+                <span class="cast-actor-toggle-icon" aria-hidden="true">⌄</span>
+              </button>
+              <div class="cast-actor-block" hidden>
                 <ul class="cast-actor-list">
                   ${voiceActors.map(voiceActorTemplate).join("")}
                 </ul>
               </div>
-            `
-            : ""
-          }
-      </div>
+            </div>
+          `
+          : `<p class="cast-empty-copy cast-empty-copy-card">No voice actor data is listed for this character yet.</p>`
+      }
     </article>
   `;
 }
@@ -786,10 +826,7 @@ function inlineDetailTemplate(item) {
         </div>
         <button class="inline-detail-close" type="button" data-inline-close="${item.id}" aria-label="Close details">×</button>
       </div>
-      <div class="score-row inline-spotlight-score">
-        <span title="${escapeHtml(ratingTooltip(item))}">★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
-        <span title="${escapeHtml(popularityTooltip(item))}">♨ ${formatNumber(item.popularity)}</span>
-      </div>
+      ${statsRowTemplate(item, "inline-spotlight-score")}
       <div class="genre-row">${(item.genres || []).slice(0, 3).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
       ${trailerTemplate(item, true)}
       <div class="detail-list inline-detail-list">
@@ -829,10 +866,7 @@ function cardTemplate(item) {
           <h3>${escapeHtml(item.title)}</h3>
           <p>${escapeHtml(item.romajiTitle || item.englishTitle || item.title)}</p>
           <div class="meta">${escapeHtml(cardMeta(item))}</div>
-      <div class="score-row">
-        <span title="${escapeHtml(ratingTooltip(item))}">★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
-        <span title="${escapeHtml(popularityTooltip(item))}">♨ ${formatNumber(item.popularity)}</span>
-      </div>
+      ${statsRowTemplate(item)}
       <div class="next-line"><strong>Next Episode</strong>${formatAiring(item.nextAiring)}</div>
       <div class="card-foot">
         <span class="dot-status ${seerr.state}" title="${escapeHtml(availabilityTooltip(item))}"><i></i>${escapeHtml(statusLabel(item))}</span>
@@ -954,6 +988,7 @@ function renderSections(allItems) {
       renderAll();
     });
   });
+  bindCastDisclosureToggles(els.sections);
 }
 
 function renderSpotlight(item) {
@@ -989,10 +1024,7 @@ function renderSpotlight(item) {
     </div>
     <h2>${escapeHtml(item.title)}</h2>
     <p class="spotlight-subtitle">${escapeHtml(item.romajiTitle || item.englishTitle || item.title)}</p>
-    <div class="score-row spotlight-score">
-      <span title="${escapeHtml(ratingTooltip(item))}">★ ${item.averageScore ? (item.averageScore / 10).toFixed(2) : "--"}</span>
-      <span title="${escapeHtml(popularityTooltip(item))}">♨ ${formatNumber(item.popularity)}</span>
-    </div>
+    ${statsRowTemplate(item, "spotlight-score")}
     <div class="genre-row">${(item.genres || []).slice(0, 3).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
     ${trailerTemplate(item)}
     <div class="detail-list">
@@ -1010,6 +1042,7 @@ function renderSpotlight(item) {
     </div>
     ${charactersTemplate(item)}
   `;
+  bindCastDisclosureToggles(els.spotlight);
 }
 
 function renderAll() {
@@ -1155,6 +1188,36 @@ function shouldIgnoreCardToggle(target) {
   return true;
 }
 
+function toggleCastDisclosure(target) {
+  if (!(target instanceof Element)) return false;
+  const toggle = target.closest(".cast-actor-toggle");
+  if (!(toggle instanceof HTMLButtonElement)) return false;
+  const disclosure = toggle.closest(".cast-actor-disclosure");
+  const actorBlock = disclosure?.querySelector(".cast-actor-block");
+  if (!(disclosure instanceof HTMLElement) || !(actorBlock instanceof HTMLElement)) {
+    return false;
+  }
+  const nextOpen = toggle.getAttribute("aria-expanded") !== "true";
+  toggle.setAttribute("aria-expanded", String(nextOpen));
+  disclosure.classList.toggle("is-open", nextOpen);
+  actorBlock.hidden = !nextOpen;
+  return true;
+}
+
+function bindCastDisclosureToggles(root) {
+  if (!(root instanceof Element)) return;
+  root.querySelectorAll(".cast-actor-toggle").forEach((toggle) => {
+    if (!(toggle instanceof HTMLButtonElement)) return;
+    if (toggle.dataset.castToggleBound === "true") return;
+    toggle.dataset.castToggleBound = "true";
+    toggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleCastDisclosure(toggle);
+    });
+  });
+}
+
 els.refresh.addEventListener("click", () => {
   state.season = els.season.value;
   state.year = Number(els.year.value);
@@ -1276,6 +1339,11 @@ els.sections.addEventListener("click", (event) => {
     renderAll();
     return;
   }
+  if (toggleCastDisclosure(event.target)) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
   const requestButton = event.target.closest("[data-request]");
   if (requestButton) {
     void requestItem(requestButton.dataset.request);
@@ -1300,6 +1368,11 @@ els.spotlight.addEventListener("click", (event) => {
     state.selectedId = null;
     state.spotlightDismissed = true;
     renderAll();
+    return;
+  }
+  if (toggleCastDisclosure(event.target)) {
+    event.preventDefault();
+    event.stopPropagation();
     return;
   }
   const requestButton = event.target.closest("[data-request]");

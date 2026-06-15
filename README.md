@@ -21,7 +21,9 @@ It is built for people who want a simple seasonal anime dashboard that plays nic
 - **Seasonal anime discovery** powered by AniList.
 - **Simple popularity groups** for easier triage: `S-Tier`, `Canon`, `Bingeable`, and `Filler`.
 - **Seerr-aware availability** so you can see what is available, requested, partially available, missing, or missing a confident Seerr/TMDb match.
+- **At-a-glance seasonal metadata** including AniList score, popularity, and total episode count directly on cards and detail views.
 - **One-click TV requests** through Seerr, using your existing anime defaults unless you choose to override them.
+- **Expandable cast details** so character voice actors stay readable without overwhelming the spotlight or mobile card layout.
 - **Optional automation** for requesting selected seasonal groups on a saved schedule.
 - **Single-admin access** with local login, Plex login, or both.
 - **Theme support** with built-in themes and safe token-based theme imports.
