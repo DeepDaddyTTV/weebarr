@@ -632,7 +632,7 @@ function characterCardTemplate(character) {
                   <span class="cast-actor-kicker">Voice Cast</span>
                   <strong>${escapeHtml(voiceActorLabel)}</strong>
                 </div>
-                <span class="cast-actor-toggle-icon" aria-hidden="true">⌄</span>
+                <span class="cast-actor-toggle-icon" aria-hidden="true"></span>
               </button>
               <div class="cast-actor-block" hidden>
                 <ul class="cast-actor-list">

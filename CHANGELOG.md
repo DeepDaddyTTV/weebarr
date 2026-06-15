@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.48] - 2026-06-14
+
+### Fixed
+
+- Recentered the seasonal header season label both vertically and horizontally without clipping the text or disturbing the shared dropdown chevron styling.
+- Swapped the character voice-cast disclosure control over to the shared masked dropdown arrow so the icon inherits the neon accent color and sits cleanly beside the cast summary on desktop and mobile.
+
 ## [0.1.47] - 2026-06-14
 
 ### Fixed

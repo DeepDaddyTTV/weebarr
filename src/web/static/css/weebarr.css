@@ -1528,13 +1528,19 @@ h1 {
 
 .ui-select-inline .ui-select-value {
   position: absolute;
-  top: 50%;
+  top: 0;
+  bottom: 0;
   left: 50%;
-  max-width: calc(100% - 78px);
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: calc(100% - 48px);
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: center;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .ui-select-inline .ui-select-chevron {
@@ -1565,7 +1571,7 @@ h1 {
 }
 
 .season-pill .ui-select-inline .ui-select-value {
-  max-width: calc(100% - 72px);
+  max-width: calc(100% - 48px);
 }
 
 .season-pill .ui-select-inline .ui-select-menu {
@@ -3086,19 +3092,22 @@ body[data-theme-palette="monochrome"] .rank-chip {
 }
 
 .cast-actor-toggle-icon {
-  display: inline-flex;
+  display: inline-block;
   flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 14px;
+  height: 14px;
   color: var(--cyan);
-  font-size: 18px;
-  background: var(--cyan-10);
-  border: 1px solid var(--cyan-42);
-  border-radius: 999px;
-  box-shadow: 0 0 14px var(--cyan-12);
-  transition: transform 160ms ease;
+  background-color: currentColor;
+  mask-image: var(--icon-arrow-down);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: var(--icon-arrow-down);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  opacity: 0.88;
+  transition: transform 160ms ease, opacity 160ms ease;
 }
 
 .cast-actor-disclosure.is-open .cast-actor-toggle-icon {
