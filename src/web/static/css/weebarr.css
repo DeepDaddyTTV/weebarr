@@ -1298,7 +1298,7 @@ h1 {
 .filter-btn,
 .season-pill {
   min-height: 40px;
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.11);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
 }
@@ -1555,7 +1555,7 @@ h1 {
 
 .season-pill .ui-select-inline .ui-select-trigger {
   min-height: 40px;
-  background: rgba(255, 255, 255, 0.11);
+  background: transparent;
   position: relative;
   z-index: 3;
   border-radius: calc(var(--radius-sm) - 1px) 0 0 calc(var(--radius-sm) - 1px);

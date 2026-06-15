@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.51] - 2026-06-15
+
+### Fixed
+
+- Unified the seasonal header pill fill so the season segment, year block, and adjacent arrow buttons all share the same glass background instead of the season side rendering darker than the rest.
+
 ## [0.1.50] - 2026-06-15
 
 ### Fixed
