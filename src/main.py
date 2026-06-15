@@ -430,12 +430,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 missing.append("Series Type")
             return missing
 
-        missing: list[str] = []
+        seerr_missing: list[str] = []
         if not settings_now.seerr_base_url:
-            missing.append("Seerr Base URL")
+            seerr_missing.append("Seerr Base URL")
         if not settings_now.seerr_api_key:
-            missing.append("API Key")
-        return missing
+            seerr_missing.append("API Key")
+        return seerr_missing
 
     def auth_summary(request: Request) -> dict[str, Any]:
         user = current_auth_user(request)
@@ -1626,7 +1626,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> dict[str, Any]:
         try:
             if payload.request_backend is not None:
-                settings_store.save_requests({"backend": payload.request_backend.strip()})
+                settings_store.save_requests(
+                    {"backend": payload.request_backend.strip()}
+                )
             updated = settings_store.save_requests({"setup_complete": True})
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

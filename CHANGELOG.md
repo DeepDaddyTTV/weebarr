@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.56] - 2026-06-15
+
+### Fixed
+
+- Bumped `python-multipart` to `0.0.31` so the release clears the new 2026 `pip-audit` multipart advisories again.
+
 ## [0.1.55] - 2026-06-15
 
 ### Fixed
