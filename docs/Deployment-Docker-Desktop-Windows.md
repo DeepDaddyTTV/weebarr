@@ -111,7 +111,7 @@ Complete the first-run setup. You can choose:
 - Plex login
 - both local and Plex login
 
-Then continue to the request-backend step and choose either `Seerr` or `Sonarr Direct`.
+Then continue to the request-backend step after auth, choose either `Seerr` or `Sonarr Direct`, and either save that backend or use `Skip Setup` if you want to finish it later in **Settings**.
 
 ## Important Windows Notes
 

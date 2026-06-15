@@ -479,6 +479,7 @@ class Settings:
     anilist_cache_ttl_seconds: int = 21600
     seerr_cache_ttl_seconds: int = 900
     request_backend: str = "seerr"
+    request_backend_setup_complete: bool = False
     seerr_base_url: str = ""
     seerr_api_key: str = ""
     seerr_sonarr_server_id: int | None = None
@@ -567,7 +568,9 @@ class Settings:
 
     @property
     def request_backend_required(self) -> bool:
-        return not self.request_backend_configured
+        return not (
+            self.request_backend_setup_complete or self.request_backend_configured
+        )
 
     @property
     def auth_enabled(self) -> bool:
@@ -664,6 +667,10 @@ class Settings:
             seerr_cache_ttl_seconds=int(os.getenv("SEERR_CACHE_TTL_SECONDS", "900")),
             request_backend=_normalize_request_backend(
                 os.getenv("WEEBARR_REQUEST_BACKEND", "seerr")
+            ),
+            request_backend_setup_complete=_normalize_bool(
+                os.getenv("WEEBARR_REQUEST_BACKEND_SETUP_COMPLETE"),
+                default=False,
             ),
             seerr_base_url=os.getenv("SEERR_BASE_URL", "").rstrip("/"),
             seerr_api_key=os.getenv("SEERR_API_KEY", ""),
@@ -918,10 +925,14 @@ class SettingsStore:
 
     def request_settings_summary(self) -> dict[str, Any]:
         current = self.get()
+        setup_complete = (
+            current.request_backend_setup_complete or current.request_backend_configured
+        )
         return {
             "configured": current.request_backend_configured,
             "requestBackend": current.active_request_backend,
             "requestBackendConfigured": current.request_backend_configured,
+            "requestBackendSetupComplete": setup_complete,
             "seerr": self.connection_summary(),
             "sonarr": {
                 "configured": current.sonarr_configured,
@@ -965,11 +976,15 @@ class SettingsStore:
 
     def access_summary(self) -> dict[str, Any]:
         current = self.get()
+        setup_complete = (
+            current.request_backend_setup_complete or current.request_backend_configured
+        )
         return {
             "setupRequired": current.setup_required,
             "requestBackendRequired": current.request_backend_required,
             "requestBackend": current.active_request_backend,
             "requestBackendConfigured": current.request_backend_configured,
+            "requestBackendSetupComplete": setup_complete,
             "configured": current.auth_configured,
             "authMode": current.effective_auth_mode,
             "authUsername": current.auth_username,
@@ -1017,15 +1032,64 @@ class SettingsStore:
             if "backend" in request_settings
             else payload.get("request_backend", self._base.request_backend)
         )
+        request_backend = _normalize_request_backend(raw_request_backend)
+        seerr_base_url = (
+            _normalize_optional_str(seerr.get("base_url")) or self._base.seerr_base_url
+        ).rstrip("/")
+        seerr_api_key = (
+            _normalize_optional_str(seerr.get("api_key")) or self._base.seerr_api_key
+        )
+        sonarr_base_url = (
+            _normalize_optional_str(request_settings.get("sonarr_base_url"))
+            if "sonarr_base_url" in request_settings
+            else self._base.sonarr_base_url
+        ) or ""
+        sonarr_api_key = (
+            _normalize_optional_str(request_settings.get("sonarr_api_key"))
+            if "sonarr_api_key" in request_settings
+            else self._base.sonarr_api_key
+        ) or ""
+        sonarr_root_folder_path = (
+            _normalize_optional_str(request_settings.get("sonarr_root_folder_path"))
+            if "sonarr_root_folder_path" in request_settings
+            else self._base.sonarr_root_folder_path
+        )
+        sonarr_quality_profile_id = (
+            _normalize_optional_int(request_settings.get("sonarr_quality_profile_id"))
+            if "sonarr_quality_profile_id" in request_settings
+            else self._base.sonarr_quality_profile_id
+        )
+        sonarr_series_type = (
+            _normalize_series_type(request_settings.get("sonarr_series_type"))
+            if "sonarr_series_type" in request_settings
+            else self._base.sonarr_series_type
+        )
+        stored_request_backend_setup_complete = (
+            _normalize_bool(request_settings.get("setup_complete"), default=False)
+            if "setup_complete" in request_settings
+            else None
+        )
+        derived_request_backend_setup_complete = (
+            bool(
+                sonarr_base_url
+                and sonarr_api_key
+                and sonarr_root_folder_path
+                and sonarr_quality_profile_id is not None
+                and sonarr_series_type is not None
+            )
+            if request_backend == "sonarr"
+            else bool(seerr_base_url and seerr_api_key)
+        )
         return replace(
             self._base,
-            request_backend=_normalize_request_backend(raw_request_backend),
-            seerr_base_url=(
-                _normalize_optional_str(seerr.get("base_url"))
-                or self._base.seerr_base_url
-            ).rstrip("/"),
-            seerr_api_key=_normalize_optional_str(seerr.get("api_key"))
-            or self._base.seerr_api_key,
+            request_backend=request_backend,
+            request_backend_setup_complete=(
+                stored_request_backend_setup_complete
+                if stored_request_backend_setup_complete is not None
+                else derived_request_backend_setup_complete
+            ),
+            seerr_base_url=seerr_base_url,
+            seerr_api_key=seerr_api_key,
             seerr_request_seasons=_normalize_optional_str(seerr.get("request_seasons"))
             or self._base.seerr_request_seasons,
             seerr_sonarr_server_id=(
@@ -1068,35 +1132,11 @@ class SettingsStore:
                 if "tags" in seerr
                 else self._base.seerr_tags
             ),
-            sonarr_base_url=(
-                _normalize_optional_str(request_settings.get("sonarr_base_url"))
-                if "sonarr_base_url" in request_settings
-                else self._base.sonarr_base_url
-            )
-            or "",
-            sonarr_api_key=(
-                _normalize_optional_str(request_settings.get("sonarr_api_key"))
-                if "sonarr_api_key" in request_settings
-                else self._base.sonarr_api_key
-            )
-            or "",
-            sonarr_root_folder_path=(
-                _normalize_optional_str(request_settings.get("sonarr_root_folder_path"))
-                if "sonarr_root_folder_path" in request_settings
-                else self._base.sonarr_root_folder_path
-            ),
-            sonarr_quality_profile_id=(
-                _normalize_optional_int(
-                    request_settings.get("sonarr_quality_profile_id")
-                )
-                if "sonarr_quality_profile_id" in request_settings
-                else self._base.sonarr_quality_profile_id
-            ),
-            sonarr_series_type=(
-                _normalize_series_type(request_settings.get("sonarr_series_type"))
-                if "sonarr_series_type" in request_settings
-                else self._base.sonarr_series_type
-            ),
+            sonarr_base_url=sonarr_base_url,
+            sonarr_api_key=sonarr_api_key,
+            sonarr_root_folder_path=sonarr_root_folder_path,
+            sonarr_quality_profile_id=sonarr_quality_profile_id,
+            sonarr_series_type=sonarr_series_type,
             sonarr_default_monitor_mode=(
                 _normalize_sonarr_monitor_mode(
                     request_settings.get("sonarr_default_monitor_mode")

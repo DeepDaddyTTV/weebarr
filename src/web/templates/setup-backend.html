@@ -16,39 +16,59 @@
             <img class="auth-wordmark wordmark-dark" src="/static/img/weebarr-wordmark.svg?v={{ asset_version }}" alt="" aria-hidden="true" />
             <img class="auth-wordmark wordmark-light" src="/static/img/weebarr-wordmark-light.png?v={{ asset_version }}" alt="" aria-hidden="true" />
           </span>
-          <p>Finish setup by choosing the backend Weebarr should use for anime requests. Seerr keeps the current one-click request path. Sonarr Direct uses the new Sonarr-native request flow.</p>
+          <p>Auth is ready. Choose the backend Weebarr should use for anime requests, then add its connection details before entering the app. Seerr stays the default path, and you can still skip this step for now.</p>
         </div>
 
         <div id="setupBackendBanner" class="auth-banner" hidden></div>
 
-        <div class="setup-mode-grid" role="tablist" aria-label="Request backend">
-          <button
-            id="setupBackendModeSeerr"
-            class="setup-mode {{ 'active' if request_settings.requestBackend != 'sonarr' else '' }}"
-            type="button"
-            data-backend-mode="seerr"
-            aria-pressed="{{ 'false' if request_settings.requestBackend == 'sonarr' else 'true' }}"
-          >
-            <strong>Seerr</strong>
-            <span>Keep the existing Weebarr request button behavior and forward requests through Seerr.</span>
-          </button>
-          <button
-            id="setupBackendModeSonarr"
-            class="setup-mode {{ 'active' if request_settings.requestBackend == 'sonarr' else '' }}"
-            type="button"
-            data-backend-mode="sonarr"
-            aria-pressed="{{ 'true' if request_settings.requestBackend == 'sonarr' else 'false' }}"
-          >
-            <strong>Sonarr Direct</strong>
-            <span>Use direct Sonarr lookup, Sonarr state labels, and the new season-aware request modal.</span>
-          </button>
-        </div>
-
-        <form id="setupBackendForm" class="auth-form setup-backend-form" novalidate>
+        <section id="setupBackendChoiceStep" class="setup-api-panel setup-backend-step">
           <div class="auth-section-head">
-            <h2>Request Backend</h2>
-            <p>The saved backend can be changed later in Settings without deleting the other backend's stored values.</p>
+            <h2>Choose Request Backend</h2>
+            <p>Pick the request flow Weebarr should start with. You can switch backends later in Settings without losing the other backend's saved values.</p>
           </div>
+
+          <div class="setup-mode-grid" role="tablist" aria-label="Request backend">
+            <button
+              id="setupBackendModeSeerr"
+              class="setup-mode {{ 'active' if request_settings.requestBackend != 'sonarr' else '' }}"
+              type="button"
+              data-backend-mode="seerr"
+              aria-pressed="{{ 'false' if request_settings.requestBackend == 'sonarr' else 'true' }}"
+            >
+              <strong>Seerr</strong>
+              <span>Keep the existing Weebarr request button behavior and forward requests through Seerr.</span>
+            </button>
+            <button
+              id="setupBackendModeSonarr"
+              class="setup-mode {{ 'active' if request_settings.requestBackend == 'sonarr' else '' }}"
+              type="button"
+              data-backend-mode="sonarr"
+              aria-pressed="{{ 'true' if request_settings.requestBackend == 'sonarr' else 'false' }}"
+            >
+              <strong>Sonarr Direct</strong>
+              <span>Use direct Sonarr lookup, Sonarr state labels, and the new season-aware request modal.</span>
+            </button>
+          </div>
+
+          <div class="setup-backend-actions setup-backend-actions-split">
+            <button id="setupBackendSkipChoiceBtn" class="secondary-btn" type="button">Skip Setup</button>
+            <button id="setupBackendNextBtn" class="refresh-btn auth-submit" type="button">Continue with Seerr</button>
+          </div>
+        </section>
+
+        <form id="setupBackendForm" class="auth-form setup-backend-form" novalidate hidden>
+          <div class="auth-section-head">
+            <h2 id="setupBackendStepTitle">Seerr Setup</h2>
+            <p id="setupBackendStepCopy">Add the Seerr connection Weebarr should use for the current one-click request path.</p>
+          </div>
+
+          <section class="setup-api-panel setup-backend-summary">
+            <div class="setup-api-header">
+              <strong>Selected Backend</strong>
+              <small id="setupBackendSelectedLabel">Seerr</small>
+            </div>
+            <p id="setupBackendSelectedCopy">Current one-click request path.</p>
+          </section>
 
           <section id="setupBackendSeerrPanel" class="setup-api-panel setup-backend-panel" {% if request_settings.requestBackend == 'sonarr' %}hidden{% endif %}>
             <div class="setup-api-header">
@@ -190,8 +210,12 @@
           </section>
 
           <div class="setup-backend-actions">
-            <button id="setupBackendTestBtn" class="secondary-btn" type="button">Test Connection</button>
-            <button id="setupBackendSaveBtn" class="refresh-btn auth-submit" type="submit">Save and Continue</button>
+            <button id="setupBackendBackBtn" class="secondary-btn" type="button">Choose Another Backend</button>
+            <div class="setup-backend-actions-group">
+              <button id="setupBackendSkipConfigBtn" class="secondary-btn" type="button">Skip Setup</button>
+              <button id="setupBackendTestBtn" class="secondary-btn" type="button">Test Connection</button>
+              <button id="setupBackendSaveBtn" class="refresh-btn auth-submit" type="submit">Save and Continue</button>
+            </div>
           </div>
         </form>
       </section>

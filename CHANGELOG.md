@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.55] - 2026-06-15
+
+### Fixed
+
+- Reworked first-run backend onboarding into a real post-auth branch so setup now starts with a backend chooser, then opens the matching Seerr or Sonarr Direct form, and also allows `Skip Setup` for finishing backend config later in Settings.
+- Restored the attached Settings tab shell so the active tab highlight reaches the panel border again without leaving a stray divider line between the tab rail and the body.
+
 ## [0.1.54] - 2026-06-15
 
 ### Added

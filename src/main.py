@@ -172,6 +172,14 @@ class RequestSettingsPayload(BaseModel):
     sonarr: Optional[SonarrConnectionPayload] = None
 
 
+class RequestBackendSelectionPayload(BaseModel):
+    """First-run backend selection payload."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    request_backend: Optional[str] = Field(default=None, alias="requestBackend")
+
+
 class WeebarrSettingsPayload(BaseModel):
     """Editable Weebarr-local settings."""
 
@@ -406,6 +414,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     def access_summary() -> dict[str, Any]:
         return settings_store.access_summary()
+
+    def missing_request_backend_fields(settings_now: Settings) -> list[str]:
+        if settings_now.active_request_backend == "sonarr":
+            missing: list[str] = []
+            if not settings_now.sonarr_base_url:
+                missing.append("Sonarr Base URL")
+            if not settings_now.sonarr_api_key:
+                missing.append("API Key")
+            if not settings_now.sonarr_root_folder_path:
+                missing.append("Root Folder Path")
+            if settings_now.sonarr_quality_profile_id is None:
+                missing.append("Quality Profile ID")
+            if settings_now.sonarr_series_type is None:
+                missing.append("Series Type")
+            return missing
+
+        missing: list[str] = []
+        if not settings_now.seerr_base_url:
+            missing.append("Seerr Base URL")
+        if not settings_now.seerr_api_key:
+            missing.append("API Key")
+        return missing
 
     def auth_summary(request: Request) -> dict[str, Any]:
         user = current_auth_user(request)
@@ -1465,6 +1495,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             overrides["sonarr_tags"] = payload.tags or None
         return overrides
 
+    def persist_request_settings(payload: RequestSettingsPayload) -> Settings:
+        current = current_settings()
+        if payload.request_backend is not None:
+            settings_store.save_requests({"backend": payload.request_backend.strip()})
+        if payload.seerr is not None:
+            settings_store.save_seerr(build_seerr_overrides(payload.seerr, current))
+        if payload.sonarr is not None:
+            settings_store.save_requests(build_sonarr_overrides(payload.sonarr))
+        service.clear_cache()
+        return current_settings()
+
     @app.get("/api/settings/weebarr")
     async def app_settings() -> dict[str, Any]:
         return weebarr_summary()
@@ -1531,25 +1572,74 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.put("/api/settings/requests")
     async def save_request_settings(payload: RequestSettingsPayload) -> dict[str, Any]:
-        current = current_settings()
         try:
-            if payload.request_backend is not None:
-                settings_store.save_requests(
-                    {"backend": payload.request_backend.strip()}
-                )
-            if payload.seerr is not None:
-                settings_store.save_seerr(build_seerr_overrides(payload.seerr, current))
-            if payload.sonarr is not None:
-                settings_store.save_requests(build_sonarr_overrides(payload.sonarr))
+            updated = persist_request_settings(payload)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        service.clear_cache()
-        updated = current_settings()
         return {
             "success": True,
             "requests": request_settings_summary(),
             "requestBackend": updated.active_request_backend,
             "requestBackendConfigured": updated.request_backend_configured,
+        }
+
+    @app.post("/api/setup/backend")
+    async def complete_backend_setup(
+        request: Request,
+        payload: RequestSettingsPayload,
+    ) -> dict[str, Any]:
+        try:
+            updated = persist_request_settings(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        missing = missing_request_backend_fields(updated)
+        if missing:
+            backend_name = (
+                "Sonarr Direct"
+                if updated.active_request_backend == "sonarr"
+                else "Seerr"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Add the required {backend_name} fields before continuing: "
+                    f"{', '.join(missing)}."
+                ),
+            )
+
+        updated = settings_store.save_requests({"setup_complete": True})
+        request.session.pop("bootstrap_authorized", None)
+        return {
+            "success": True,
+            "redirectTo": DEFAULT_REDIRECT_PATH,
+            "requests": request_settings_summary(),
+            "requestBackend": updated.active_request_backend,
+            "requestBackendConfigured": updated.request_backend_configured,
+            "access": access_summary(),
+        }
+
+    @app.post("/api/setup/backend/skip")
+    async def skip_backend_setup(
+        request: Request,
+        payload: RequestBackendSelectionPayload,
+    ) -> dict[str, Any]:
+        try:
+            if payload.request_backend is not None:
+                settings_store.save_requests({"backend": payload.request_backend.strip()})
+            updated = settings_store.save_requests({"setup_complete": True})
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        service.clear_cache()
+        request.session.pop("bootstrap_authorized", None)
+        return {
+            "success": True,
+            "redirectTo": DEFAULT_REDIRECT_PATH,
+            "requests": request_settings_summary(),
+            "requestBackend": updated.active_request_backend,
+            "requestBackendConfigured": updated.request_backend_configured,
+            "access": access_summary(),
         }
 
     @app.get("/api/settings/seerr")

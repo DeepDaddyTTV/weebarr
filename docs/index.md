@@ -8,7 +8,7 @@ Welcome to the Weebarr wiki.
 
 Weebarr is a seasonal anime dashboard for people who run their own media setup. It helps you see what is airing, check what you already have or requested, and send new anime requests through either Seerr or Sonarr Direct without bouncing between a bunch of different tabs.
 
-You do not need to understand every setting before using it. Start with the deployment guide for your system, complete the two-stage setup, choose your request backend, then use the Seasonal page as your main dashboard.
+You do not need to understand every setting before using it. Start with the deployment guide for your system, complete the two-stage setup, choose your request backend after auth, then use the Seasonal page as your main dashboard.
 
 ## Interface Preview
 
@@ -75,10 +75,10 @@ If this is your first time setting up Weebarr, use this order:
    - [Docker Hub](Deployment-Docker-Hub.md)
    - [Other Deployment Options](Deployment-Other-Options.md)
 2. Start Weebarr and complete the first-run access setup.
-3. Continue to the request-backend setup step.
+3. Continue to the request-backend setup step after auth is configured.
 4. Choose `Seerr` or `Sonarr Direct`.
-5. Save the backend connection details and use the test action if needed.
-6. Open the **Seasonal** page.
+5. Save the matching backend connection details, or use `Skip Setup` if you want to finish backend config later in **Settings**.
+6. Use the test action if needed, then open the **Seasonal** page.
 7. Request titles manually, or enable automation later after you understand the buckets.
 
 ## Main Ideas

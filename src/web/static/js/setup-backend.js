@@ -1,10 +1,26 @@
 const backendSetupState = {
   requestSettings: (window.WEEBARR_SETUP_BACKEND || {}).requestSettings || {},
+  step: "choice",
 };
 
 const backendSetupLabels = {
   seerr: "Seerr",
   sonarr: "Sonarr Direct",
+};
+
+const backendSetupStepCopy = {
+  seerr: {
+    title: "Seerr Setup",
+    description:
+      "Add the Seerr connection Weebarr should use for the current one-click request path.",
+    summary: "Current one-click request path.",
+  },
+  sonarr: {
+    title: "Sonarr Direct Setup",
+    description:
+      "Add the Sonarr Direct defaults Weebarr should use for season-aware adds and updates.",
+    summary: "Direct Sonarr lookup, states, and request modal.",
+  },
 };
 
 const backendSetupSeriesTypeLabels = {
@@ -15,8 +31,17 @@ const backendSetupSeriesTypeLabels = {
 
 const backendEls = {
   banner: document.querySelector("#setupBackendBanner"),
+  choiceStep: document.querySelector("#setupBackendChoiceStep"),
   form: document.querySelector("#setupBackendForm"),
   modeButtons: Array.from(document.querySelectorAll("[data-backend-mode]")),
+  nextButton: document.querySelector("#setupBackendNextBtn"),
+  backButton: document.querySelector("#setupBackendBackBtn"),
+  skipChoiceButton: document.querySelector("#setupBackendSkipChoiceBtn"),
+  skipConfigButton: document.querySelector("#setupBackendSkipConfigBtn"),
+  stepTitle: document.querySelector("#setupBackendStepTitle"),
+  stepCopy: document.querySelector("#setupBackendStepCopy"),
+  selectedLabel: document.querySelector("#setupBackendSelectedLabel"),
+  selectedCopy: document.querySelector("#setupBackendSelectedCopy"),
   seerrPanel: document.querySelector("#setupBackendSeerrPanel"),
   sonarrPanel: document.querySelector("#setupBackendSonarrPanel"),
   seerrBaseUrl: document.querySelector("#setupSeerrBaseUrl"),
@@ -60,6 +85,10 @@ function activeBackend() {
 
 function activeBackendName() {
   return backendSetupLabels[activeBackend()] || "Seerr";
+}
+
+function activeBackendStepCopy() {
+  return backendSetupStepCopy[activeBackend()] || backendSetupStepCopy.seerr;
 }
 
 function setBanner(message, tone = "error") {
@@ -141,6 +170,37 @@ function resetTestResult() {
   });
 }
 
+function renderStepCopy() {
+  const backendName = activeBackendName();
+  const copy = activeBackendStepCopy();
+  if (backendEls.nextButton) {
+    backendEls.nextButton.textContent = `Continue with ${backendName}`;
+  }
+  if (backendEls.stepTitle) {
+    backendEls.stepTitle.textContent = copy.title;
+  }
+  if (backendEls.stepCopy) {
+    backendEls.stepCopy.textContent = copy.description;
+  }
+  if (backendEls.selectedLabel) {
+    backendEls.selectedLabel.textContent = backendName;
+  }
+  if (backendEls.selectedCopy) {
+    backendEls.selectedCopy.textContent = copy.summary;
+  }
+}
+
+function showStep(step) {
+  backendSetupState.step = step === "config" ? "config" : "choice";
+  if (backendEls.choiceStep) {
+    backendEls.choiceStep.hidden = backendSetupState.step !== "choice";
+  }
+  if (backendEls.form) {
+    backendEls.form.hidden = backendSetupState.step !== "config";
+  }
+  clearBanner();
+}
+
 function setBackendMode(mode) {
   backendSetupState.requestSettings = {
     ...(backendSetupState.requestSettings || {}),
@@ -157,8 +217,9 @@ function setBackendMode(mode) {
   if (backendEls.sonarrPanel) {
     backendEls.sonarrPanel.hidden = activeBackend() !== "sonarr";
   }
-  clearBanner();
+  renderStepCopy();
   resetTestResult();
+  clearBanner();
 }
 
 function missingRequiredFields() {
@@ -308,7 +369,7 @@ async function testConnection() {
   );
 }
 
-async function saveBackend(event) {
+async function completeSetup(event) {
   event.preventDefault();
   clearBanner();
   const missing = missingRequiredFields();
@@ -324,8 +385,8 @@ async function saveBackend(event) {
   const apiKey = sonarrActive
     ? backendEls.sonarrApiKey?.value.trim()
     : backendEls.seerrApiKey?.value.trim();
-  const response = await fetch("/api/settings/requests", {
-    method: "PUT",
+  const response = await fetch("/api/setup/backend", {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       requestBackend: activeBackend(),
@@ -344,14 +405,24 @@ async function saveBackend(event) {
   }
   const result = await response.json();
   backendSetupState.requestSettings = result.requests || {};
-  if (!result.requestBackendConfigured) {
-    setBanner(
-      `${activeBackendName()} was saved, but Weebarr still considers it incomplete. Review the required fields and try again.`,
-      "warn",
-    );
-    return;
+  window.location.assign(result.redirectTo || "/seasonal");
+}
+
+async function skipSetup() {
+  clearBanner();
+  const response = await fetch("/api/setup/backend/skip", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requestBackend: activeBackend(),
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
   }
-  window.location.assign("/seasonal");
+  const result = await response.json();
+  backendSetupState.requestSettings = result.requests || {};
+  window.location.assign(result.redirectTo || "/seasonal");
 }
 
 backendEls.modeButtons.forEach((button) => {
@@ -359,6 +430,34 @@ backendEls.modeButtons.forEach((button) => {
     setBackendMode(button.dataset.backendMode || "seerr");
   });
 });
+
+if (backendEls.nextButton) {
+  backendEls.nextButton.addEventListener("click", () => {
+    showStep("config");
+  });
+}
+
+if (backendEls.backButton) {
+  backendEls.backButton.addEventListener("click", () => {
+    showStep("choice");
+  });
+}
+
+if (backendEls.skipChoiceButton) {
+  backendEls.skipChoiceButton.addEventListener("click", () => {
+    void skipSetup().catch((error) => {
+      setBanner(`Skip failed. ${error.message}`, "error");
+    });
+  });
+}
+
+if (backendEls.skipConfigButton) {
+  backendEls.skipConfigButton.addEventListener("click", () => {
+    void skipSetup().catch((error) => {
+      setBanner(`Skip failed. ${error.message}`, "error");
+    });
+  });
+}
 
 if (backendEls.testButton) {
   backendEls.testButton.addEventListener("click", () => {
@@ -370,10 +469,11 @@ if (backendEls.testButton) {
 
 if (backendEls.form) {
   backendEls.form.addEventListener("submit", (event) => {
-    void saveBackend(event).catch((error) => {
+    void completeSetup(event).catch((error) => {
       setBanner(`Save failed. ${error.message}`, "error");
     });
   });
 }
 
 setBackendMode(activeBackend());
+showStep("choice");

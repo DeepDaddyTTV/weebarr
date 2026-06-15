@@ -98,7 +98,7 @@ Open:
 http://localhost:18080
 ```
 
-Then complete the first-run setup and continue to the request-backend step to choose either `Seerr` or `Sonarr Direct`.
+Then complete the first-run setup, continue to the request-backend step after auth, choose either `Seerr` or `Sonarr Direct`, and either save that backend or use `Skip Setup` if you want to finish it later in **Settings**.
 
 ## Important Linux Notes
 

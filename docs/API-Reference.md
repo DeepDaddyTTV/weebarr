@@ -48,6 +48,8 @@ Shows the first-run setup page.
 
 Shows the request-backend setup page after access is configured.
 
+This page now starts on a backend-choice screen, then branches into the matching Seerr or Sonarr Direct setup form.
+
 ### `GET /login`
 
 Shows the login page.
@@ -77,6 +79,18 @@ Returns whether first-run setup is still required, plus the current request-back
 ### `POST /api/setup/access`
 
 Completes first-run access setup.
+
+### `POST /api/setup/backend`
+
+Completes the first-run backend setup step and marks backend onboarding complete.
+
+Use this when you want to save a real Seerr or Sonarr Direct config during setup before entering the main app.
+
+### `POST /api/setup/backend/skip`
+
+Marks backend onboarding complete without requiring a working backend connection yet.
+
+This lets a user reach the main app and finish backend config later in **Settings**.
 
 ### `POST /api/auth/login`
 

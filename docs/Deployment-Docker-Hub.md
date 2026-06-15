@@ -27,7 +27,7 @@ docker pull deepdaddyttv/weebarr:latest
 Pull a specific version:
 
 ```bash
-docker pull deepdaddyttv/weebarr:0.1.54
+docker pull deepdaddyttv/weebarr:0.1.55
 ```
 
 ## Using Docker Desktop UI
@@ -45,7 +45,7 @@ If you are using Docker Desktop, you can pull Weebarr directly from the app inst
    or a specific version such as:
 
    ```text
-   deepdaddyttv/weebarr:0.1.54
+   deepdaddyttv/weebarr:0.1.55
    ```
 
 4. Pull the image.
@@ -54,7 +54,7 @@ If you are using Docker Desktop, you can pull Weebarr directly from the app inst
 Even when you pull through the UI, Weebarr still needs:
 
 - a mounted `/config` folder
-- either your Seerr connection values or your Sonarr Direct values during setup
+- either your Seerr connection values or your Sonarr Direct values during setup, unless you use `Skip Setup` and finish backend config later in **Settings**
 - a port mapping such as `18080:8888`
 
 ## Compose Example

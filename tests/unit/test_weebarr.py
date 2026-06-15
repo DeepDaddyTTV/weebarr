@@ -1379,6 +1379,116 @@ def test_local_setup_persists_access_and_requires_session_auth(tmp_path):
     assert unauthorized.status_code == 401
 
 
+def test_backend_setup_page_offers_branching_flow_and_skip(tmp_path):
+    client = authenticated_client(tmp_path)
+
+    response = client.get("/setup/backend")
+
+    assert response.status_code == 200
+    assert "Choose Request Backend" in response.text
+    assert "Skip Setup" in response.text
+    assert "Continue with Seerr" in response.text
+
+
+def test_backend_setup_skip_marks_onboarding_complete_without_backend_config(
+    tmp_path,
+):
+    config_path = tmp_path / "weebarr.json"
+    client = TestClient(create_app(Settings(config_path=str(config_path))))
+
+    setup_response = client.post(
+        "/api/setup/access",
+        json={
+            "username": "adminuser",
+            "password": "example-password",
+            "confirmPassword": "example-password",
+        },
+    )
+    assert setup_response.status_code == 200
+
+    skipped = client.post(
+        "/api/setup/backend/skip",
+        json={"requestBackend": "sonarr"},
+    )
+
+    assert skipped.status_code == 200
+    payload = skipped.json()
+    assert payload["requestBackend"] == "sonarr"
+    assert payload["requestBackendConfigured"] is False
+    assert payload["requests"]["requestBackendSetupComplete"] is True
+    assert payload["access"]["requestBackendRequired"] is False
+
+    backend_page = client.get("/setup/backend", follow_redirects=False)
+    assert backend_page.status_code in {302, 307}
+    assert backend_page.headers["location"] == "/seasonal"
+
+    new_client = TestClient(create_app(Settings(config_path=str(config_path))))
+    login = new_client.post(
+        "/api/auth/login",
+        json={
+            "username": "adminuser",
+            "password": "example-password",
+            "next": "/seasonal",
+        },
+    )
+    assert login.status_code == 200
+    assert login.json()["redirectTo"] == "/seasonal"
+
+
+def test_backend_setup_save_completes_onboarding_and_persists_backend(tmp_path):
+    client = authenticated_client(tmp_path)
+
+    response = client.post(
+        "/api/setup/backend",
+        json={
+            "requestBackend": "seerr",
+            "seerr": {
+                "baseUrl": "https://seerr.example.test",
+                "apiKey": "secret-value",
+                "requestSeasons": "all",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["requestBackend"] == "seerr"
+    assert payload["requestBackendConfigured"] is True
+    assert payload["requests"]["requestBackendSetupComplete"] is True
+    assert payload["access"]["requestBackendRequired"] is False
+
+
+def test_backend_selector_stays_optional_after_skip_when_switching_backends(tmp_path):
+    config_path = tmp_path / "weebarr.json"
+    client = TestClient(create_app(Settings(config_path=str(config_path))))
+
+    setup_response = client.post(
+        "/api/setup/access",
+        json={
+            "username": "adminuser",
+            "password": "example-password",
+            "confirmPassword": "example-password",
+        },
+    )
+    assert setup_response.status_code == 200
+
+    skipped = client.post(
+        "/api/setup/backend/skip",
+        json={"requestBackend": "seerr"},
+    )
+    assert skipped.status_code == 200
+
+    switched = client.put(
+        "/api/settings/requests",
+        json={"requestBackend": "sonarr"},
+    )
+
+    assert switched.status_code == 200
+    refreshed = client.get("/api/setup/status")
+    assert refreshed.status_code == 200
+    assert refreshed.json()["requestBackendRequired"] is False
+
+
 def test_anime_characters_endpoint_returns_payload(tmp_path, monkeypatch):
     client = authenticated_client(tmp_path)
 
