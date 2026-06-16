@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.57] - 2026-06-16
+
+### Fixed
+
+- Removed the extra neon hover ring from active Settings tabs, limited the tab hover outline to the top and side shell instead of the bottom edge, and fused the tab rail back into the Settings body without the stray seam line.
+- Bumped `starlette` to `1.3.1` so the release clears the current `pip-audit` findings before shipping.
+
 ## [0.1.56] - 2026-06-15
 
 ### Fixed
