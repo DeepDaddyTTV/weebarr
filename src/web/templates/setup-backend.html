@@ -117,17 +117,27 @@
                 <input id="setupSonarrApiKey" type="password" placeholder="{{ 'Stored ' ~ request_settings.sonarr.apiKeyPreview if request_settings.sonarr.hasApiKey else 'Paste a Sonarr API key' }}" />
                 <small>Leave blank to keep the currently stored key.</small>
               </label>
+            </div>
 
+            <div id="setupSonarrValidationNote" class="settings-note">
+              <p id="setupSonarrValidationCopy">Enter the Sonarr base URL and API key, then validate Sonarr to load the live root folders and quality profiles before continuing.</p>
+            </div>
+
+            <div id="setupSonarrAdvancedFields" class="form-grid setup-backend-grid" hidden>
               <label>
-                <span>Root Folder Path</span>
-                <input id="setupSonarrRootFolderPath" type="text" placeholder="/data/media/anime" value="{{ request_settings.sonarr.rootFolderPath or '' }}" />
-                <small>The root folder used when Weebarr adds a new Sonarr series.</small>
+                <span>Root Folder</span>
+                <select id="setupSonarrRootFolderPath">
+                  <option value="">Validate Sonarr first</option>
+                </select>
+                <small>Loaded from the validated Sonarr connection.</small>
               </label>
 
               <label>
-                <span>Quality Profile ID</span>
-                <input id="setupSonarrQualityProfileId" type="number" min="1" placeholder="Required" value="{{ request_settings.sonarr.qualityProfileId or '' }}" />
-                <small>The Sonarr quality profile applied to new adds.</small>
+                <span>Quality Profile</span>
+                <select id="setupSonarrQualityProfileId">
+                  <option value="">Validate Sonarr first</option>
+                </select>
+                <small>Loaded from the validated Sonarr connection.</small>
               </label>
 
               <label>
@@ -173,9 +183,11 @@
               </div>
 
               <label class="full-width">
-                <span>Language Profile ID</span>
-                <input id="setupSonarrLanguageProfileId" type="number" min="1" placeholder="Optional" value="{{ request_settings.sonarr.languageProfileId or '' }}" />
-                <small>Optional. Tag IDs stay editable later in Settings and are not required during setup.</small>
+                <span>Language Profile</span>
+                <select id="setupSonarrLanguageProfileId">
+                  <option value="">Use Sonarr default</option>
+                </select>
+                <small>Optional. Only needed if your Sonarr instance still exposes language profiles.</small>
               </label>
             </div>
           </section>
@@ -210,7 +222,7 @@
           </section>
 
           <div class="setup-backend-actions">
-            <button id="setupBackendBackBtn" class="secondary-btn" type="button">Choose Another Backend</button>
+            <button id="setupBackendBackBtn" class="secondary-btn" type="button">Back</button>
             <div class="setup-backend-actions-group">
               <button id="setupBackendSkipConfigBtn" class="secondary-btn" type="button">Skip Setup</button>
               <button id="setupBackendTestBtn" class="secondary-btn" type="button">Test Connection</button>

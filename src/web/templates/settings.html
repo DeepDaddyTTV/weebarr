@@ -646,17 +646,41 @@
                         <input id="sonarrApiKey" name="sonarrApiKey" type="password" placeholder="{{ 'Stored ' ~ request_settings.sonarr.apiKeyPreview if request_settings.sonarr.hasApiKey else 'Paste a Sonarr API key' }}" />
                         <small>Leave blank to keep the currently stored key.</small>
                       </label>
+                    </div>
 
+                    <div id="sonarrSettingsValidationNote" class="settings-note">
+                      <p id="sonarrSettingsValidationCopy">Enter the Sonarr base URL and API key, then validate Sonarr to load the live folders and profiles before saving backend settings.</p>
+                    </div>
+
+                    <div id="sonarrSettingsAdvancedFields" class="form-grid connection-form-grid" hidden>
                       <label>
-                        <span>Root Folder Path</span>
-                        <input id="sonarrRootFolderPath" name="sonarrRootFolderPath" type="text" placeholder="/data/media/anime" value="{{ request_settings.sonarr.rootFolderPath or '' }}" />
-                        <small>The root folder Weebarr should use when adding new titles directly to Sonarr.</small>
+                        <span>Root Folder</span>
+                        <div class="ui-select" data-ui-select="sonarrRootFolderPath">
+                          <select id="sonarrRootFolderPath" name="sonarrRootFolderPath">
+                            <option value="">Validate Sonarr first</option>
+                          </select>
+                          <button id="sonarrRootFolderPathTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrRootFolderPathMenu">
+                            <span class="ui-select-value"></span>
+                            <i class="ui-select-chevron" aria-hidden="true"></i>
+                          </button>
+                          <div id="sonarrRootFolderPathMenu" class="ui-select-menu" role="listbox" hidden></div>
+                        </div>
+                        <small>Loaded from the validated Sonarr connection.</small>
                       </label>
 
                       <label>
-                        <span>Quality Profile ID</span>
-                        <input id="sonarrQualityProfileId" name="sonarrQualityProfileId" type="number" min="1" placeholder="Required" value="{{ request_settings.sonarr.qualityProfileId or '' }}" />
-                        <small>The Sonarr quality profile applied to new series adds.</small>
+                        <span>Quality Profile</span>
+                        <div class="ui-select" data-ui-select="sonarrQualityProfileId">
+                          <select id="sonarrQualityProfileId" name="sonarrQualityProfileId">
+                            <option value="">Validate Sonarr first</option>
+                          </select>
+                          <button id="sonarrQualityProfileIdTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrQualityProfileIdMenu">
+                            <span class="ui-select-value"></span>
+                            <i class="ui-select-chevron" aria-hidden="true"></i>
+                          </button>
+                          <div id="sonarrQualityProfileIdMenu" class="ui-select-menu" role="listbox" hidden></div>
+                        </div>
+                        <small>Loaded from the validated Sonarr connection.</small>
                       </label>
 
                       <label>
@@ -716,8 +740,17 @@
                       </div>
 
                       <label>
-                        <span>Language Profile ID</span>
-                        <input id="sonarrLanguageProfileId" name="sonarrLanguageProfileId" type="number" min="1" placeholder="Optional" value="{{ request_settings.sonarr.languageProfileId or '' }}" />
+                        <span>Language Profile</span>
+                        <div class="ui-select" data-ui-select="sonarrLanguageProfileId">
+                          <select id="sonarrLanguageProfileId" name="sonarrLanguageProfileId">
+                            <option value="">Use Sonarr default</option>
+                          </select>
+                          <button id="sonarrLanguageProfileIdTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrLanguageProfileIdMenu">
+                            <span class="ui-select-value"></span>
+                            <i class="ui-select-chevron" aria-hidden="true"></i>
+                          </button>
+                          <div id="sonarrLanguageProfileIdMenu" class="ui-select-menu" role="listbox" hidden></div>
+                        </div>
                         <small>Optional. Only needed if your Sonarr instance still depends on language profiles.</small>
                       </label>
 

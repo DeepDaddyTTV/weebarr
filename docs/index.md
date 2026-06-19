@@ -77,7 +77,7 @@ If this is your first time setting up Weebarr, use this order:
 2. Start Weebarr and complete the first-run access setup.
 3. Continue to the request-backend setup step after auth is configured.
 4. Choose `Seerr` or `Sonarr Direct`.
-5. Save the matching backend connection details, or use `Skip Setup` if you want to finish backend config later in **Settings**.
+5. If you choose `Sonarr Direct`, validate the Sonarr URL and API key first so Weebarr can load the live folder and profile dropdowns, then save the backend settings. You can still use `Skip Setup` if you want to finish backend config later in **Settings**.
 6. Use the test action if needed, then open the **Seasonal** page.
 7. Request titles manually, or enable automation later after you understand the buckets.
 

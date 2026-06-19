@@ -50,6 +50,8 @@ Shows the request-backend setup page after access is configured.
 
 This page now starts on a backend-choice screen, then branches into the matching Seerr or Sonarr Direct setup form.
 
+If `Sonarr Direct` is selected, the form asks for the Sonarr URL and API key first, then loads the live Sonarr root-folder, quality-profile, and optional language-profile choices after validation.
+
 ### `GET /login`
 
 Shows the login page.
@@ -85,6 +87,8 @@ Completes first-run access setup.
 Completes the first-run backend setup step and marks backend onboarding complete.
 
 Use this when you want to save a real Seerr or Sonarr Direct config during setup before entering the main app.
+
+For Sonarr Direct, the normal UI flow is to validate the Sonarr connection first so the dropdown-backed folder and profile values come from Sonarr itself.
 
 ### `POST /api/setup/backend/skip`
 
@@ -228,6 +232,12 @@ This can test either:
 
 - Seerr connection details
 - Sonarr Direct connection details and detected defaults
+
+When testing `Sonarr Direct`, the response also includes the live option lists the UI uses to populate:
+
+- `rootFolders`
+- `qualityProfiles`
+- `languageProfiles`
 
 ### `PUT /api/settings/requests`
 

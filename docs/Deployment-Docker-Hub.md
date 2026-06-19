@@ -57,6 +57,8 @@ Even when you pull through the UI, Weebarr still needs:
 - either your Seerr connection values or your Sonarr Direct values during setup, unless you use `Skip Setup` and finish backend config later in **Settings**
 - a port mapping such as `18080:8888`
 
+If you choose `Sonarr Direct`, validate the Sonarr URL and API key first so Weebarr can load the live folder and profile dropdowns before you save the backend.
+
 ## Compose Example
 
 If you are using Docker Compose, the only required difference is the image line:

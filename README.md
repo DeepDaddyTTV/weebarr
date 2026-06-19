@@ -93,7 +93,7 @@ http://localhost:18080
 The first time you open the app, Weebarr walks you through setup in two stages:
 
 1. Create the local admin login, use Plex login, or enable both.
-2. Choose the request backend after auth, then either save the matching Seerr or Sonarr Direct settings or use `Skip Setup` and finish that backend later in Settings.
+2. Choose the request backend after auth. If you pick Sonarr Direct, validate the Sonarr URL and API key first so Weebarr can load the live root-folder and quality-profile dropdowns, then save the backend or use `Skip Setup` and finish it later in Settings.
 
 ## Documentation
 

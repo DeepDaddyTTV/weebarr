@@ -388,6 +388,15 @@ def test_request_settings_test_endpoint_uses_sonarr_backend(tmp_path, monkeypatc
             "rootFolderCount": 2,
             "qualityProfileCount": 4,
             "languageProfileCount": 1,
+            "rootFolders": [
+                {"id": 10, "path": "/data/media/anime"},
+                {"id": 11, "path": "/data/media/tv"},
+            ],
+            "qualityProfiles": [
+                {"id": 7, "name": "Anime 1080p"},
+                {"id": 8, "name": "Anime 720p"},
+            ],
+            "languageProfiles": [{"id": 3, "name": "English"}],
             "defaults": {
                 "rootFolderPath": "/data/media/anime",
                 "qualityProfileId": 7,
@@ -417,6 +426,9 @@ def test_request_settings_test_endpoint_uses_sonarr_backend(tmp_path, monkeypatc
     assert payload["requestBackend"] == "sonarr"
     assert payload["rootFolderCount"] == 2
     assert payload["qualityProfileCount"] == 4
+    assert payload["rootFolders"][0]["path"] == "/data/media/anime"
+    assert payload["qualityProfiles"][0]["name"] == "Anime 1080p"
+    assert payload["languageProfiles"][0]["id"] == 3
     assert payload["defaults"]["rootFolderPath"] == "/data/media/anime"
 
 

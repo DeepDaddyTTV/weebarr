@@ -252,8 +252,8 @@ Required Sonarr Direct fields:
 
 - **Sonarr Base URL**
 - **API Key**
-- **Root Folder Path**
-- **Quality Profile ID**
+- **Root Folder**
+- **Quality Profile**
 - **Series Type**
 
 Saved Sonarr Direct defaults also include:
@@ -261,10 +261,18 @@ Saved Sonarr Direct defaults also include:
 - Default Monitor Mode
 - Search On Add
 - Season Folder
-- optional Language Profile ID
+- optional Language Profile
 - optional Tag IDs
 
-The connection test can confirm that Weebarr can reach Sonarr and show the detected root folders, quality profiles, and language profiles.
+In both first-run setup and **Settings**, Weebarr only shows the Sonarr advanced fields after you validate the Sonarr Base URL and API Key.
+
+That validation loads the live Sonarr options for:
+
+- Root Folder
+- Quality Profile
+- optional Language Profile
+
+If you change the Sonarr URL or API key, Weebarr hides those advanced fields again until you revalidate.
 
 ### Backend Behavior Notes
 

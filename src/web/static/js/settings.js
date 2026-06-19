@@ -5,6 +5,12 @@ const state = {
   access: window.WEEBARR_ACCESS || {},
   openDropdown: null,
   activeTab: "weebarr",
+  sonarrValidated: false,
+  sonarrOptions: {
+    rootFolders: [],
+    qualityProfiles: [],
+    languageProfiles: [],
+  },
 };
 
 const validSettingsTabs = new Set([
@@ -80,6 +86,9 @@ const els = {
   requestBackend: document.querySelector("#settingsRequestBackend"),
   seerrSettingsPanel: document.querySelector("#seerrSettingsPanel"),
   sonarrSettingsPanel: document.querySelector("#sonarrSettingsPanel"),
+  sonarrValidationNote: document.querySelector("#sonarrSettingsValidationNote"),
+  sonarrValidationCopy: document.querySelector("#sonarrSettingsValidationCopy"),
+  sonarrAdvancedFields: document.querySelector("#sonarrSettingsAdvancedFields"),
   baseUrl: document.querySelector("#settingsBaseUrl"),
   apiKey: document.querySelector("#settingsApiKey"),
   requestSeasons: document.querySelector("#settingsRequestSeasons"),
@@ -196,6 +205,226 @@ function parseTags(value) {
     .filter((part) => Number.isFinite(part));
 }
 
+function savedSonarrSettings() {
+  return state.requestSettings?.sonarr || {};
+}
+
+function pickExistingValue(items, getValue, candidates) {
+  const values = new Set(items.map((item) => String(getValue(item))));
+  for (const candidate of candidates) {
+    if (candidate === null || candidate === undefined || candidate === "") {
+      continue;
+    }
+    const normalized = String(candidate);
+    if (values.has(normalized)) {
+      return normalized;
+    }
+  }
+  return null;
+}
+
+function setSelectOptions(
+  select,
+  items,
+  {
+    getValue = (item) => item.value,
+    getLabel = (item) => item.label,
+    includeBlankLabel = null,
+    emptyLabel = "No options found",
+    selectedValue = null,
+  } = {},
+) {
+  if (!select) return;
+  select.innerHTML = "";
+  if (includeBlankLabel !== null) {
+    const blankOption = document.createElement("option");
+    blankOption.value = "";
+    blankOption.textContent = includeBlankLabel;
+    select.append(blankOption);
+  }
+  if (items.length) {
+    items.forEach((item) => {
+      const option = document.createElement("option");
+      option.value = String(getValue(item) ?? "");
+      option.textContent = String(getLabel(item) ?? "");
+      select.append(option);
+    });
+  } else if (emptyLabel) {
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = emptyLabel;
+    select.append(emptyOption);
+  }
+  const normalizedSelected =
+    selectedValue === null || selectedValue === undefined || selectedValue === ""
+      ? null
+      : String(selectedValue);
+  if (
+    normalizedSelected &&
+    [...select.options].some((option) => option.value === normalizedSelected)
+  ) {
+    select.value = normalizedSelected;
+  } else {
+    select.value = select.options[0]?.value || "";
+  }
+  syncCustomSelects([select.id]);
+}
+
+function resetSonarrSelectOptions() {
+  setSelectOptions(els.sonarrRootFolderPath, [], {
+    emptyLabel: "Validate Sonarr first",
+  });
+  setSelectOptions(els.sonarrQualityProfileId, [], {
+    emptyLabel: "Validate Sonarr first",
+  });
+  setSelectOptions(els.sonarrLanguageProfileId, [], {
+    includeBlankLabel: "Use Sonarr default",
+    emptyLabel: null,
+  });
+}
+
+function renderSonarrValidationUi() {
+  const sonarrActive = activeRequestBackend() === "sonarr";
+  if (els.sonarrValidationNote) {
+    els.sonarrValidationNote.hidden = !sonarrActive;
+  }
+  if (els.sonarrAdvancedFields) {
+    els.sonarrAdvancedFields.hidden = !sonarrActive || !state.sonarrValidated;
+  }
+  if (els.sonarrValidationCopy) {
+    els.sonarrValidationCopy.textContent = state.sonarrValidated
+      ? "Sonarr validated successfully. Review the live folders and profiles below, then save the backend settings."
+      : "Enter the Sonarr base URL and API key, then validate Sonarr to load the live folders and profiles before saving backend settings.";
+  }
+  if (els.testButton) {
+    els.testButton.textContent = sonarrActive
+      ? state.sonarrValidated
+        ? "Reload Sonarr Options"
+        : "Validate Sonarr"
+      : "Test Seerr";
+  }
+}
+
+function resetConnectionTestResult() {
+  const sonarrActive = activeRequestBackend() === "sonarr";
+  if (els.testMetricOneLabel) {
+    els.testMetricOneLabel.textContent = sonarrActive
+      ? "Root Folders"
+      : "Server Count";
+  }
+  if (els.testMetricTwoLabel) {
+    els.testMetricTwoLabel.textContent = sonarrActive
+      ? "Quality Profiles"
+      : "Default Server";
+  }
+  if (els.testMetricThreeLabel) {
+    els.testMetricThreeLabel.textContent = sonarrActive
+      ? "Language Profiles"
+      : "Detected Profile";
+  }
+  if (els.testMetricFourLabel) {
+    els.testMetricFourLabel.textContent = sonarrActive
+      ? "Default Series Type"
+      : "Detected Series Type";
+  }
+  if (els.testMetricFiveLabel) {
+    els.testMetricFiveLabel.textContent = sonarrActive
+      ? "Detected Root"
+      : "Detected Root";
+  }
+  [
+    els.testServerCount,
+    els.testServerName,
+    els.testProfileId,
+    els.testSeriesType,
+    els.testRootFolder,
+  ].forEach((element) => {
+    if (element) {
+      element.textContent = "--";
+    }
+  });
+}
+
+function resetSonarrValidation({ resetTestMetrics = true } = {}) {
+  state.sonarrValidated = false;
+  state.sonarrOptions = {
+    rootFolders: [],
+    qualityProfiles: [],
+    languageProfiles: [],
+  };
+  resetSonarrSelectOptions();
+  renderSonarrValidationUi();
+  if (resetTestMetrics && activeRequestBackend() === "sonarr") {
+    resetConnectionTestResult();
+  }
+}
+
+function applySonarrValidationResult(result) {
+  const summary = savedSonarrSettings();
+  const defaults = result?.defaults || {};
+  const rootFolders = result?.rootFolders || [];
+  const qualityProfiles = result?.qualityProfiles || [];
+  const languageProfiles = result?.languageProfiles || [];
+
+  state.sonarrValidated = true;
+  state.sonarrOptions = {
+    rootFolders,
+    qualityProfiles,
+    languageProfiles,
+  };
+
+  const rootFolderValue = pickExistingValue(
+    rootFolders,
+    (item) => item.path,
+    [
+      els.sonarrRootFolderPath?.value,
+      summary.rootFolderPath,
+      defaults.rootFolderPath,
+      rootFolders[0]?.path,
+    ],
+  );
+  const qualityProfileValue = pickExistingValue(
+    qualityProfiles,
+    (item) => item.id,
+    [
+      els.sonarrQualityProfileId?.value,
+      summary.qualityProfileId,
+      defaults.qualityProfileId,
+      qualityProfiles[0]?.id,
+    ],
+  );
+  const languageProfileValue = pickExistingValue(
+    languageProfiles,
+    (item) => item.id,
+    [
+      els.sonarrLanguageProfileId?.value,
+      summary.languageProfileId,
+      defaults.languageProfileId,
+    ],
+  );
+
+  setSelectOptions(els.sonarrRootFolderPath, rootFolders, {
+    getValue: (item) => item.path,
+    getLabel: (item) => item.path,
+    emptyLabel: "No root folders found",
+    selectedValue: rootFolderValue,
+  });
+  setSelectOptions(els.sonarrQualityProfileId, qualityProfiles, {
+    getValue: (item) => item.id,
+    getLabel: (item) => item.name,
+    emptyLabel: "No quality profiles found",
+    selectedValue: qualityProfileValue,
+  });
+  setSelectOptions(els.sonarrLanguageProfileId, languageProfiles, {
+    getValue: (item) => item.id,
+    getLabel: (item) => item.name,
+    includeBlankLabel: "Use Sonarr default",
+    emptyLabel: null,
+    selectedValue: languageProfileValue,
+  });
+  renderSonarrValidationUi();
+}
+
 function activeRequestBackend() {
   return els.requestBackend?.value || state.requestSettings?.requestBackend || "seerr";
 }
@@ -218,6 +447,7 @@ function applyRequestBackendPanels() {
   if (els.sonarrSettingsPanel) {
     els.sonarrSettingsPanel.hidden = !sonarrActive;
   }
+  renderSonarrValidationUi();
 }
 
 function escapeHtml(value) {
@@ -658,8 +888,11 @@ function updateConnection(summary) {
     "settingsRequestBackend",
     "settingsRequestSeasons",
     "settingsSeriesType",
+    "sonarrRootFolderPath",
+    "sonarrQualityProfileId",
     "sonarrSeriesType",
     "sonarrDefaultMonitorMode",
+    "sonarrLanguageProfileId",
   ]);
 }
 
@@ -988,6 +1221,12 @@ async function testConnection() {
   const baseUrl = sonarrActive
     ? payload.sonarr.baseUrl || state.requestSettings?.sonarr?.baseUrl
     : payload.seerr.baseUrl || state.connection.baseUrl;
+  const apiKey = sonarrActive
+    ? els.sonarrApiKey.value.trim()
+    : els.apiKey.value.trim();
+  const hasSavedKey = sonarrActive
+    ? Boolean(savedSonarrSettings().apiKeyPreview)
+    : Boolean(state.connection?.apiKeyPreview);
   if (!baseUrl) {
     showBanner(
       els.connectionBanner,
@@ -996,9 +1235,14 @@ async function testConnection() {
     );
     return;
   }
-  const apiKey = sonarrActive
-    ? els.sonarrApiKey.value.trim()
-    : els.apiKey.value.trim();
+  if (!apiKey && !hasSavedKey) {
+    showBanner(
+      els.connectionBanner,
+      `Add an API key before testing the ${activeRequestBackendName()} connection.`,
+      "warn",
+    );
+    return;
+  }
   const response = await fetch("/api/settings/requests/test", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1020,6 +1264,7 @@ async function testConnection() {
   const result = await response.json();
   const defaults = result.defaults || {};
   if (sonarrActive) {
+    applySonarrValidationResult(result);
     els.testMetricOneLabel.textContent = "Root Folders";
     els.testMetricTwoLabel.textContent = "Quality Profiles";
     els.testMetricThreeLabel.textContent = "Language Profiles";
@@ -1066,6 +1311,14 @@ async function saveConnection(event) {
   event.preventDefault();
   clearBanner(els.connectionBanner);
   const sonarrActive = activeRequestBackend() === "sonarr";
+  if (sonarrActive && !state.sonarrValidated) {
+    showBanner(
+      els.connectionBanner,
+      "Validate Sonarr first so Weebarr can load the live folders and profiles before saving Sonarr Direct.",
+      "warn",
+    );
+    return;
+  }
   const apiKey = sonarrActive
     ? els.sonarrApiKey.value.trim()
     : els.apiKey.value.trim();
@@ -1281,10 +1534,30 @@ if (els.requestBackend) {
       };
     }
     applyRequestBackendPanels();
+    resetConnectionTestResult();
+    clearBanner(els.connectionBanner);
     if (els.currentRequestBackend) {
       els.currentRequestBackend.textContent = activeRequestBackendName();
     }
     syncCustomSelects(["settingsRequestBackend"]);
+  });
+}
+
+if (els.sonarrBaseUrl) {
+  ["input", "change"].forEach((eventName) => {
+    els.sonarrBaseUrl.addEventListener(eventName, () => {
+      resetSonarrValidation();
+      clearBanner(els.connectionBanner);
+    });
+  });
+}
+
+if (els.sonarrApiKey) {
+  ["input", "change"].forEach((eventName) => {
+    els.sonarrApiKey.addEventListener(eventName, () => {
+      resetSonarrValidation();
+      clearBanner(els.connectionBanner);
+    });
   });
 }
 
@@ -1327,9 +1600,11 @@ window.addEventListener("hashchange", () => {
 });
 
 initializeCustomSelects();
+resetSonarrValidation({ resetTestMetrics: false });
+resetConnectionTestResult();
 updateWeebarr(state.weebarr);
 updateAccess(state.access);
-updateConnection(state.connection);
+updateConnection(state.requestSettings);
 showGeneratedApiKey("");
 if (window.WeebarrTheme) {
   window.WeebarrTheme.bindThemeButtons();

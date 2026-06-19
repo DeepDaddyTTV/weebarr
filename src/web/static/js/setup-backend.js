@@ -1,6 +1,12 @@
 const backendSetupState = {
   requestSettings: (window.WEEBARR_SETUP_BACKEND || {}).requestSettings || {},
   step: "choice",
+  sonarrValidated: false,
+  sonarrOptions: {
+    rootFolders: [],
+    qualityProfiles: [],
+    languageProfiles: [],
+  },
 };
 
 const backendSetupLabels = {
@@ -44,6 +50,9 @@ const backendEls = {
   selectedCopy: document.querySelector("#setupBackendSelectedCopy"),
   seerrPanel: document.querySelector("#setupBackendSeerrPanel"),
   sonarrPanel: document.querySelector("#setupBackendSonarrPanel"),
+  sonarrValidationNote: document.querySelector("#setupSonarrValidationNote"),
+  sonarrValidationCopy: document.querySelector("#setupSonarrValidationCopy"),
+  sonarrAdvancedFields: document.querySelector("#setupSonarrAdvancedFields"),
   seerrBaseUrl: document.querySelector("#setupSeerrBaseUrl"),
   seerrApiKey: document.querySelector("#setupSeerrApiKey"),
   seerrRequestSeasons: document.querySelector("#setupSeerrRequestSeasons"),
@@ -141,6 +150,188 @@ function sonarrPayload() {
   };
 }
 
+function savedSonarrSettings() {
+  return backendSetupState.requestSettings?.sonarr || {};
+}
+
+function pickExistingValue(items, getValue, candidates) {
+  const values = new Set(items.map((item) => String(getValue(item))));
+  for (const candidate of candidates) {
+    if (candidate === null || candidate === undefined || candidate === "") {
+      continue;
+    }
+    const normalized = String(candidate);
+    if (values.has(normalized)) {
+      return normalized;
+    }
+  }
+  return null;
+}
+
+function setNativeSelectOptions(
+  select,
+  items,
+  {
+    getValue = (item) => item.value,
+    getLabel = (item) => item.label,
+    includeBlankLabel = null,
+    emptyLabel = "No options found",
+    selectedValue = null,
+  } = {},
+) {
+  if (!select) return;
+  select.innerHTML = "";
+  if (includeBlankLabel !== null) {
+    const blankOption = document.createElement("option");
+    blankOption.value = "";
+    blankOption.textContent = includeBlankLabel;
+    select.append(blankOption);
+  }
+  if (items.length) {
+    items.forEach((item) => {
+      const option = document.createElement("option");
+      option.value = String(getValue(item) ?? "");
+      option.textContent = String(getLabel(item) ?? "");
+      select.append(option);
+    });
+  } else if (emptyLabel) {
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = emptyLabel;
+    select.append(emptyOption);
+  }
+
+  const normalizedSelected =
+    selectedValue === null || selectedValue === undefined || selectedValue === ""
+      ? null
+      : String(selectedValue);
+  if (
+    normalizedSelected &&
+    [...select.options].some((option) => option.value === normalizedSelected)
+  ) {
+    select.value = normalizedSelected;
+    return;
+  }
+  select.value = select.options[0]?.value || "";
+}
+
+function resetSonarrOptionFields() {
+  setNativeSelectOptions(backendEls.sonarrRootFolderPath, [], {
+    emptyLabel: "Validate Sonarr first",
+  });
+  setNativeSelectOptions(backendEls.sonarrQualityProfileId, [], {
+    emptyLabel: "Validate Sonarr first",
+  });
+  setNativeSelectOptions(backendEls.sonarrLanguageProfileId, [], {
+    includeBlankLabel: "Use Sonarr default",
+    emptyLabel: null,
+  });
+}
+
+function renderSonarrValidationState() {
+  const sonarrActive = activeBackend() === "sonarr";
+  if (backendEls.sonarrValidationNote) {
+    backendEls.sonarrValidationNote.hidden = !sonarrActive;
+  }
+  if (backendEls.sonarrAdvancedFields) {
+    backendEls.sonarrAdvancedFields.hidden =
+      !sonarrActive || !backendSetupState.sonarrValidated;
+  }
+  if (backendEls.sonarrValidationCopy) {
+    backendEls.sonarrValidationCopy.textContent = backendSetupState.sonarrValidated
+      ? "Sonarr validated successfully. Review the live folders and profiles below, then continue."
+      : "Enter the Sonarr base URL and API key, then validate Sonarr to load the live root folders and quality profiles before continuing.";
+  }
+  if (backendEls.testButton) {
+    backendEls.testButton.textContent = sonarrActive
+      ? backendSetupState.sonarrValidated
+        ? "Reload Sonarr Options"
+        : "Validate Sonarr"
+      : "Test Seerr";
+  }
+}
+
+function resetSonarrValidation({ resetMetrics = true } = {}) {
+  backendSetupState.sonarrValidated = false;
+  backendSetupState.sonarrOptions = {
+    rootFolders: [],
+    qualityProfiles: [],
+    languageProfiles: [],
+  };
+  resetSonarrOptionFields();
+  renderSonarrValidationState();
+  if (resetMetrics && activeBackend() === "sonarr") {
+    resetTestResult();
+  }
+}
+
+function applySonarrDefaults(result) {
+  const saved = savedSonarrSettings();
+  const rootFolders = result?.rootFolders || [];
+  const qualityProfiles = result?.qualityProfiles || [];
+  const languageProfiles = result?.languageProfiles || [];
+  const defaults = result?.defaults || {};
+
+  backendSetupState.sonarrValidated = true;
+  backendSetupState.sonarrOptions = {
+    rootFolders,
+    qualityProfiles,
+    languageProfiles,
+  };
+
+  const rootFolderValue = pickExistingValue(
+    rootFolders,
+    (item) => item.path,
+    [
+      backendEls.sonarrRootFolderPath?.value.trim(),
+      saved.rootFolderPath,
+      defaults.rootFolderPath,
+      rootFolders[0]?.path,
+    ],
+  );
+  const qualityProfileValue = pickExistingValue(
+    qualityProfiles,
+    (item) => item.id,
+    [
+      backendEls.sonarrQualityProfileId?.value.trim(),
+      saved.qualityProfileId,
+      defaults.qualityProfileId,
+      qualityProfiles[0]?.id,
+    ],
+  );
+  const languageProfileValue = pickExistingValue(
+    languageProfiles,
+    (item) => item.id,
+    [
+      backendEls.sonarrLanguageProfileId?.value.trim(),
+      saved.languageProfileId,
+      defaults.languageProfileId,
+    ],
+  );
+
+  setNativeSelectOptions(backendEls.sonarrRootFolderPath, rootFolders, {
+    getValue: (item) => item.path,
+    getLabel: (item) => item.path,
+    emptyLabel: "No root folders found",
+    selectedValue: rootFolderValue,
+  });
+  setNativeSelectOptions(backendEls.sonarrQualityProfileId, qualityProfiles, {
+    getValue: (item) => item.id,
+    getLabel: (item) => item.name,
+    emptyLabel: "No quality profiles found",
+    selectedValue: qualityProfileValue,
+  });
+  setNativeSelectOptions(backendEls.sonarrLanguageProfileId, languageProfiles, {
+    getValue: (item) => item.id,
+    getLabel: (item) => item.name,
+    includeBlankLabel: "Use Sonarr default",
+    emptyLabel: null,
+    selectedValue: languageProfileValue,
+  });
+
+  renderSonarrValidationState();
+}
+
 function resetTestResult() {
   const sonarrActive = activeBackend() === "sonarr";
   if (!backendEls.metricOneLabel) return;
@@ -218,6 +409,7 @@ function setBackendMode(mode) {
     backendEls.sonarrPanel.hidden = activeBackend() !== "sonarr";
   }
   renderStepCopy();
+  renderSonarrValidationState();
   resetTestResult();
   clearBanner();
 }
@@ -237,8 +429,9 @@ function missingRequiredFields() {
     const seriesType = backendEls.sonarrSeriesType?.value || sonarr.seriesType;
     if (!baseUrl) missing.push("Sonarr Base URL");
     if (!apiKey) missing.push("API Key");
-    if (!rootFolderPath) missing.push("Root Folder Path");
-    if (!qualityProfileId) missing.push("Quality Profile ID");
+    if (!backendSetupState.sonarrValidated) missing.push("Validate Sonarr");
+    if (!rootFolderPath) missing.push("Root Folder");
+    if (!qualityProfileId) missing.push("Quality Profile");
     if (!seriesType) missing.push("Series Type");
     return missing;
   }
@@ -249,24 +442,6 @@ function missingRequiredFields() {
   if (!baseUrl) missing.push("Seerr Base URL");
   if (!apiKey) missing.push("API Key");
   return missing;
-}
-
-function applySonarrDefaults(result) {
-  const defaults = result?.defaults || {};
-  if (
-    backendEls.sonarrRootFolderPath &&
-    !backendEls.sonarrRootFolderPath.value.trim() &&
-    defaults.rootFolderPath
-  ) {
-    backendEls.sonarrRootFolderPath.value = defaults.rootFolderPath;
-  }
-  if (
-    backendEls.sonarrQualityProfileId &&
-    !backendEls.sonarrQualityProfileId.value.trim() &&
-    defaults.qualityProfileId
-  ) {
-    backendEls.sonarrQualityProfileId.value = String(defaults.qualityProfileId);
-  }
 }
 
 function renderTestResult(result) {
@@ -431,6 +606,24 @@ backendEls.modeButtons.forEach((button) => {
   });
 });
 
+if (backendEls.sonarrBaseUrl) {
+  ["input", "change"].forEach((eventName) => {
+    backendEls.sonarrBaseUrl.addEventListener(eventName, () => {
+      resetSonarrValidation();
+      clearBanner();
+    });
+  });
+}
+
+if (backendEls.sonarrApiKey) {
+  ["input", "change"].forEach((eventName) => {
+    backendEls.sonarrApiKey.addEventListener(eventName, () => {
+      resetSonarrValidation();
+      clearBanner();
+    });
+  });
+}
+
 if (backendEls.nextButton) {
   backendEls.nextButton.addEventListener("click", () => {
     showStep("config");
@@ -475,5 +668,6 @@ if (backendEls.form) {
   });
 }
 
+resetSonarrValidation({ resetMetrics: false });
 setBackendMode(activeBackend());
 showStep("choice");
