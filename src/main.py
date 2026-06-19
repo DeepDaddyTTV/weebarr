@@ -1291,7 +1291,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 page_title="Seasonal Anime",
                 page_subtitle=(
                     "Track each anime season by popularity, dub signal, airing "
-                    "cadence, and request-backend status."
+                    "cadence, and backend-aware request status across Seerr or "
+                    "Sonarr Direct."
                 ),
                 initial_filter="all",
             ),

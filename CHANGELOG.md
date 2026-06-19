@@ -2,6 +2,18 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.60] - 2026-06-19
+
+### Added
+
+- Added a new `Backends` docs page plus README and docs-site copy updates that explain the Seerr and Sonarr Direct setup paths in plain language.
+
+### Fixed
+
+- Turned the seasonal stat cards into real quick filters so `Anime This Season` resets the seasonal view, `Airing Soon` narrows to the next-seven-days slice, and other cards filter to their matching backend-aware states.
+- Swapped the active seasonal stat-card highlight over to a color-aware outer glow and border treatment that matches each card instead of the old generic neon hover ring.
+- Fixed Sonarr Direct library matching for full-library titles that only expose reliable overall episode statistics by fetching full series details for existing Sonarr matches before classifying availability.
+
 ## [0.1.59] - 2026-06-19
 
 ### Fixed

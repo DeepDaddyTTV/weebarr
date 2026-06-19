@@ -2125,6 +2125,114 @@ def test_classify_seerr_state_strict_monitoring_marks_later_season_missing():
     assert result["requestSeasons"] == [4]
 
 
+def test_classify_sonarr_state_uses_overall_complete_stats_for_full_library_titles():
+    service = WeebarrService(Settings())
+    anime = {
+        "title": "LIAR GAME",
+        "installment": {"seasonNumber": 1, "label": "Season 1"},
+    }
+    matched = {
+        "id": 991,
+        "title": "LIAR GAME",
+        "seasons": [
+            {"seasonNumber": 1, "monitored": True},
+        ],
+        "statistics": {
+            "episodeFileCount": 11,
+            "totalEpisodeCount": 11,
+        },
+    }
+    lookup_match = {
+        "seasons": [
+            {"seasonNumber": 0},
+            {"seasonNumber": 1},
+        ]
+    }
+
+    result = service._classify_sonarr_state(
+        anime,
+        matched,
+        110,
+        in_library=True,
+        lookup_match=lookup_match,
+    )
+
+    assert result["state"] == "available"
+    assert result["requestable"] is False
+    assert result["label"] == "Available"
+
+
+def test_resolve_sonarr_uses_series_details_for_existing_library_match():
+    service = WeebarrService(
+        Settings(
+            request_backend="sonarr",
+            sonarr_base_url="https://sonarr.example.test",
+            sonarr_api_key="secret",
+            sonarr_root_folder_path="/data/media/anime",
+            sonarr_quality_profile_id=7,
+            sonarr_series_type="anime",
+        )
+    )
+    anime = {
+        "title": "LIAR GAME",
+        "englishTitle": "LIAR GAME",
+        "romajiTitle": "LIAR GAME",
+        "nativeTitle": "LIAR GAME",
+        "startYear": 2026,
+        "installment": {"seasonNumber": 1, "label": "Season 1"},
+    }
+    detail_calls: list[int] = []
+
+    async def fake_sonarr_lookup(_query: str) -> list[dict[str, object]]:
+        return []
+
+    async def fake_sonarr_series() -> list[dict[str, object]]:
+        return [
+            {
+                "id": 991,
+                "title": "LIAR GAME",
+                "tvdbId": 445566,
+                "seasons": [
+                    {"seasonNumber": 1, "monitored": True},
+                ],
+            }
+        ]
+
+    async def fake_sonarr_series_details(series_id: int) -> dict[str, object]:
+        detail_calls.append(series_id)
+        return {
+            "id": series_id,
+            "title": "LIAR GAME",
+            "tvdbId": 445566,
+            "seasons": [
+                {
+                    "seasonNumber": 1,
+                    "monitored": True,
+                    "statistics": {
+                        "episodeFileCount": 11,
+                        "totalEpisodeCount": 11,
+                        "percentOfEpisodes": 100.0,
+                    },
+                }
+            ],
+            "statistics": {
+                "episodeFileCount": 11,
+                "totalEpisodeCount": 11,
+            },
+        }
+
+    service._sonarr_lookup = fake_sonarr_lookup  # type: ignore[method-assign]
+    service._sonarr_series = fake_sonarr_series  # type: ignore[method-assign]
+    service._sonarr_series_details = fake_sonarr_series_details  # type: ignore[method-assign]
+
+    result = asyncio.run(service._resolve_sonarr(anime))
+
+    assert detail_calls == [991]
+    assert result["state"] == "available"
+    assert result["requestable"] is False
+    assert result["label"] == "Available"
+
+
 def test_resolve_seerr_prefers_ids_moe_mapping_before_title_search():
     service = WeebarrService(
         Settings(

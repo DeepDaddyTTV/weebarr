@@ -369,7 +369,7 @@ body[data-theme-palette="monochrome"][data-theme="light"] {
 }
 
 :where(
-  button:not(.card-surface):not(.settings-tab),
+  button:not(.card-surface):not(.settings-tab):not(.stat-card),
   .nav-item,
   .connection-cta,
   .ui-select-trigger
@@ -379,7 +379,7 @@ body[data-theme-palette="monochrome"][data-theme="light"] {
 }
 
 :where(
-  button:not(.card-surface):not(.settings-tab),
+  button:not(.card-surface):not(.settings-tab):not(.stat-card),
   .nav-item,
   .connection-cta,
   .ui-select-trigger
@@ -405,13 +405,13 @@ body[data-theme-palette="monochrome"][data-theme="light"] {
 }
 
 :where(
-  button:not(.card-surface):not(.settings-tab),
+  button:not(.card-surface):not(.settings-tab):not(.stat-card),
   .nav-item,
   .connection-cta,
   .ui-select-trigger
 ):hover::before,
 :where(
-  button:not(.card-surface):not(.settings-tab),
+  button:not(.card-surface):not(.settings-tab):not(.stat-card),
   .nav-item,
   .connection-cta,
   .ui-select-trigger
@@ -420,13 +420,13 @@ body[data-theme-palette="monochrome"][data-theme="light"] {
 }
 
 :where(
-  button:not(.card-surface):not(.settings-tab),
+  button:not(.card-surface):not(.settings-tab):not(.stat-card),
   .nav-item,
   .connection-cta,
   .ui-select-trigger
 ):hover,
 :where(
-  button:not(.card-surface):not(.settings-tab),
+  button:not(.card-surface):not(.settings-tab):not(.stat-card),
   .nav-item,
   .connection-cta,
   .ui-select-trigger
@@ -1758,10 +1758,21 @@ body[data-page="seasonal"] .stats-grid {
   grid-template-columns: 58px minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
+  width: 100%;
   min-height: 78px;
   padding: 12px 16px;
   overflow: hidden;
+  text-align: left;
   border-radius: var(--radius-md);
+  cursor: default;
+  appearance: none;
+  -webkit-appearance: none;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease,
+    opacity 160ms ease;
 }
 
 body[data-page="seasonal"] .stat-card {
@@ -1770,6 +1781,27 @@ body[data-page="seasonal"] .stat-card {
   padding: 14px 18px;
   border-radius: 18px;
   gap: 18px;
+}
+
+.stat-card::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 1px;
+  pointer-events: none;
+  content: "";
+  background: var(--stat-highlight, linear-gradient(135deg, var(--cyan-64), var(--cyan-42)));
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
 }
 
 .stat-copy {
@@ -1786,29 +1818,51 @@ body[data-page="seasonal"] .stat-copy {
 .stat-card::after {
   position: absolute;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
   content: "";
   background: radial-gradient(circle at 0 50%, var(--glow, var(--cyan-24)), transparent 62%);
   opacity: 0.8;
+  transition: opacity 160ms ease;
 }
 
 .stat-cyan {
   --glow: var(--cyan-24);
+  --stat-accent: var(--cyan);
+  --stat-surface: var(--cyan-10);
+  --stat-edge: var(--cyan-64);
+  --stat-highlight: linear-gradient(135deg, rgba(40, 199, 255, 0.96), rgba(40, 199, 255, 0.52));
+  --stat-shadow: rgba(40, 199, 255, 0.2);
   border-color: var(--cyan-42);
 }
 
 .stat-pink {
   --glow: var(--pink-22);
+  --stat-accent: var(--pink);
+  --stat-surface: var(--pink-10);
+  --stat-edge: var(--pink-64);
+  --stat-highlight: linear-gradient(135deg, rgba(255, 60, 125, 0.96), rgba(180, 102, 255, 0.64));
+  --stat-shadow: rgba(255, 60, 125, 0.2);
   border-color: var(--pink-46);
 }
 
 .stat-purple {
   --glow: var(--purple-22);
+  --stat-accent: var(--purple);
+  --stat-surface: var(--purple-10);
+  --stat-edge: var(--purple-64);
+  --stat-highlight: linear-gradient(135deg, rgba(180, 102, 255, 0.96), rgba(255, 60, 125, 0.72));
+  --stat-shadow: rgba(180, 102, 255, 0.2);
   border-color: var(--purple-46);
 }
 
 .stat-blue {
   --glow: var(--cyan-24);
+  --stat-accent: var(--cyan);
+  --stat-surface: var(--cyan-10);
+  --stat-edge: var(--cyan-64);
+  --stat-highlight: linear-gradient(135deg, rgba(40, 199, 255, 0.96), rgba(40, 199, 255, 0.52));
+  --stat-shadow: rgba(40, 199, 255, 0.2);
   border-color: var(--cyan-42);
 }
 
@@ -1824,11 +1878,15 @@ body[data-page="seasonal"] .stat-copy {
   height: 58px;
   align-items: center;
   justify-content: center;
-  color: var(--cyan);
+  color: var(--stat-accent, var(--cyan));
   line-height: 1;
-  background: var(--cyan-10);
-  border: 1px solid var(--cyan-64);
+  background: var(--stat-surface, var(--cyan-10));
+  border: 1px solid var(--stat-edge, var(--cyan-64));
   border-radius: var(--radius-md);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
 }
 
 body[data-page="seasonal"] .stat-icon {
@@ -1875,16 +1933,40 @@ body[data-page="seasonal"] .stat-icon {
   --stat-icon: var(--icon-stat-airing);
 }
 
-.stat-pink .stat-icon {
-  color: var(--pink);
-  background: var(--pink-10);
-  border-color: var(--pink-64);
+body[data-page="seasonal"] .stat-card-interactive {
+  cursor: pointer;
 }
 
-.stat-purple .stat-icon {
-  color: var(--purple);
-  background: var(--purple-10);
-  border-color: var(--purple-64);
+body[data-page="seasonal"] .stat-card-interactive:hover,
+body[data-page="seasonal"] .stat-card-interactive:focus-visible,
+body[data-page="seasonal"] .stat-card-interactive.is-filter-active {
+  border-color: var(--stat-edge, var(--cyan-64));
+  box-shadow:
+    0 18px 42px var(--stat-shadow, rgba(40, 199, 255, 0.18)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+body[data-page="seasonal"] .stat-card-interactive:hover,
+body[data-page="seasonal"] .stat-card-interactive:focus-visible {
+  transform: translateY(-2px);
+}
+
+body[data-page="seasonal"] .stat-card-interactive:hover::before,
+body[data-page="seasonal"] .stat-card-interactive:focus-visible::before,
+body[data-page="seasonal"] .stat-card-interactive.is-filter-active::before {
+  opacity: 1;
+}
+
+body[data-page="seasonal"] .stat-card-interactive:hover::after,
+body[data-page="seasonal"] .stat-card-interactive:focus-visible::after,
+body[data-page="seasonal"] .stat-card-interactive.is-filter-active::after {
+  opacity: 1;
+}
+
+body[data-page="seasonal"] .stat-card-interactive:hover .stat-icon,
+body[data-page="seasonal"] .stat-card-interactive:focus-visible .stat-icon,
+body[data-page="seasonal"] .stat-card-interactive.is-filter-active .stat-icon {
+  box-shadow: 0 0 20px var(--stat-shadow, rgba(40, 199, 255, 0.18));
 }
 
 .stat-card span:not(.stat-icon),

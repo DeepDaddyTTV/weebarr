@@ -38,10 +38,13 @@ In plain English: Weebarr helps you answer, “What anime is airing, do I alread
 
 ## Pages in This Wiki
 
-- [Features](Features.md)  
+- [Features](Features.md)
   Learn what each main page in Weebarr does.
 
-- [Settings](Settings.md)  
+- [Backends](Backends.md)
+  Decide whether Weebarr should talk to Seerr or Sonarr Direct, and see how setup works for each path.
+
+- [Settings](Settings.md)
   Understand the Settings page without needing to guess what each toggle means.
 
 - [Theme Template](Theme-Template.md)  

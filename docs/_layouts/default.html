@@ -16,12 +16,14 @@
       <aside class="docs-sidebar">
         <a class="brand" href="{{ '/' | relative_url }}">
           <img src="{{ '/assets/img/weebarr-wordmark.png' | relative_url }}" alt="Weebarr">
+          <small class="brand-version">v{{ site.version }}</small>
           <span>Docs</span>
         </a>
 
         <nav class="docs-nav" aria-label="Documentation">
           <a href="{{ '/' | relative_url }}" class="{% if page.url == '/' %}active{% endif %}">Home</a>
           <a href="{{ '/Features/' | relative_url }}" class="{% if page.url contains '/Features/' %}active{% endif %}">Features</a>
+          <a href="{{ '/Backends/' | relative_url }}" class="{% if page.url contains '/Backends/' %}active{% endif %}">Backends</a>
 
           <details class="docs-group" {% if page.url contains '/Settings/' or page.url contains '/API-Reference/' or page.url contains '/Theme-Template/' %}open{% endif %}>
             <summary class="docs-group-summary {% if page.url contains '/Settings/' or page.url contains '/API-Reference/' or page.url contains '/Theme-Template/' %}active{% endif %}">Configuration</summary>

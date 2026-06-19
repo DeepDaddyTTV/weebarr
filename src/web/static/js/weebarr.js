@@ -16,6 +16,7 @@ const state = {
   filterOpen: false,
   openDropdown: null,
   hideRequested: false,
+  statFilter: "all",
   spotlightDismissed: false,
   requestModalItemId: null,
 };
@@ -54,6 +55,7 @@ const els = {
     requested: document.querySelector("#statRequested"),
     airingSoon: document.querySelector("#statAiringSoon"),
   },
+  statCards: [...document.querySelectorAll("[data-stat-filter]")],
 };
 
 const compactDetailsMedia = window.matchMedia("(max-width: 900px)");
@@ -442,6 +444,28 @@ function isHiddenByRequestedToggle(item) {
   return handledRequestStates().has(requestState(item).state);
 }
 
+function isAiringSoon(item) {
+  if (!item.nextAiring?.airingAt) return false;
+  const now = Date.now();
+  const soonCutoff = now + 7 * 24 * 60 * 60 * 1000;
+  const airingAt = new Date(item.nextAiring.airingAt).getTime();
+  return airingAt >= now && airingAt <= soonCutoff;
+}
+
+function statFilterMatches(item) {
+  if (state.view !== "seasonal" || state.statFilter === "all") return true;
+  if (state.statFilter === "needs_action") {
+    return Boolean(requestState(item).requestable);
+  }
+  if (state.statFilter === "tracked") {
+    return handledRequestStates().has(requestState(item).state);
+  }
+  if (state.statFilter === "airing_soon") {
+    return isAiringSoon(item);
+  }
+  return true;
+}
+
 function visibleItems() {
   const query = state.query.trim().toLowerCase();
   let items = [...state.items];
@@ -451,6 +475,7 @@ function visibleItems() {
   if (state.view === "seasonal" && state.hideRequested) {
     items = items.filter((item) => !isHiddenByRequestedToggle(item));
   }
+  items = items.filter(statFilterMatches);
   if (query) {
     items = items.filter((item) => {
       const audio = audioState(item);
@@ -500,6 +525,16 @@ function visibleItems() {
   return items;
 }
 
+function syncStatCards() {
+  els.statCards.forEach((card) => {
+    const isSeasonal = state.view === "seasonal";
+    const active = isSeasonal && card.dataset.statFilter === state.statFilter;
+    card.classList.toggle("is-filter-active", active);
+    card.setAttribute("aria-pressed", active ? "true" : "false");
+    card.tabIndex = isSeasonal ? 0 : -1;
+  });
+}
+
 function currentSelectedItem(items = state.items) {
   if (!state.selectedId) return null;
   return items.find((item) => String(item.id) === String(state.selectedId)) || null;
@@ -533,12 +568,7 @@ function syncSelectedItem(items) {
 function renderStats(stats) {
   const scopedItems =
     state.view === "requests" ? state.items.filter(hasWeebarrRequest) : state.items;
-  const soonCutoff = Date.now() + 7 * 24 * 60 * 60 * 1000;
-  const airingSoon = scopedItems.filter((item) => {
-    if (!item.nextAiring?.airingAt) return false;
-    const airingAt = new Date(item.nextAiring.airingAt).getTime();
-    return airingAt >= Date.now() && airingAt <= soonCutoff;
-  }).length;
+  const airingSoon = scopedItems.filter(isAiringSoon).length;
   const requestedCount = scopedItems.filter((item) =>
     handledRequestStates().has(requestState(item).state),
   ).length;
@@ -555,6 +585,7 @@ function renderStats(stats) {
     state.view === "requests" ? requestedCount : stats.requested,
   );
   els.stats.airingSoon.textContent = formatNumber(airingSoon);
+  syncStatCards();
 }
 
 function statusLabel(item) {
@@ -1468,6 +1499,7 @@ els.filterMenu.addEventListener("click", (event) => {
     state.filter = "all";
     state.audioFilter = "all";
     state.hideRequested = false;
+    state.statFilter = "all";
     state.query = "";
     els.filter.value = state.filter;
     els.search.value = "";
@@ -1490,6 +1522,18 @@ els.filterMenu.addEventListener("click", (event) => {
   resetPage();
   setFilterOpen(false);
   renderAll();
+});
+
+els.statCards.forEach((card) => {
+  card.addEventListener("click", () => {
+    if (state.view !== "seasonal") return;
+    state.statFilter = card.dataset.statFilter || "all";
+    state.selectedId = null;
+    state.spotlightDismissed = false;
+    resetPage();
+    renderAll();
+    syncStatCards();
+  });
 });
 
 document.addEventListener("click", (event) => {
@@ -1585,4 +1629,5 @@ updateSeasonControls();
 if (els.hideRequested) {
   els.hideRequested.checked = state.hideRequested;
 }
+syncStatCards();
 loadSeason();

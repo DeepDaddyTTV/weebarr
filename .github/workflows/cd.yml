@@ -60,7 +60,7 @@ jobs:
           type=raw,value=latest,enable={{is_default_branch}}
         labels: |
           org.opencontainers.image.title=Weebarr
-          org.opencontainers.image.description=Seasonal anime discovery and request dashboard
+          org.opencontainers.image.description=Seasonal anime discovery and request dashboard for Seerr or Sonarr Direct
           org.opencontainers.image.vendor=DeepDaddyTTV
           org.opencontainers.image.licenses=GPL-3.0
 
@@ -94,7 +94,7 @@ jobs:
           type=raw,value=latest,enable={{is_default_branch}}
         labels: |
           org.opencontainers.image.title=Weebarr
-          org.opencontainers.image.description=Seasonal anime discovery and request dashboard
+          org.opencontainers.image.description=Seasonal anime discovery and request dashboard for Seerr or Sonarr Direct
           org.opencontainers.image.vendor=DeepDaddyTTV
           org.opencontainers.image.licenses=GPL-3.0
           

@@ -95,38 +95,62 @@
         </header>
 
         <section class="stats-grid" aria-label="Season stats">
-          <article class="stat-card stat-cyan" title="{{ 'Titles tracked through Weebarr this season' if page_name == 'requests' else 'Total anime surfaced for this season' }}">
+          <button
+            class="stat-card stat-cyan{{ ' stat-card-interactive' if page_name == 'seasonal' else '' }}"
+            type="button"
+            title="{{ 'Titles tracked through Weebarr this season' if page_name == 'requests' else 'Show every anime surfaced for this season' }}"
+            data-stat-filter="all"
+            aria-pressed="{{ 'true' if page_name == 'seasonal' else 'false' }}"
+          >
             <span class="stat-icon stat-icon-total" aria-hidden="true"></span>
             <div class="stat-copy">
               <span class="stat-title">{{ "Requested This Season" if page_name == "requests" else "Anime This Season" }}</span>
               <small class="stat-subcopy">{{ "Tracked by Weebarr" if page_name == "requests" else "Total shows" }}</small>
             </div>
             <strong id="statTotal">--</strong>
-          </article>
-          <article class="stat-card stat-pink" title="{{ 'Tracked titles that still need more action' if page_name == 'requests' else 'Anime that still need a request or explicit season coverage' }}">
+          </button>
+          <button
+            class="stat-card stat-pink{{ ' stat-card-interactive' if page_name == 'seasonal' else '' }}"
+            type="button"
+            title="{{ 'Tracked titles that still need more action' if page_name == 'requests' else 'Show anime that still need a request or explicit season coverage' }}"
+            data-stat-filter="needs_action"
+            aria-pressed="false"
+          >
             <span class="stat-icon stat-icon-requestable" aria-hidden="true"></span>
             <div class="stat-copy">
               <span class="stat-title">{{ "Needs Action" if page_name == "requests" or request_backend == "sonarr" else "Requestable" }}</span>
               <small class="stat-subcopy">{{ "Actionable titles" if page_name != "requests" else "Still requestable" }}</small>
             </div>
             <strong id="statRequestable">--</strong>
-          </article>
-          <article class="stat-card stat-purple" title="{% if request_backend == 'sonarr' %}Anime already tracked, partially available, or fully available in Sonarr{% else %}Anime already requested, partially available, or fully available in Seerr{% endif %}">
+          </button>
+          <button
+            class="stat-card stat-purple{{ ' stat-card-interactive' if page_name == 'seasonal' else '' }}"
+            type="button"
+            title="{% if request_backend == 'sonarr' %}Show anime already tracked, partially available, or fully available in Sonarr{% else %}Show anime already requested, partially available, or fully available in Seerr{% endif %}"
+            data-stat-filter="tracked"
+            aria-pressed="false"
+          >
             <span class="stat-icon stat-icon-requested" aria-hidden="true"></span>
             <div class="stat-copy">
               <span class="stat-title">{{ "Tracked in Sonarr" if request_backend == "sonarr" else "Already Requested" }}</span>
               <small class="stat-subcopy">{{ "In Sonarr" if request_backend == "sonarr" else "Tracked in Seerr" }}</small>
             </div>
             <strong id="statRequested">--</strong>
-          </article>
-          <article class="stat-card stat-blue" title="Anime airing within the next 7 days">
+          </button>
+          <button
+            class="stat-card stat-blue{{ ' stat-card-interactive' if page_name == 'seasonal' else '' }}"
+            type="button"
+            title="Show anime airing within the next 7 days"
+            data-stat-filter="airing_soon"
+            aria-pressed="false"
+          >
             <span class="stat-icon stat-icon-airing" aria-hidden="true"></span>
             <div class="stat-copy">
               <span class="stat-title">Airing Soon</span>
               <small class="stat-subcopy">Next 7 days</small>
             </div>
             <strong id="statAiringSoon">--</strong>
-          </article>
+          </button>
         </section>
 
         <section class="filter-panel{{ ' has-hide-toggle' if page_name == 'seasonal' else '' }}">

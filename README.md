@@ -2,7 +2,7 @@
 
 <img src="src/web/static/img/weebarr-wordmark.png" alt="Weebarr wordmark" width="520"/>
 
-**Seasonal anime discovery and request management**
+**Seasonal anime discovery and request dashboard for Seerr or Sonarr Direct**
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -105,6 +105,7 @@ The full documentation site is published from the repo `docs/` folder to GitHub 
 - [Docker Desktop on Windows](https://deepdaddyttv.github.io/weebarr/Deployment-Docker-Desktop-Windows)
 - [Docker Desktop on Linux](https://deepdaddyttv.github.io/weebarr/Deployment-Docker-Desktop-Linux)
 - [Other Deployment Options](https://deepdaddyttv.github.io/weebarr/Deployment-Other-Options)
+- [Backends](https://deepdaddyttv.github.io/weebarr/Backends)
 - [Features](https://deepdaddyttv.github.io/weebarr/Features)
 - [Settings](https://deepdaddyttv.github.io/weebarr/Settings)
 - [Theme Template](https://deepdaddyttv.github.io/weebarr/Theme-Template)

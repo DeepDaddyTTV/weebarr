@@ -116,6 +116,14 @@ pre {
   filter: drop-shadow(0 0 24px rgba(68, 215, 255, 0.18));
 }
 
+.brand-version {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--subtle);
+}
+
 .brand span,
 .eyebrow {
   font-size: 12px;

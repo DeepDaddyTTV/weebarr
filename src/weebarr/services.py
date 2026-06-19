@@ -1294,6 +1294,15 @@ class WeebarrService:
         self.cache.set(cache_key, payload, self.settings.seerr_cache_ttl_seconds)
         return payload
 
+    async def _sonarr_series_payload(self, series: dict[str, Any]) -> dict[str, Any]:
+        series_id = _coerce_int(series.get("id"))
+        if series_id is None:
+            return series
+        try:
+            return await self._sonarr_series_details(series_id)
+        except httpx.HTTPError:
+            return series
+
     async def _sonarr_root_folders(
         self, base_url: str, api_key: str
     ) -> list[dict[str, Any]]:
@@ -1447,15 +1456,34 @@ class WeebarrService:
                 overall_episode_count and overall_episode_files >= overall_episode_count
             )
             overall_has_files = overall_episode_files > 0
+            required_season_set = set(required_seasons)
+            fallback_uses_overall_stats = bool(
+                required_season_set
+                and overall_complete
+                and (not catalog_seasons or required_season_set == set(catalog_seasons))
+            )
+            fallback_has_overall_coverage = bool(
+                required_season_set
+                and overall_has_files
+                and (not catalog_seasons or required_season_set == set(catalog_seasons))
+            )
 
             if required_seasons and all(
                 season_number in available_seasons for season_number in required_seasons
             ):
                 state, label, requestable = "available", "Available", False
+            elif fallback_uses_overall_stats:
+                state, label, requestable = "available", "Available", False
             elif required_seasons and any(
                 season_number in covered_seasons or season_number in available_seasons
                 for season_number in required_seasons
             ):
+                state, label, requestable = (
+                    "partial",
+                    "Partially Available",
+                    True,
+                )
+            elif fallback_has_overall_coverage:
                 state, label, requestable = (
                     "partial",
                     "Partially Available",
@@ -1547,18 +1575,20 @@ class WeebarrService:
                     None,
                 )
                 if existing_by_tvdb is not None:
+                    matched_series = await self._sonarr_series_payload(existing_by_tvdb)
                     return self._classify_sonarr_state(
                         anime,
-                        existing_by_tvdb,
+                        matched_series,
                         max(existing_score, lookup_score, 110),
                         in_library=True,
                         lookup_match=lookup_best,
                     )
 
         if existing_best is not None and existing_score >= 45:
+            matched_series = await self._sonarr_series_payload(existing_best)
             return self._classify_sonarr_state(
                 anime,
-                existing_best,
+                matched_series,
                 existing_score,
                 in_library=True,
                 lookup_match=lookup_best if lookup_score >= 45 else None,
