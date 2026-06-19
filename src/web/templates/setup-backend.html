@@ -105,90 +105,115 @@
               <strong>Sonarr Direct Defaults</strong>
               <small>Required for the new Sonarr-native flow</small>
             </div>
-            <div class="form-grid setup-backend-grid">
-              <label>
-                <span>Sonarr Base URL</span>
-                <input id="setupSonarrBaseUrl" type="url" placeholder="http://sonarr:8989" value="{{ request_settings.sonarr.baseUrl or '' }}" />
-                <small>Use the internal container URL Weebarr can reach.</small>
-              </label>
+            <div class="setup-backend-stack">
+              <section class="setup-backend-subpanel">
+                <div class="setup-api-header">
+                  <strong>Sonarr Connection</strong>
+                  <small>Validate before choosing direct-request defaults</small>
+                </div>
+                <div class="form-grid setup-backend-grid setup-backend-connection-grid">
+                  <label class="full-width">
+                    <span>Sonarr Host</span>
+                    <div class="backend-url-row">
+                      <select id="setupSonarrScheme" class="backend-url-scheme">
+                        <option value="http">http</option>
+                        <option value="https">https</option>
+                      </select>
+                      <input id="setupSonarrHost" type="text" placeholder="sonarr" autocapitalize="none" autocomplete="url" spellcheck="false" />
+                      <input id="setupSonarrPort" class="backend-url-port" type="number" min="1" max="65535" inputmode="numeric" placeholder="8989" value="8989" />
+                    </div>
+                    <small>Scheme, host, and port build the internal Sonarr URL Weebarr can reach.</small>
+                  </label>
 
-              <label>
-                <span>API Key</span>
-                <input id="setupSonarrApiKey" type="password" placeholder="{{ 'Stored ' ~ request_settings.sonarr.apiKeyPreview if request_settings.sonarr.hasApiKey else 'Paste a Sonarr API key' }}" />
-                <small>Leave blank to keep the currently stored key.</small>
-              </label>
-            </div>
+                  <label class="full-width">
+                    <span>API Key</span>
+                    <input id="setupSonarrApiKey" type="password" placeholder="{{ 'Stored ' ~ request_settings.sonarr.apiKeyPreview if request_settings.sonarr.hasApiKey else 'Paste a Sonarr API key' }}" />
+                    <small>Leave blank to keep the currently stored key.</small>
+                  </label>
+                </div>
 
-            <div id="setupSonarrValidationNote" class="settings-note">
-              <p id="setupSonarrValidationCopy">Enter the Sonarr base URL and API key, then validate Sonarr to load the live root folders and quality profiles before continuing.</p>
-            </div>
+                <div id="setupSonarrValidationNote" class="settings-note">
+                  <p id="setupSonarrValidationCopy">Enter the Sonarr host, port, and API key, then validate Sonarr to load the live root folders and quality profiles before continuing.</p>
+                </div>
 
-            <div id="setupSonarrAdvancedFields" class="form-grid setup-backend-grid" hidden>
-              <label>
-                <span>Root Folder</span>
-                <select id="setupSonarrRootFolderPath">
-                  <option value="">Validate Sonarr first</option>
-                </select>
-                <small>Loaded from the validated Sonarr connection.</small>
-              </label>
+                <div class="setup-backend-inline-actions">
+                  <button id="setupSonarrValidateBtn" class="secondary-btn" type="button" {% if request_settings.requestBackend != 'sonarr' %}hidden{% endif %}>Validate Sonarr</button>
+                </div>
+              </section>
 
-              <label>
-                <span>Quality Profile</span>
-                <select id="setupSonarrQualityProfileId">
-                  <option value="">Validate Sonarr first</option>
-                </select>
-                <small>Loaded from the validated Sonarr connection.</small>
-              </label>
+              <section class="setup-backend-subpanel">
+                <div class="setup-api-header">
+                  <strong>Direct Request Defaults</strong>
+                  <small>Loaded from the validated Sonarr connection</small>
+                </div>
+                <div id="setupSonarrAdvancedFields" class="form-grid setup-backend-grid" hidden>
+                  <label>
+                    <span>Root Folder</span>
+                    <select id="setupSonarrRootFolderPath">
+                      <option value="">Validate Sonarr first</option>
+                    </select>
+                    <small>Loaded from the validated Sonarr connection.</small>
+                  </label>
 
-              <label>
-                <span>Series Type</span>
-                <select id="setupSonarrSeriesType">
-                  <option value="anime" {{ 'selected' if request_settings.sonarr.seriesType == 'anime' else '' }}>Anime / Absolute</option>
-                  <option value="standard" {{ 'selected' if request_settings.sonarr.seriesType == 'standard' else '' }}>Standard</option>
-                  <option value="daily" {{ 'selected' if request_settings.sonarr.seriesType == 'daily' else '' }}>Daily</option>
-                </select>
-                <small>The Sonarr series type Weebarr saves for direct adds.</small>
-              </label>
+                  <label>
+                    <span>Quality Profile</span>
+                    <select id="setupSonarrQualityProfileId">
+                      <option value="">Validate Sonarr first</option>
+                    </select>
+                    <small>Loaded from the validated Sonarr connection.</small>
+                  </label>
 
-              <label>
-                <span>Default Monitor Mode</span>
-                <select id="setupSonarrDefaultMonitorMode">
-                  <option value="all" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'all' else '' }}>All episodes</option>
-                  <option value="future" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'future' else '' }}>Future episodes</option>
-                  <option value="missing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'missing' else '' }}>Missing episodes</option>
-                  <option value="existing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'existing' else '' }}>Existing episodes</option>
-                  <option value="firstSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'firstSeason' else '' }}>First season</option>
-                  <option value="latestSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'latestSeason' else '' }}>Latest season</option>
-                  <option value="none" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'none' else '' }}>Do not monitor</option>
-                </select>
-                <small>The default monitoring mode for Sonarr Direct requests.</small>
-              </label>
+                  <label>
+                    <span>Series Type</span>
+                    <select id="setupSonarrSeriesType">
+                      <option value="anime" {{ 'selected' if request_settings.sonarr.seriesType == 'anime' else '' }}>Anime / Absolute</option>
+                      <option value="standard" {{ 'selected' if request_settings.sonarr.seriesType == 'standard' else '' }}>Standard</option>
+                      <option value="daily" {{ 'selected' if request_settings.sonarr.seriesType == 'daily' else '' }}>Daily</option>
+                    </select>
+                    <small>The Sonarr series type Weebarr saves for direct adds.</small>
+                  </label>
 
-              <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
-                <span class="settings-plain-toggle-title">Search On Add</span>
-                <label class="toggle-switch" for="setupSonarrDefaultSearchOnAdd" aria-label="Search in Sonarr after add">
-                  <input id="setupSonarrDefaultSearchOnAdd" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSearchOnAdd else '' }} />
-                  <i aria-hidden="true"></i>
-                </label>
-                <small>Trigger Sonarr to search immediately after Weebarr adds or updates a title.</small>
-              </div>
+                  <label>
+                    <span>Default Monitor Mode</span>
+                    <select id="setupSonarrDefaultMonitorMode">
+                      <option value="all" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'all' else '' }}>All episodes</option>
+                      <option value="future" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'future' else '' }}>Future episodes</option>
+                      <option value="missing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'missing' else '' }}>Missing episodes</option>
+                      <option value="existing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'existing' else '' }}>Existing episodes</option>
+                      <option value="firstSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'firstSeason' else '' }}>First season</option>
+                      <option value="latestSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'latestSeason' else '' }}>Latest season</option>
+                      <option value="none" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'none' else '' }}>Do not monitor</option>
+                    </select>
+                    <small>The default monitoring mode for Sonarr Direct requests.</small>
+                  </label>
 
-              <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
-                <span class="settings-plain-toggle-title">Season Folder</span>
-                <label class="toggle-switch" for="setupSonarrDefaultSeasonFolder" aria-label="Use Sonarr season folders">
-                  <input id="setupSonarrDefaultSeasonFolder" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSeasonFolder else '' }} />
-                  <i aria-hidden="true"></i>
-                </label>
-                <small>Use season folders by default for Sonarr Direct adds and updates.</small>
-              </div>
+                  <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
+                    <span class="settings-plain-toggle-title">Search On Add</span>
+                    <label class="toggle-switch" for="setupSonarrDefaultSearchOnAdd" aria-label="Search in Sonarr after add">
+                      <input id="setupSonarrDefaultSearchOnAdd" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSearchOnAdd else '' }} />
+                      <i aria-hidden="true"></i>
+                    </label>
+                    <small>Trigger Sonarr to search immediately after Weebarr adds or updates a title.</small>
+                  </div>
 
-              <label class="full-width">
-                <span>Language Profile</span>
-                <select id="setupSonarrLanguageProfileId">
-                  <option value="">Use Sonarr default</option>
-                </select>
-                <small>Optional. Only needed if your Sonarr instance still exposes language profiles.</small>
-              </label>
+                  <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
+                    <span class="settings-plain-toggle-title">Season Folder</span>
+                    <label class="toggle-switch" for="setupSonarrDefaultSeasonFolder" aria-label="Use Sonarr season folders">
+                      <input id="setupSonarrDefaultSeasonFolder" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSeasonFolder else '' }} />
+                      <i aria-hidden="true"></i>
+                    </label>
+                    <small>Use season folders by default for Sonarr Direct adds and updates.</small>
+                  </div>
+
+                  <label class="full-width">
+                    <span>Language Profile</span>
+                    <select id="setupSonarrLanguageProfileId">
+                      <option value="">Use Sonarr default</option>
+                    </select>
+                    <small>Optional. Only needed if your Sonarr instance still exposes language profiles.</small>
+                  </label>
+                </div>
+              </section>
             </div>
           </section>
 
@@ -225,7 +250,7 @@
             <button id="setupBackendBackBtn" class="secondary-btn" type="button">Back</button>
             <div class="setup-backend-actions-group">
               <button id="setupBackendSkipConfigBtn" class="secondary-btn" type="button">Skip Setup</button>
-              <button id="setupBackendTestBtn" class="secondary-btn" type="button">Test Connection</button>
+              <button id="setupBackendTestBtn" class="secondary-btn" type="button" {% if request_settings.requestBackend == 'sonarr' %}hidden{% endif %}>Test Seerr</button>
               <button id="setupBackendSaveBtn" class="refresh-btn auth-submit" type="submit">Save and Continue</button>
             </div>
           </div>

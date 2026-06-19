@@ -1134,6 +1134,7 @@ body[data-page="setup"] {
   min-height: 104px;
   padding: 18px;
   text-align: left;
+  border: 1px solid var(--line);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.035);
 }
@@ -1154,6 +1155,12 @@ body[data-page="setup"] {
   border-color: rgba(40, 199, 255, 0.58);
   box-shadow: 0 0 24px rgba(40, 199, 255, 0.12);
   background: linear-gradient(145deg, rgba(40, 199, 255, 0.12), rgba(180, 102, 255, 0.08) 52%, rgba(255, 60, 125, 0.12));
+}
+
+.setup-mode.active::before,
+.setup-mode.active:hover::before,
+.setup-mode.active:focus-visible::before {
+  opacity: 0 !important;
 }
 
 .setup-form[hidden],
@@ -1185,8 +1192,53 @@ body[data-page="setup"] {
   gap: 16px;
 }
 
+.setup-backend-stack,
+.request-backend-panel-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.setup-backend-subpanel,
+.request-backend-subpanel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(126, 191, 229, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
 .setup-backend-grid {
   margin-top: 4px;
+}
+
+.setup-backend-inline-actions,
+.request-backend-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.backend-url-row {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr) 104px;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.backend-url-scheme,
+.backend-url-scheme-select {
+  min-width: 0;
+}
+
+.backend-url-scheme {
+  width: 100%;
+}
+
+.backend-url-port {
+  width: 100%;
+  min-width: 0;
 }
 
 .setup-backend-actions {
@@ -3903,6 +3955,10 @@ body[data-theme-palette="monochrome"] .rank-chip {
   gap: 16px;
 }
 
+.request-backend-connection-grid .backend-url-row .ui-select-trigger {
+  min-height: 42px;
+}
+
 .theme-import-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -4676,7 +4732,8 @@ body[data-theme-palette="monochrome"] .rank-chip {
 
   .theme-import-row,
   .theme-import-row-upload,
-  .automation-schedule-grid {
+  .automation-schedule-grid,
+  .backend-url-row {
     grid-template-columns: 1fr;
   }
 

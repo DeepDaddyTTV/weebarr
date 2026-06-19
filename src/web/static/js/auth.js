@@ -14,9 +14,6 @@ const authEls = {
   setupUsername: document.querySelector("#setupUsername"),
   setupPassword: document.querySelector("#setupPassword"),
   setupConfirmPassword: document.querySelector("#setupConfirmPassword"),
-  setupSuccess: document.querySelector("#setupSuccess"),
-  setupContinueBtn: document.querySelector("#setupContinueBtn"),
-  setupSuccessCopy: document.querySelector("#setupSuccessCopy"),
   setupPlexPanel: document.querySelector("#setupPlexPanel"),
   setupPlexBtn: document.querySelector("#setupPlexBtn"),
   setupModeButtons: Array.from(document.querySelectorAll("[data-setup-mode]")),
@@ -111,27 +108,7 @@ async function submitSetup(event) {
   }
 
   const payload = await response.json();
-  if (authEls.setupForm) authEls.setupForm.hidden = true;
-  if (authEls.setupSuccess) authEls.setupSuccess.hidden = false;
-  const redirectTo = payload.redirectTo || "/login";
-  const continuesToBackend = redirectTo.startsWith("/setup/backend");
-  if (authEls.setupSuccessCopy) {
-    authEls.setupSuccessCopy.textContent =
-      continuesToBackend
-        ? "The admin account is ready. Continue to request-backend setup."
-        : "The admin account is ready. Continue to the sign-in screen.";
-  }
-  if (authEls.setupContinueBtn) {
-    authEls.setupContinueBtn.textContent = continuesToBackend
-      ? "Continue to Request Backend"
-      : "Continue";
-  }
-  authEls.setupContinueBtn.dataset.redirectTo = redirectTo;
-}
-
-function continueAfterSetup() {
-  const redirectTo = authEls.setupContinueBtn.dataset.redirectTo || "/login";
-  window.location.assign(redirectTo);
+  window.location.assign(payload.redirectTo || "/login");
 }
 
 if (authEls.localLoginForm) {
@@ -165,8 +142,4 @@ if (authEls.setupModeButtons.length) {
     });
   });
   setSetupMode(authState.setupMode);
-}
-
-if (authEls.setupContinueBtn) {
-  authEls.setupContinueBtn.addEventListener("click", continueAfterSetup);
 }

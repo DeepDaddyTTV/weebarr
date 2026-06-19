@@ -113,7 +113,7 @@ Complete the first-run setup. You can choose:
 
 Then continue to the request-backend step after auth, choose either `Seerr` or `Sonarr Direct`, and either save that backend or use `Skip Setup` if you want to finish it later in **Settings**.
 
-If you choose `Sonarr Direct`, validate the Sonarr URL and API key first so Weebarr can load the live folder and profile dropdowns before you save.
+If you choose `Sonarr Direct`, choose `http` or `https`, enter the Sonarr host and port (default `8989`), then validate the API key so Weebarr can load the live folder and profile dropdowns before you save.
 
 ## Important Windows Notes
 

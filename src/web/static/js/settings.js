@@ -6,12 +6,16 @@ const state = {
   openDropdown: null,
   activeTab: "weebarr",
   sonarrValidated: false,
+  sonarrBaseUrlSuffix: "",
   sonarrOptions: {
     rootFolders: [],
     qualityProfiles: [],
     languageProfiles: [],
   },
 };
+
+const DEFAULT_SONARR_SCHEME = "http";
+const DEFAULT_SONARR_PORT = "8989";
 
 const validSettingsTabs = new Set([
   "weebarr",
@@ -100,7 +104,9 @@ const els = {
   languageProfileId: document.querySelector("#settingsLanguageProfileId"),
   requestUserId: document.querySelector("#settingsRequestUserId"),
   tags: document.querySelector("#settingsTags"),
-  sonarrBaseUrl: document.querySelector("#sonarrBaseUrl"),
+  sonarrScheme: document.querySelector("#sonarrScheme"),
+  sonarrHost: document.querySelector("#sonarrHost"),
+  sonarrPort: document.querySelector("#sonarrPort"),
   sonarrApiKey: document.querySelector("#sonarrApiKey"),
   sonarrRootFolderPath: document.querySelector("#sonarrRootFolderPath"),
   sonarrQualityProfileId: document.querySelector("#sonarrQualityProfileId"),
@@ -110,6 +116,7 @@ const els = {
   sonarrDefaultSeasonFolder: document.querySelector("#sonarrDefaultSeasonFolder"),
   sonarrLanguageProfileId: document.querySelector("#sonarrLanguageProfileId"),
   sonarrTags: document.querySelector("#sonarrTags"),
+  sonarrValidateButton: document.querySelector("#sonarrValidateBtn"),
   localAccountUsername: document.querySelector("#localAccountUsername"),
   localAccountPassword: document.querySelector("#localAccountPassword"),
   localAccountConfirmPassword: document.querySelector(
@@ -195,6 +202,77 @@ function clearBanner(element) {
 function parseOptionalInt(value) {
   if (!value || !String(value).trim()) return null;
   return Number(value);
+}
+
+function normalizeUrlSuffix(value = "") {
+  if (!value || value === "/") {
+    return "";
+  }
+  return value;
+}
+
+function splitBaseUrl(baseUrl) {
+  const fallback = {
+    scheme: DEFAULT_SONARR_SCHEME,
+    host: "",
+    port: DEFAULT_SONARR_PORT,
+    suffix: "",
+  };
+  if (!baseUrl || !String(baseUrl).trim()) {
+    return fallback;
+  }
+  const raw = String(baseUrl).trim();
+  try {
+    const parsed = new URL(
+      raw.includes("://") ? raw : `${DEFAULT_SONARR_SCHEME}://${raw}`,
+    );
+    return {
+      scheme: parsed.protocol.replace(":", "") || DEFAULT_SONARR_SCHEME,
+      host: parsed.hostname || "",
+      port: parsed.port || DEFAULT_SONARR_PORT,
+      suffix: normalizeUrlSuffix(
+        `${parsed.pathname || ""}${parsed.search || ""}${parsed.hash || ""}`,
+      ),
+    };
+  } catch {
+    const match = raw.match(/^(https?):\/\/([^/:?#]+)(?::(\d+))?(.*)?$/i);
+    if (!match) {
+      return { ...fallback, host: raw.replace(/\/+$/, "") };
+    }
+    return {
+      scheme: match[1]?.toLowerCase() || DEFAULT_SONARR_SCHEME,
+      host: match[2] || "",
+      port: match[3] || DEFAULT_SONARR_PORT,
+      suffix: normalizeUrlSuffix(match[4] || ""),
+    };
+  }
+}
+
+function composeSonarrBaseUrl() {
+  const host = els.sonarrHost?.value.trim() || "";
+  if (!host) {
+    return "";
+  }
+  const scheme =
+    els.sonarrScheme?.value === "https" ? "https" : DEFAULT_SONARR_SCHEME;
+  const port = els.sonarrPort?.value.trim() || DEFAULT_SONARR_PORT;
+  const suffix = normalizeUrlSuffix(state.sonarrBaseUrlSuffix);
+  return `${scheme}://${host}:${port}${suffix}`.replace(/\/$/, "");
+}
+
+function populateSonarrBaseUrlFields(baseUrl) {
+  const parts = splitBaseUrl(baseUrl);
+  state.sonarrBaseUrlSuffix = parts.suffix;
+  if (els.sonarrScheme) {
+    els.sonarrScheme.value = parts.scheme;
+  }
+  if (els.sonarrHost && !document.activeElement?.isSameNode(els.sonarrHost)) {
+    els.sonarrHost.value = parts.host;
+  }
+  if (els.sonarrPort && !document.activeElement?.isSameNode(els.sonarrPort)) {
+    els.sonarrPort.value = parts.port || DEFAULT_SONARR_PORT;
+  }
+  syncCustomSelects(["sonarrScheme"]);
 }
 
 function parseTags(value) {
@@ -294,14 +372,17 @@ function renderSonarrValidationUi() {
   if (els.sonarrValidationCopy) {
     els.sonarrValidationCopy.textContent = state.sonarrValidated
       ? "Sonarr validated successfully. Review the live folders and profiles below, then save the backend settings."
-      : "Enter the Sonarr base URL and API key, then validate Sonarr to load the live folders and profiles before saving backend settings.";
+      : "Enter the Sonarr host, port, and API key, then validate Sonarr to load the live folders and profiles before saving backend settings.";
+  }
+  if (els.sonarrValidateButton) {
+    els.sonarrValidateButton.hidden = !sonarrActive;
+    els.sonarrValidateButton.textContent = state.sonarrValidated
+      ? "Reload Sonarr Options"
+      : "Validate Sonarr";
   }
   if (els.testButton) {
-    els.testButton.textContent = sonarrActive
-      ? state.sonarrValidated
-        ? "Reload Sonarr Options"
-        : "Validate Sonarr"
-      : "Test Seerr";
+    els.testButton.hidden = sonarrActive;
+    els.testButton.textContent = "Test Seerr";
   }
 }
 
@@ -825,9 +906,7 @@ function updateConnection(summary) {
       : "Paste a Seerr API key";
   }
 
-  if (els.sonarrBaseUrl && !document.activeElement?.isSameNode(els.sonarrBaseUrl)) {
-    els.sonarrBaseUrl.value = sonarr.baseUrl || "";
-  }
+  populateSonarrBaseUrlFields(sonarr.baseUrl || "");
   if (els.sonarrApiKey) {
     els.sonarrApiKey.placeholder = sonarr.hasApiKey
       ? `Stored ${sonarr.apiKeyPreview} (leave blank to keep)`
@@ -888,6 +967,7 @@ function updateConnection(summary) {
     "settingsRequestBackend",
     "settingsRequestSeasons",
     "settingsSeriesType",
+    "sonarrScheme",
     "sonarrRootFolderPath",
     "sonarrQualityProfileId",
     "sonarrSeriesType",
@@ -1037,7 +1117,7 @@ function seerrConnectionPayload() {
 
 function sonarrConnectionPayload() {
   return {
-    baseUrl: els.sonarrBaseUrl.value.trim(),
+    baseUrl: composeSonarrBaseUrl(),
     rootFolderPath: els.sonarrRootFolderPath.value.trim() || null,
     qualityProfileId: parseOptionalInt(els.sonarrQualityProfileId.value),
     seriesType: els.sonarrSeriesType?.value || "anime",
@@ -1230,7 +1310,9 @@ async function testConnection() {
   if (!baseUrl) {
     showBanner(
       els.connectionBanner,
-      `Add a ${activeRequestBackendName()} base URL before testing the connection.`,
+      sonarrActive
+        ? "Add the Sonarr host before testing the connection."
+        : `Add a ${activeRequestBackendName()} base URL before testing the connection.`,
       "warn",
     );
     return;
@@ -1543,21 +1625,32 @@ if (els.requestBackend) {
   });
 }
 
-if (els.sonarrBaseUrl) {
+[
+  els.sonarrScheme,
+  els.sonarrHost,
+  els.sonarrPort,
+  els.sonarrApiKey,
+].forEach((element) => {
+  if (!element) return;
   ["input", "change"].forEach((eventName) => {
-    els.sonarrBaseUrl.addEventListener(eventName, () => {
+    element.addEventListener(eventName, () => {
       resetSonarrValidation();
       clearBanner(els.connectionBanner);
     });
   });
-}
+});
 
-if (els.sonarrApiKey) {
-  ["input", "change"].forEach((eventName) => {
-    els.sonarrApiKey.addEventListener(eventName, () => {
-      resetSonarrValidation();
-      clearBanner(els.connectionBanner);
-    });
+if (els.sonarrValidateButton) {
+  els.sonarrValidateButton.addEventListener("click", async () => {
+    try {
+      await testConnection();
+    } catch (error) {
+      showBanner(
+        els.connectionBanner,
+        `Connection test failed. ${error.message}`,
+        "error",
+      );
+    }
   });
 }
 

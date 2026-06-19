@@ -85,7 +85,7 @@
         <header class="page-header">
           <div class="top-copy">
             <h1>Settings</h1>
-            <p>Configure Weebarr behavior, authentication, and Seerr in one place without leaving the dashboard shell.</p>
+            <p>Configure Weebarr behavior, authentication, and request backends in one place without leaving the dashboard shell.</p>
           </div>
         </header>
 
@@ -634,131 +634,163 @@
                       <h3>Sonarr Direct Settings</h3>
                       <p>These saved defaults are used when Weebarr adds or updates anime directly in Sonarr.</p>
                     </div>
-                    <div class="form-grid connection-form-grid">
-                      <label>
-                        <span>Sonarr Base URL</span>
-                        <input id="sonarrBaseUrl" name="sonarrBaseUrl" type="url" placeholder="http://sonarr:8989" value="{{ request_settings.sonarr.baseUrl or '' }}" />
-                        <small>Use the internal container URL Weebarr can actually reach.</small>
-                      </label>
-
-                      <label>
-                        <span>API Key</span>
-                        <input id="sonarrApiKey" name="sonarrApiKey" type="password" placeholder="{{ 'Stored ' ~ request_settings.sonarr.apiKeyPreview if request_settings.sonarr.hasApiKey else 'Paste a Sonarr API key' }}" />
-                        <small>Leave blank to keep the currently stored key.</small>
-                      </label>
-                    </div>
-
-                    <div id="sonarrSettingsValidationNote" class="settings-note">
-                      <p id="sonarrSettingsValidationCopy">Enter the Sonarr base URL and API key, then validate Sonarr to load the live folders and profiles before saving backend settings.</p>
-                    </div>
-
-                    <div id="sonarrSettingsAdvancedFields" class="form-grid connection-form-grid" hidden>
-                      <label>
-                        <span>Root Folder</span>
-                        <div class="ui-select" data-ui-select="sonarrRootFolderPath">
-                          <select id="sonarrRootFolderPath" name="sonarrRootFolderPath">
-                            <option value="">Validate Sonarr first</option>
-                          </select>
-                          <button id="sonarrRootFolderPathTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrRootFolderPathMenu">
-                            <span class="ui-select-value"></span>
-                            <i class="ui-select-chevron" aria-hidden="true"></i>
-                          </button>
-                          <div id="sonarrRootFolderPathMenu" class="ui-select-menu" role="listbox" hidden></div>
+                    <div class="request-backend-panel-stack">
+                      <section class="request-backend-subpanel">
+                        <div class="settings-subheading">
+                          <h3>Sonarr Connection</h3>
+                          <p>Validate this first so Weebarr can load the live folders and profiles from Sonarr itself.</p>
                         </div>
-                        <small>Loaded from the validated Sonarr connection.</small>
-                      </label>
+                        <div class="form-grid connection-form-grid request-backend-connection-grid">
+                          <label class="full-width">
+                            <span>Sonarr Host</span>
+                            <div class="backend-url-row">
+                              <div class="ui-select backend-url-scheme-select" data-ui-select="sonarrScheme">
+                                <select id="sonarrScheme" name="sonarrScheme">
+                                  <option value="http">http</option>
+                                  <option value="https">https</option>
+                                </select>
+                                <button id="sonarrSchemeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrSchemeMenu">
+                                  <span class="ui-select-value"></span>
+                                  <i class="ui-select-chevron" aria-hidden="true"></i>
+                                </button>
+                                <div id="sonarrSchemeMenu" class="ui-select-menu" role="listbox" hidden></div>
+                              </div>
+                              <input id="sonarrHost" name="sonarrHost" type="text" placeholder="sonarr" autocapitalize="none" autocomplete="url" spellcheck="false" />
+                              <input id="sonarrPort" class="backend-url-port" name="sonarrPort" type="number" min="1" max="65535" inputmode="numeric" placeholder="8989" value="8989" />
+                            </div>
+                            <small>Scheme, host, and port build the internal Sonarr URL Weebarr can actually reach.</small>
+                          </label>
 
-                      <label>
-                        <span>Quality Profile</span>
-                        <div class="ui-select" data-ui-select="sonarrQualityProfileId">
-                          <select id="sonarrQualityProfileId" name="sonarrQualityProfileId">
-                            <option value="">Validate Sonarr first</option>
-                          </select>
-                          <button id="sonarrQualityProfileIdTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrQualityProfileIdMenu">
-                            <span class="ui-select-value"></span>
-                            <i class="ui-select-chevron" aria-hidden="true"></i>
-                          </button>
-                          <div id="sonarrQualityProfileIdMenu" class="ui-select-menu" role="listbox" hidden></div>
+                          <label class="full-width">
+                            <span>API Key</span>
+                            <input id="sonarrApiKey" name="sonarrApiKey" type="password" placeholder="{{ 'Stored ' ~ request_settings.sonarr.apiKeyPreview if request_settings.sonarr.hasApiKey else 'Paste a Sonarr API key' }}" />
+                            <small>Leave blank to keep the currently stored key.</small>
+                          </label>
                         </div>
-                        <small>Loaded from the validated Sonarr connection.</small>
-                      </label>
 
-                      <label>
-                        <span>Series Type</span>
-                        <div class="ui-select" data-ui-select="sonarrSeriesType">
-                          <select id="sonarrSeriesType" name="sonarrSeriesType">
-                            <option value="anime" {{ 'selected' if request_settings.sonarr.seriesType == 'anime' else '' }}>Anime / Absolute</option>
-                            <option value="standard" {{ 'selected' if request_settings.sonarr.seriesType == 'standard' else '' }}>Standard</option>
-                            <option value="daily" {{ 'selected' if request_settings.sonarr.seriesType == 'daily' else '' }}>Daily</option>
-                          </select>
-                          <button id="sonarrSeriesTypeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrSeriesTypeMenu">
-                            <span class="ui-select-value"></span>
-                            <i class="ui-select-chevron" aria-hidden="true"></i>
-                          </button>
-                          <div id="sonarrSeriesTypeMenu" class="ui-select-menu" role="listbox" hidden></div>
+                        <div id="sonarrSettingsValidationNote" class="settings-note">
+                          <p id="sonarrSettingsValidationCopy">Enter the Sonarr host, port, and API key, then validate Sonarr to load the live folders and profiles before saving backend settings.</p>
                         </div>
-                        <small>The Sonarr series type saved for direct adds.</small>
-                      </label>
 
-                      <label>
-                        <span>Default Monitor Mode</span>
-                        <div class="ui-select" data-ui-select="sonarrDefaultMonitorMode">
-                          <select id="sonarrDefaultMonitorMode" name="sonarrDefaultMonitorMode">
-                            <option value="all" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'all' else '' }}>All episodes</option>
-                            <option value="future" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'future' else '' }}>Future episodes</option>
-                            <option value="missing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'missing' else '' }}>Missing episodes</option>
-                            <option value="existing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'existing' else '' }}>Existing episodes</option>
-                            <option value="firstSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'firstSeason' else '' }}>First season</option>
-                            <option value="latestSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'latestSeason' else '' }}>Latest season</option>
-                            <option value="none" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'none' else '' }}>Do not monitor</option>
-                          </select>
-                          <button id="sonarrDefaultMonitorModeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrDefaultMonitorModeMenu">
-                            <span class="ui-select-value"></span>
-                            <i class="ui-select-chevron" aria-hidden="true"></i>
-                          </button>
-                          <div id="sonarrDefaultMonitorModeMenu" class="ui-select-menu" role="listbox" hidden></div>
+                        <div class="settings-actions-inline request-backend-inline-actions">
+                          <button id="sonarrValidateBtn" class="secondary-btn" type="button" {% if request_settings.requestBackend != 'sonarr' %}hidden{% endif %}>Validate Sonarr</button>
                         </div>
-                        <small>The default monitoring mode Weebarr uses for Sonarr Direct requests.</small>
-                      </label>
+                      </section>
 
-                      <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
-                        <span class="settings-plain-toggle-title">Search On Add</span>
-                        <label class="toggle-switch" for="sonarrDefaultSearchOnAdd" aria-label="Search in Sonarr after add">
-                          <input id="sonarrDefaultSearchOnAdd" name="sonarrDefaultSearchOnAdd" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSearchOnAdd else '' }} />
-                          <i aria-hidden="true"></i>
-                        </label>
-                        <small>Trigger Sonarr to search immediately after Weebarr adds or updates a title.</small>
-                      </div>
-
-                      <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
-                        <span class="settings-plain-toggle-title">Season Folder</span>
-                        <label class="toggle-switch" for="sonarrDefaultSeasonFolder" aria-label="Use season folders in Sonarr">
-                          <input id="sonarrDefaultSeasonFolder" name="sonarrDefaultSeasonFolder" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSeasonFolder else '' }} />
-                          <i aria-hidden="true"></i>
-                        </label>
-                        <small>Use Sonarr season folders by default for direct adds and updates.</small>
-                      </div>
-
-                      <label>
-                        <span>Language Profile</span>
-                        <div class="ui-select" data-ui-select="sonarrLanguageProfileId">
-                          <select id="sonarrLanguageProfileId" name="sonarrLanguageProfileId">
-                            <option value="">Use Sonarr default</option>
-                          </select>
-                          <button id="sonarrLanguageProfileIdTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrLanguageProfileIdMenu">
-                            <span class="ui-select-value"></span>
-                            <i class="ui-select-chevron" aria-hidden="true"></i>
-                          </button>
-                          <div id="sonarrLanguageProfileIdMenu" class="ui-select-menu" role="listbox" hidden></div>
+                      <section class="request-backend-subpanel">
+                        <div class="settings-subheading">
+                          <h3>Direct Request Defaults</h3>
+                          <p>These values come from the validated Sonarr connection and are saved for Sonarr Direct requests.</p>
                         </div>
-                        <small>Optional. Only needed if your Sonarr instance still depends on language profiles.</small>
-                      </label>
+                        <div id="sonarrSettingsAdvancedFields" class="form-grid connection-form-grid" hidden>
+                          <label>
+                            <span>Root Folder</span>
+                            <div class="ui-select" data-ui-select="sonarrRootFolderPath">
+                              <select id="sonarrRootFolderPath" name="sonarrRootFolderPath">
+                                <option value="">Validate Sonarr first</option>
+                              </select>
+                              <button id="sonarrRootFolderPathTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrRootFolderPathMenu">
+                                <span class="ui-select-value"></span>
+                                <i class="ui-select-chevron" aria-hidden="true"></i>
+                              </button>
+                              <div id="sonarrRootFolderPathMenu" class="ui-select-menu" role="listbox" hidden></div>
+                            </div>
+                            <small>Loaded from the validated Sonarr connection.</small>
+                          </label>
 
-                      <label class="full-width">
-                        <span>Tag IDs</span>
-                        <input id="sonarrTags" name="sonarrTags" type="text" placeholder="12, 34, 56" value="{{ request_settings.sonarr.tags | join(', ') if request_settings.sonarr.tags else '' }}" />
-                        <small>Optional comma-separated Sonarr tag IDs to attach to direct adds.</small>
-                      </label>
+                          <label>
+                            <span>Quality Profile</span>
+                            <div class="ui-select" data-ui-select="sonarrQualityProfileId">
+                              <select id="sonarrQualityProfileId" name="sonarrQualityProfileId">
+                                <option value="">Validate Sonarr first</option>
+                              </select>
+                              <button id="sonarrQualityProfileIdTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrQualityProfileIdMenu">
+                                <span class="ui-select-value"></span>
+                                <i class="ui-select-chevron" aria-hidden="true"></i>
+                              </button>
+                              <div id="sonarrQualityProfileIdMenu" class="ui-select-menu" role="listbox" hidden></div>
+                            </div>
+                            <small>Loaded from the validated Sonarr connection.</small>
+                          </label>
+
+                          <label>
+                            <span>Series Type</span>
+                            <div class="ui-select" data-ui-select="sonarrSeriesType">
+                              <select id="sonarrSeriesType" name="sonarrSeriesType">
+                                <option value="anime" {{ 'selected' if request_settings.sonarr.seriesType == 'anime' else '' }}>Anime / Absolute</option>
+                                <option value="standard" {{ 'selected' if request_settings.sonarr.seriesType == 'standard' else '' }}>Standard</option>
+                                <option value="daily" {{ 'selected' if request_settings.sonarr.seriesType == 'daily' else '' }}>Daily</option>
+                              </select>
+                              <button id="sonarrSeriesTypeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrSeriesTypeMenu">
+                                <span class="ui-select-value"></span>
+                                <i class="ui-select-chevron" aria-hidden="true"></i>
+                              </button>
+                              <div id="sonarrSeriesTypeMenu" class="ui-select-menu" role="listbox" hidden></div>
+                            </div>
+                            <small>The Sonarr series type saved for direct adds.</small>
+                          </label>
+
+                          <label>
+                            <span>Default Monitor Mode</span>
+                            <div class="ui-select" data-ui-select="sonarrDefaultMonitorMode">
+                              <select id="sonarrDefaultMonitorMode" name="sonarrDefaultMonitorMode">
+                                <option value="all" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'all' else '' }}>All episodes</option>
+                                <option value="future" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'future' else '' }}>Future episodes</option>
+                                <option value="missing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'missing' else '' }}>Missing episodes</option>
+                                <option value="existing" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'existing' else '' }}>Existing episodes</option>
+                                <option value="firstSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'firstSeason' else '' }}>First season</option>
+                                <option value="latestSeason" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'latestSeason' else '' }}>Latest season</option>
+                                <option value="none" {{ 'selected' if request_settings.sonarr.defaultMonitorMode == 'none' else '' }}>Do not monitor</option>
+                              </select>
+                              <button id="sonarrDefaultMonitorModeTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrDefaultMonitorModeMenu">
+                                <span class="ui-select-value"></span>
+                                <i class="ui-select-chevron" aria-hidden="true"></i>
+                              </button>
+                              <div id="sonarrDefaultMonitorModeMenu" class="ui-select-menu" role="listbox" hidden></div>
+                            </div>
+                            <small>The default monitoring mode Weebarr uses for Sonarr Direct requests.</small>
+                          </label>
+
+                          <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
+                            <span class="settings-plain-toggle-title">Search On Add</span>
+                            <label class="toggle-switch" for="sonarrDefaultSearchOnAdd" aria-label="Search in Sonarr after add">
+                              <input id="sonarrDefaultSearchOnAdd" name="sonarrDefaultSearchOnAdd" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSearchOnAdd else '' }} />
+                              <i aria-hidden="true"></i>
+                            </label>
+                            <small>Trigger Sonarr to search immediately after Weebarr adds or updates a title.</small>
+                          </div>
+
+                          <div class="full-width settings-plain-toggle settings-plain-toggle-connection">
+                            <span class="settings-plain-toggle-title">Season Folder</span>
+                            <label class="toggle-switch" for="sonarrDefaultSeasonFolder" aria-label="Use season folders in Sonarr">
+                              <input id="sonarrDefaultSeasonFolder" name="sonarrDefaultSeasonFolder" type="checkbox" {{ 'checked' if request_settings.sonarr.defaultSeasonFolder else '' }} />
+                              <i aria-hidden="true"></i>
+                            </label>
+                            <small>Use Sonarr season folders by default for direct adds and updates.</small>
+                          </div>
+
+                          <label>
+                            <span>Language Profile</span>
+                            <div class="ui-select" data-ui-select="sonarrLanguageProfileId">
+                              <select id="sonarrLanguageProfileId" name="sonarrLanguageProfileId">
+                                <option value="">Use Sonarr default</option>
+                              </select>
+                              <button id="sonarrLanguageProfileIdTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="sonarrLanguageProfileIdMenu">
+                                <span class="ui-select-value"></span>
+                                <i class="ui-select-chevron" aria-hidden="true"></i>
+                              </button>
+                              <div id="sonarrLanguageProfileIdMenu" class="ui-select-menu" role="listbox" hidden></div>
+                            </div>
+                            <small>Optional. Only needed if your Sonarr instance still depends on language profiles.</small>
+                          </label>
+
+                          <label class="full-width">
+                            <span>Tag IDs</span>
+                            <input id="sonarrTags" name="sonarrTags" type="text" placeholder="12, 34, 56" value="{{ request_settings.sonarr.tags | join(', ') if request_settings.sonarr.tags else '' }}" />
+                            <small>Optional comma-separated Sonarr tag IDs to attach to direct adds.</small>
+                          </label>
+                        </div>
+                      </section>
                     </div>
                   </div>
                 </div>
@@ -832,7 +864,7 @@
               </div>
 
               <div class="settings-actions">
-                <button id="testConnectionBtn" class="secondary-btn" type="button">Test Backend</button>
+                <button id="testConnectionBtn" class="secondary-btn" type="button" {% if request_settings.requestBackend == 'sonarr' %}hidden{% endif %}>Test Seerr</button>
                 <button id="saveConnectionBtn" class="refresh-btn" type="submit">Save Backend</button>
               </div>
             </form>

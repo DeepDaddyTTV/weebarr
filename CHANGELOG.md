@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.59] - 2026-06-19
+
+### Fixed
+
+- Removed the extra post-account-created pause in first-run auth so setup now redirects straight into request-backend onboarding instead of stopping on an unnecessary intermediate state.
+- Reworked Sonarr Direct onboarding and Settings into a split connection/defaults layout with `http` or `https`, host, and port fields plus a local `Validate Sonarr` action, and removed the duplicate neon ring from the selected backend choice cards.
+
 ## [0.1.57] - 2026-06-16
 
 ### Fixed

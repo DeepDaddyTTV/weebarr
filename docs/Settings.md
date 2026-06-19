@@ -248,10 +248,15 @@ Use these only if your normal Seerr defaults are not giving you the result you w
 
 Choose `Sonarr Direct` if you want Weebarr to add or update anime directly in Sonarr.
 
-Required Sonarr Direct fields:
+The Sonarr connection block now collects:
 
-- **Sonarr Base URL**
+- **Scheme** (`http` or `https`)
+- **Sonarr Host**
+- **Port** (defaults to `8989`)
 - **API Key**
+
+After validation, Weebarr unlocks the required direct-request defaults:
+
 - **Root Folder**
 - **Quality Profile**
 - **Series Type**
@@ -264,7 +269,7 @@ Saved Sonarr Direct defaults also include:
 - optional Language Profile
 - optional Tag IDs
 
-In both first-run setup and **Settings**, Weebarr only shows the Sonarr advanced fields after you validate the Sonarr Base URL and API Key.
+In both first-run setup and **Settings**, Weebarr only shows the Sonarr advanced fields after you validate the Sonarr connection block.
 
 That validation loads the live Sonarr options for:
 
@@ -272,7 +277,7 @@ That validation loads the live Sonarr options for:
 - Quality Profile
 - optional Language Profile
 
-If you change the Sonarr URL or API key, Weebarr hides those advanced fields again until you revalidate.
+If you change the Sonarr scheme, host, port, or API key, Weebarr hides those advanced fields again until you revalidate.
 
 ### Backend Behavior Notes
 

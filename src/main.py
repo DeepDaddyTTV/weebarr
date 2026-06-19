@@ -419,7 +419,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if settings_now.active_request_backend == "sonarr":
             missing: list[str] = []
             if not settings_now.sonarr_base_url:
-                missing.append("Sonarr Base URL")
+                missing.append("Sonarr Host")
             if not settings_now.sonarr_api_key:
                 missing.append("API Key")
             if not settings_now.sonarr_root_folder_path:
@@ -1537,7 +1537,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if not base_url or not api_key:
                 raise HTTPException(
                     status_code=400,
-                    detail="Base URL and API key are required to test Sonarr Direct.",
+                    detail="Sonarr host and API key are required to test Sonarr Direct.",
                 )
             result = await service.test_sonarr_connection(base_url, api_key)
             result["requestBackend"] = "sonarr"
