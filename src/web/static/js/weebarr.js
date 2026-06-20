@@ -326,6 +326,20 @@ function totalEpisodesTooltip(item) {
     : "AniList total episode count is not available yet.";
 }
 
+function displayPosterUrl(item) {
+  return item?.anilistCover || item?.cover || "";
+}
+
+function displayBannerUrl(item) {
+  return (
+    item?.anilistBanner ||
+    item?.anilistCover ||
+    item?.banner ||
+    item?.cover ||
+    ""
+  );
+}
+
 function statsRowTemplate(item, extraClass = "") {
   const rating = item.averageScore ? (item.averageScore / 10).toFixed(2) : "--";
   const episodes = totalEpisodesValue(item);
@@ -861,7 +875,7 @@ function requestListTemplate(item) {
   return `
     <article class="request-row">
       <div class="request-row-media">
-        ${item.cover ? `<img src="${item.cover}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
+        ${displayPosterUrl(item) ? `<img src="${displayPosterUrl(item)}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
       </div>
       <div class="request-row-copy">
         <div class="request-row-head">
@@ -889,7 +903,7 @@ function inlineDetailTemplate(item) {
   const audio = audioState(item);
   return `
     <div class="inline-detail inline-spotlight">
-      <div class="inline-spotlight-media" style="background-image: url('${item.banner || item.cover || ""}')"></div>
+      <div class="inline-spotlight-media" style="background-image: url('${displayBannerUrl(item)}')"></div>
       <div class="poster-pills spotlight-pills inline-spotlight-pills">
         <span class="rank-chip" title="${escapeHtml(rankTooltip(item))}">#${item.rank}</span>
         <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>
@@ -930,7 +944,7 @@ function cardTemplate(item) {
       <div class="card-surface" data-select="${item.id}" role="button" tabindex="0" aria-label="${escapeHtml(selectLabel)}" aria-expanded="${compact ? String(isSelected) : "false"}">
         <div class="poster-column">
         <div class="poster">
-          ${item.cover ? `<img src="${item.cover}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
+          ${displayPosterUrl(item) ? `<img src="${displayPosterUrl(item)}" alt="${escapeHtml(item.title)} poster" loading="lazy" />` : ""}
         </div>
         <div class="poster-pills">
             <span class="rank-chip" title="${escapeHtml(rankTooltip(item))}">#${item.rank}</span>
@@ -1092,7 +1106,7 @@ function renderSpotlight(item) {
   const audio = audioState(item);
   els.spotlight.innerHTML = `
     <button class="spotlight-close" type="button" aria-label="Close details">×</button>
-    <div class="spotlight-media" style="background-image: url('${item.banner || item.cover || ""}')"></div>
+    <div class="spotlight-media" style="background-image: url('${displayBannerUrl(item)}')"></div>
     <div class="poster-pills spotlight-pills">
       <span class="rank-chip" title="${escapeHtml(rankTooltip(item))}">#${item.rank}</span>
       <span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span>

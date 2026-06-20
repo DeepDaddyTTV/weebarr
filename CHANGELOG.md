@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.62] - 2026-06-19
+
+### Fixed
+
+- Unified seasonal poster and spotlight artwork rendering across Seerr and Sonarr Direct by preferring the shared AniList art fields in the dashboard UI, so backend swaps no longer change the visible art treatment.
+
 ## [0.1.61] - 2026-06-19
 
 ### Fixed
