@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.66] - 2026-06-20
+
+### Fixed
+
+- Unified the selected Settings tab surface with the main panel body so the active tab now reads as one continuous shell instead of a separate segmented cap.
+
 ## [0.1.65] - 2026-06-20
 
 ### Fixed

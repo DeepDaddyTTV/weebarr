@@ -3760,6 +3760,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
 }
 
 .settings-shell {
+  --settings-surface-bg: linear-gradient(145deg, rgba(12, 19, 30, 0.98), rgba(10, 16, 25, 0.96));
   position: relative;
   display: grid;
   gap: 0;
@@ -3773,7 +3774,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
   gap: 0;
   margin-top: -3px;
   padding: 0;
-  background: linear-gradient(145deg, rgba(12, 19, 30, 0.98), rgba(10, 16, 25, 0.96));
+  background: var(--settings-surface-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
@@ -3889,7 +3890,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
 .settings-tab.active {
   z-index: 3;
   color: var(--cyan);
-  background: linear-gradient(145deg, rgba(18, 27, 40, 0.98), rgba(11, 18, 29, 0.98));
+  background: var(--settings-surface-bg);
   border-color: var(--cyan-42);
   border-bottom-color: transparent;
   box-shadow: none;
@@ -3905,11 +3906,11 @@ body[data-theme-palette="monochrome"] .rank-chip {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -1px;
-  height: 2px;
+  bottom: -6px;
+  height: 7px;
   pointer-events: none;
   content: "";
-  background: linear-gradient(145deg, rgba(12, 19, 30, 0.98), rgba(10, 16, 25, 0.96));
+  background: var(--settings-surface-bg);
 }
 
 .settings-subpanel {
