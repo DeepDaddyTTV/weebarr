@@ -2125,7 +2125,7 @@ def test_classify_seerr_state_strict_monitoring_marks_later_season_missing():
     assert result["requestSeasons"] == [4]
 
 
-def test_classify_sonarr_state_uses_overall_complete_stats_for_full_library_titles():
+def test_classify_sonarr_state_uses_overall_near_complete_stats_for_full_library_titles():
     service = WeebarrService(Settings())
     anime = {
         "title": "LIAR GAME",
@@ -2138,7 +2138,7 @@ def test_classify_sonarr_state_uses_overall_complete_stats_for_full_library_titl
             {"seasonNumber": 1, "monitored": True},
         ],
         "statistics": {
-            "episodeFileCount": 11,
+            "episodeFileCount": 10,
             "totalEpisodeCount": 11,
         },
     }
@@ -2160,6 +2160,50 @@ def test_classify_sonarr_state_uses_overall_complete_stats_for_full_library_titl
     assert result["state"] == "available"
     assert result["requestable"] is False
     assert result["label"] == "Available"
+
+
+def test_classify_sonarr_state_marks_larger_episode_gaps_as_partial():
+    service = WeebarrService(Settings())
+    anime = {
+        "title": "LIAR GAME",
+        "installment": {"seasonNumber": 1, "label": "Season 1"},
+    }
+    matched = {
+        "id": 991,
+        "title": "LIAR GAME",
+        "seasons": [
+            {
+                "seasonNumber": 1,
+                "monitored": True,
+                "statistics": {
+                    "episodeFileCount": 8,
+                    "totalEpisodeCount": 11,
+                },
+            }
+        ],
+        "statistics": {
+            "episodeFileCount": 8,
+            "totalEpisodeCount": 11,
+        },
+    }
+    lookup_match = {
+        "seasons": [
+            {"seasonNumber": 0},
+            {"seasonNumber": 1},
+        ]
+    }
+
+    result = service._classify_sonarr_state(
+        anime,
+        matched,
+        110,
+        in_library=True,
+        lookup_match=lookup_match,
+    )
+
+    assert result["state"] == "partial"
+    assert result["requestable"] is True
+    assert result["label"] == "Partially Available"
 
 
 def test_resolve_sonarr_uses_series_details_for_existing_library_match():
@@ -2209,14 +2253,14 @@ def test_resolve_sonarr_uses_series_details_for_existing_library_match():
                     "seasonNumber": 1,
                     "monitored": True,
                     "statistics": {
-                        "episodeFileCount": 11,
+                        "episodeFileCount": 10,
                         "totalEpisodeCount": 11,
-                        "percentOfEpisodes": 100.0,
+                        "percentOfEpisodes": 90.9,
                     },
                 }
             ],
             "statistics": {
-                "episodeFileCount": 11,
+                "episodeFileCount": 10,
                 "totalEpisodeCount": 11,
             },
         }

@@ -40,6 +40,7 @@ SOURCE_AUDIO = {
 }
 SEERR_REQUESTED_STATES = {"requested", "partial", "available"}
 SONARR_REQUESTED_STATES = {"in_library", "partial", "available"}
+SONARR_AVAILABLE_MISSING_EPISODE_TOLERANCE = 2
 TITLE_SUFFIX_PATTERNS = (
     (
         re.compile(r"\s+(season|cour|part)\s+\d+\s*$", flags=re.IGNORECASE),
@@ -1377,8 +1378,7 @@ class WeebarrService:
         return count > 0
 
     @staticmethod
-    def _sonarr_season_is_available(season: dict[str, Any]) -> bool:
-        statistics = cast(dict[str, Any], season.get("statistics") or {})
+    def _sonarr_statistics_are_available(statistics: dict[str, Any]) -> bool:
         percent = statistics.get("percentOfEpisodes")
         if isinstance(percent, (int, float)) and percent >= 99.9:
             return True
@@ -1386,7 +1386,15 @@ class WeebarrService:
             statistics.get("episodeCount")
         )
         file_count = _coerce_int(statistics.get("episodeFileCount")) or 0
-        return bool(episode_count and file_count >= episode_count)
+        if not episode_count or file_count <= 0:
+            return False
+        missing_episodes = max(episode_count - file_count, 0)
+        return missing_episodes <= SONARR_AVAILABLE_MISSING_EPISODE_TOLERANCE
+
+    @staticmethod
+    def _sonarr_season_is_available(season: dict[str, Any]) -> bool:
+        statistics = cast(dict[str, Any], season.get("statistics") or {})
+        return WeebarrService._sonarr_statistics_are_available(statistics)
 
     def _classify_sonarr_state(
         self,
@@ -1452,14 +1460,12 @@ class WeebarrService:
             overall_episode_count = _coerce_int(
                 statistics.get("totalEpisodeCount")
             ) or _coerce_int(statistics.get("episodeCount"))
-            overall_complete = bool(
-                overall_episode_count and overall_episode_files >= overall_episode_count
-            )
+            overall_available = self._sonarr_statistics_are_available(statistics)
             overall_has_files = overall_episode_files > 0
             required_season_set = set(required_seasons)
             fallback_uses_overall_stats = bool(
                 required_season_set
-                and overall_complete
+                and overall_available
                 and (not catalog_seasons or required_season_set == set(catalog_seasons))
             )
             fallback_has_overall_coverage = bool(
@@ -1489,7 +1495,7 @@ class WeebarrService:
                     "Partially Available",
                     True,
                 )
-            elif not required_seasons and overall_complete:
+            elif not required_seasons and overall_available:
                 state, label, requestable = "available", "Available", False
             elif not required_seasons and overall_has_files:
                 state, label, requestable = (

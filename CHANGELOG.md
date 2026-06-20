@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.61] - 2026-06-19
+
+### Fixed
+
+- Relaxed Sonarr Direct availability classification so monitored titles that are only missing one or two episodes now stay `Available` instead of being flagged as an issue, while larger gaps still fall back to `Partially Available`.
+- Added breathing room around the seasonal stat-card row and shifted the cyan bloom origin slightly off-card so the active quick-filter glow no longer looks cut off on the left edge.
+
 ## [0.1.60] - 2026-06-19
 
 ### Added

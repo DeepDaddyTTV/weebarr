@@ -1750,6 +1750,8 @@ h1 {
 
 body[data-page="seasonal"] .stats-grid {
   gap: 14px;
+  padding: 8px;
+  margin: -8px;
 }
 
 .stat-card {
@@ -1821,7 +1823,7 @@ body[data-page="seasonal"] .stat-copy {
   z-index: 0;
   pointer-events: none;
   content: "";
-  background: radial-gradient(circle at 0 50%, var(--glow, var(--cyan-24)), transparent 62%);
+  background: radial-gradient(circle at -12% 50%, var(--glow, var(--cyan-24)), transparent 62%);
   opacity: 0.8;
   transition: opacity 160ms ease;
 }
