@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.77] - 2026-06-20
+
+### Fixed
+
+- Removed the attached desktop Settings panel's top rule entirely so the selected tab no longer reads as separated from the main body, while the mobile detached tab layout remains unchanged.
+
 ## [0.1.76] - 2026-06-20
 
 ### Fixed

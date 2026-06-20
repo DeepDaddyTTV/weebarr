@@ -3797,15 +3797,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
 }
 
 .settings-shell[data-settings-tab-attached="true"] .settings-stack::before {
-  background: linear-gradient(
-    to right,
-    var(--line) 0,
-    var(--line) var(--settings-tab-cutout-start, 0px),
-    transparent var(--settings-tab-cutout-start, 0px),
-    transparent var(--settings-tab-cutout-end, 0px),
-    var(--line) var(--settings-tab-cutout-end, 0px),
-    var(--line) 100%
-  );
+  content: none;
 }
 
 .settings-panel {
