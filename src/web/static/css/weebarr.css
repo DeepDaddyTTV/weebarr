@@ -3832,6 +3832,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
   margin: 0;
   padding: 0 18px;
   position: relative;
+  top: 3px;
   z-index: 2;
   align-items: end;
 }

@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.64] - 2026-06-20
+
+### Fixed
+
+- Dropped the Settings tab rail by 3 pixels so the tabs sit lower against the panel body and read as a more continuous shell again.
+
 ## [0.1.63] - 2026-06-19
 
 ### Fixed
