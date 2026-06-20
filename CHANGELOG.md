@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.83] - 2026-06-20
+
+### Fixed
+
+- Tightened the attached desktop Settings tab seam so the active tab fades into the panel without dragging its cyan edge too far downward, while the inactive tabs now sit back behind the main panel stroke again.
+
 ## [0.1.82] - 2026-06-20
 
 ### Fixed

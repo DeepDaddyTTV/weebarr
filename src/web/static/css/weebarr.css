@@ -3797,24 +3797,17 @@ body[data-theme-palette="monochrome"] .rank-chip {
   background: var(--line);
 }
 
+.settings-shell[data-settings-tab-attached="true"] .settings-stack {
+  border-top-color: var(--line);
+  box-shadow: var(--settings-stack-shadow);
+}
+
 .settings-shell[data-settings-tab-attached="true"] .settings-stack::before {
   content: none;
 }
 
-.settings-shell[data-settings-tab-attached="true"] .settings-stack {
-  box-shadow: var(--settings-stack-shadow);
-}
-
 .settings-shell[data-settings-tab-attached="true"] .settings-stack::after {
-  position: absolute;
-  top: 0;
-  left: 1px;
-  right: 1px;
-  z-index: 1;
-  height: 5px;
-  pointer-events: none;
-  content: "";
-  background: var(--settings-surface-solid);
+  content: none;
 }
 
 .settings-shell[data-settings-tab-attached="true"] .settings-panel {
@@ -3882,6 +3875,10 @@ body[data-theme-palette="monochrome"] .rank-chip {
   top: 0;
 }
 
+.settings-shell[data-settings-tab-attached="true"] .settings-tabs {
+  top: -1px;
+}
+
 .settings-shell[data-settings-tab-attached="false"] .settings-stack {
   margin-top: 0;
 }
@@ -3938,7 +3935,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
 .settings-tab.active {
   z-index: 4;
   color: var(--cyan);
-  background: var(--settings-surface-solid);
+  background: linear-gradient(180deg, rgba(17, 29, 44, 0.98) 0%, rgba(13, 21, 32, 0.98) 78%, rgba(10, 16, 25, 0.98) 100%);
   border-color: var(--cyan-42);
   border-bottom-color: transparent;
   box-shadow: none;
@@ -3968,10 +3965,11 @@ body[data-theme-palette="monochrome"] .rank-chip {
 }
 
 .settings-shell[data-settings-tab-attached="true"] .settings-tab.active::after {
-  left: -1px;
-  right: -1px;
-  bottom: -5px;
-  height: 5px;
+  left: 1px;
+  right: 1px;
+  bottom: -2px;
+  height: 2px;
+  background: linear-gradient(180deg, rgba(12, 19, 30, 0.98) 0%, rgba(10, 16, 25, 0.98) 100%);
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
