@@ -3762,6 +3762,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
 .settings-shell {
   --settings-surface-bg: linear-gradient(145deg, rgba(12, 19, 30, 0.98), rgba(10, 16, 25, 0.96));
   --settings-surface-solid: linear-gradient(145deg, rgb(12, 19, 30), rgb(10, 16, 25));
+  --settings-stack-shadow: 0 22px 70px rgba(0, 0, 0, 0.38);
   position: relative;
   display: grid;
   gap: 0;
@@ -3798,6 +3799,10 @@ body[data-theme-palette="monochrome"] .rank-chip {
 
 .settings-shell[data-settings-tab-attached="true"] .settings-stack::before {
   content: none;
+}
+
+.settings-shell[data-settings-tab-attached="true"] .settings-stack {
+  box-shadow: var(--settings-stack-shadow);
 }
 
 .settings-panel {

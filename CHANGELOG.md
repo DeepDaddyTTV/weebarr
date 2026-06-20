@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.78] - 2026-06-20
+
+### Fixed
+
+- Removed the inset top highlight from the attached desktop Settings panel shadow so the selected tab no longer has a stationary seam line pinned beneath it, while the mobile detached layout still keeps the original panel styling.
+
 ## [0.1.77] - 2026-06-20
 
 ### Fixed
