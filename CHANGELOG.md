@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.76] - 2026-06-20
+
+### Fixed
+
+- Removed the remaining Settings tab gap by cutting the panel's top rule out from under the selected desktop tab, so the active tab now reads as a continuous piece with the main body while the mobile detached layout stays unchanged.
+
 ## [0.1.75] - 2026-06-20
 
 ### Fixed

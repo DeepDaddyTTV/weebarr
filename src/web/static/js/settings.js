@@ -1055,6 +1055,8 @@ function syncSettingsTabBridge() {
   if (!els.settingsShell || !els.settingsStack || !els.settingsTabs.length) {
     return;
   }
+  els.settingsShell.style.removeProperty("--settings-tab-cutout-start");
+  els.settingsShell.style.removeProperty("--settings-tab-cutout-end");
   const activeTab = Array.from(els.settingsTabs).find((button) =>
     button.classList.contains("active"),
   );
@@ -1077,6 +1079,19 @@ function syncSettingsTabBridge() {
   const isAttached = tabsSingleRow && tabsNearStack;
 
   els.settingsShell.dataset.settingsTabAttached = isAttached ? "true" : "false";
+  if (isAttached) {
+    const shellRect = els.settingsShell.getBoundingClientRect();
+    const cutoutStart = Math.max(0, activeRect.left - shellRect.left - 2);
+    const cutoutEnd = Math.max(cutoutStart, activeRect.right - shellRect.left + 2);
+    els.settingsShell.style.setProperty(
+      "--settings-tab-cutout-start",
+      `${cutoutStart}px`,
+    );
+    els.settingsShell.style.setProperty(
+      "--settings-tab-cutout-end",
+      `${cutoutEnd}px`,
+    );
+  }
 }
 
 function openSettingsTab(tabId, replaceHash = true) {

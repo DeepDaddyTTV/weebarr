@@ -3761,6 +3761,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
 
 .settings-shell {
   --settings-surface-bg: linear-gradient(145deg, rgba(12, 19, 30, 0.98), rgba(10, 16, 25, 0.96));
+  --settings-surface-solid: linear-gradient(145deg, rgb(12, 19, 30), rgb(10, 16, 25));
   position: relative;
   display: grid;
   gap: 0;
@@ -3793,6 +3794,18 @@ body[data-theme-palette="monochrome"] .rank-chip {
   pointer-events: none;
   content: "";
   background: var(--line);
+}
+
+.settings-shell[data-settings-tab-attached="true"] .settings-stack::before {
+  background: linear-gradient(
+    to right,
+    var(--line) 0,
+    var(--line) var(--settings-tab-cutout-start, 0px),
+    transparent var(--settings-tab-cutout-start, 0px),
+    transparent var(--settings-tab-cutout-end, 0px),
+    var(--line) var(--settings-tab-cutout-end, 0px),
+    var(--line) 100%
+  );
 }
 
 .settings-panel {
@@ -3911,7 +3924,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
 .settings-tab.active {
   z-index: 4;
   color: var(--cyan);
-  background: var(--settings-surface-bg);
+  background: var(--settings-surface-solid);
   border-color: var(--cyan-42);
   border-bottom-color: transparent;
   box-shadow: none;
@@ -3931,7 +3944,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
   height: 8px;
   pointer-events: none;
   content: "";
-  background: var(--settings-surface-bg);
+  background: var(--settings-surface-solid);
   border-bottom-left-radius: 12px;
   border-bottom-right-radius: 12px;
 }
