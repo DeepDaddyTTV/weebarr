@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.80] - 2026-06-20
+
+### Fixed
+
+- Restored the desktop Settings tab rail to the tighter attached position, filled the panel seam row behind the active tab, and made desktop tab attachment deterministic so the Settings body no longer flips between attached and detached states while mobile still uses the wrapped detached layout.
+
 ## [0.1.79] - 2026-06-20
 
 ### Fixed

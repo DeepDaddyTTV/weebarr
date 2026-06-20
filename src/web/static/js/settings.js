@@ -1065,16 +1065,12 @@ function syncSettingsTabBridge() {
 
   const activeRect = activeTab.getBoundingClientRect();
   const tabsRect = activeTab.parentElement?.getBoundingClientRect();
-  const stackRect = els.settingsStack.getBoundingClientRect();
   const tabsSingleRow =
     tabsRect instanceof DOMRect
       ? Math.abs(tabsRect.height - activeRect.height) <= 6
       : true;
-  const tabsNearStack =
-    tabsRect instanceof DOMRect
-      ? Math.abs(stackRect.top - tabsRect.bottom) <= 12
-      : Math.abs(stackRect.top - activeRect.bottom) <= 12;
-  const isAttached = tabsSingleRow && tabsNearStack;
+  const desktopAttachedViewport = window.matchMedia("(min-width: 980px)").matches;
+  const isAttached = tabsSingleRow && desktopAttachedViewport;
 
   els.settingsShell.dataset.settingsTabAttached = isAttached ? "true" : "false";
 }
