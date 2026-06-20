@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.65] - 2026-06-20
+
+### Fixed
+
+- Moved the Settings tab rail down and tucked it behind the main Settings panel so the body shell cleanly overlaps the tabs instead of leaving them floating in front.
+
 ## [0.1.64] - 2026-06-20
 
 ### Fixed
