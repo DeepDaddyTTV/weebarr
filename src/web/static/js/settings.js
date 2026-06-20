@@ -68,6 +68,8 @@ const els = {
   accessForm: document.querySelector("#localAccountForm"),
   settingsTabs: document.querySelectorAll("[data-settings-tab]"),
   settingsPanels: document.querySelectorAll("[data-settings-panel]"),
+  settingsShell: document.querySelector(".settings-shell"),
+  settingsStack: document.querySelector(".settings-stack"),
   contentFilterMode: document.querySelector("#settingsContentFilterMode"),
   strictMonitoring: document.querySelector("#settingsStrictMonitoring"),
   activeThemeId: document.querySelector("#settingsActiveThemeId"),
@@ -1049,6 +1051,37 @@ function showGeneratedApiKey(apiKey = "") {
   }
 }
 
+function syncSettingsTabBridge() {
+  if (!els.settingsShell || !els.settingsStack || !els.settingsTabs.length) {
+    return;
+  }
+  const activeTab = Array.from(els.settingsTabs).find((button) =>
+    button.classList.contains("active"),
+  );
+  if (!activeTab) {
+    els.settingsShell.dataset.settingsTabAttached = "false";
+    els.settingsShell.style.removeProperty("--settings-active-tab-left");
+    els.settingsShell.style.removeProperty("--settings-active-tab-width");
+    return;
+  }
+
+  const activeRect = activeTab.getBoundingClientRect();
+  const stackRect = els.settingsStack.getBoundingClientRect();
+  const bridgeLeft = Math.max(0, activeRect.left - stackRect.left - 1);
+  const bridgeWidth = Math.max(0, activeRect.width + 2);
+  const isAttached = Math.abs(stackRect.top - activeRect.bottom) <= 12;
+
+  els.settingsShell.style.setProperty(
+    "--settings-active-tab-left",
+    `${bridgeLeft}px`,
+  );
+  els.settingsShell.style.setProperty(
+    "--settings-active-tab-width",
+    `${bridgeWidth}px`,
+  );
+  els.settingsShell.dataset.settingsTabAttached = isAttached ? "true" : "false";
+}
+
 function openSettingsTab(tabId, replaceHash = true) {
   const nextTab = validSettingsTabs.has(tabId) ? tabId : "weebarr";
   state.activeTab = nextTab;
@@ -1062,6 +1095,7 @@ function openSettingsTab(tabId, replaceHash = true) {
     history.replaceState(null, "", `#${nextTab}`);
   }
   setCustomSelectOpen(null);
+  syncSettingsTabBridge();
 }
 
 function currentAutomationEnabled() {
@@ -1690,6 +1724,10 @@ window.addEventListener("hashchange", () => {
     (location.hash || "#weebarr").replace("#", "") || "weebarr",
     false,
   );
+});
+
+window.addEventListener("resize", () => {
+  syncSettingsTabBridge();
 });
 
 initializeCustomSelects();

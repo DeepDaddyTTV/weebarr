@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.68] - 2026-06-20
+
+### Fixed
+
+- Removed the remaining top seam under the selected Settings tab by masking the panel border only beneath the active attached tab, so the selected tab now visually shares the panel body while inactive tabs keep their own edge line.
+
 ## [0.1.67] - 2026-06-20
 
 ### Fixed

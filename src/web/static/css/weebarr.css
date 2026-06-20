@@ -3760,6 +3760,8 @@ body[data-theme-palette="monochrome"] .rank-chip {
 }
 
 .settings-shell {
+  --settings-active-tab-left: 0px;
+  --settings-active-tab-width: 0px;
   --settings-surface-bg: linear-gradient(145deg, rgba(12, 19, 30, 0.98), rgba(10, 16, 25, 0.96));
   position: relative;
   display: grid;
@@ -3780,6 +3782,23 @@ body[data-theme-palette="monochrome"] .rank-chip {
   box-shadow: var(--shadow);
   backdrop-filter: blur(18px);
   overflow: hidden;
+}
+
+.settings-stack::before {
+  position: absolute;
+  top: 0;
+  left: var(--settings-active-tab-left);
+  z-index: 1;
+  width: var(--settings-active-tab-width);
+  height: 2px;
+  pointer-events: none;
+  content: "";
+  background: var(--settings-surface-bg);
+  opacity: 0;
+}
+
+.settings-shell[data-settings-tab-attached="true"] .settings-stack::before {
+  opacity: 1;
 }
 
 .settings-panel {
