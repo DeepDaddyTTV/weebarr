@@ -541,7 +541,7 @@ class WeebarrService:
             )
             item["request"] = request_state
             item["seerr"] = request_state
-            return self._apply_seerr_art(item)
+            return self._apply_request_art(item)
 
         enriched = await asyncio.gather(*(enrich(item) for item in anime))
         stats = Counter((item.get("request") or {}).get("state") for item in enriched)
@@ -719,12 +719,12 @@ class WeebarrService:
         self.cache.set(cache_key, payload, self.settings.anilist_cache_ttl_seconds)
         return payload
 
-    def _apply_seerr_art(self, anime: dict[str, Any]) -> dict[str, Any]:
-        """Prefer Seerr/TMDb art when a confident match exposes it."""
+    def _apply_request_art(self, anime: dict[str, Any]) -> dict[str, Any]:
+        """Prefer backend-provided TMDB art when a confident match exposes it."""
 
-        seerr = anime.get("seerr") or {}
-        poster_url = seerr.get("posterUrl")
-        backdrop_url = seerr.get("backdropUrl")
+        request_state = anime.get("request") or anime.get("seerr") or {}
+        poster_url = request_state.get("posterUrl")
+        backdrop_url = request_state.get("backdropUrl")
         if poster_url:
             anime["cover"] = poster_url
             anime["coverSource"] = "tmdb"

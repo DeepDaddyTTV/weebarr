@@ -327,15 +327,15 @@ function totalEpisodesTooltip(item) {
 }
 
 function displayPosterUrl(item) {
-  return item?.anilistCover || item?.cover || "";
+  return item?.cover || item?.anilistCover || "";
 }
 
 function displayBannerUrl(item) {
   return (
-    item?.anilistBanner ||
-    item?.anilistCover ||
     item?.banner ||
+    item?.anilistBanner ||
     item?.cover ||
+    item?.anilistCover ||
     ""
   );
 }

@@ -1213,23 +1213,37 @@ def test_seasonal_page_includes_hide_requested_toggle(tmp_path):
     assert "Hide Requested" in response.text
 
 
-def test_tmdb_image_url_and_seerr_art_override():
+def test_tmdb_image_url_and_request_art_override():
     service = WeebarrService(Settings())
     shaped = {
         "cover": "https://anilist.example/cover.jpg",
         "banner": "https://anilist.example/banner.jpg",
-        "seerr": {
+        "request": {
             "posterUrl": tmdb_image_url("/poster.jpg", "w500"),
             "backdropUrl": tmdb_image_url("backdrop.jpg", "w780"),
         },
     }
 
-    updated = service._apply_seerr_art(shaped)
+    updated = service._apply_request_art(shaped)
 
     assert updated["cover"] == "https://image.tmdb.org/t/p/w500/poster.jpg"
     assert updated["banner"] == "https://image.tmdb.org/t/p/w780/backdrop.jpg"
     assert updated["coverSource"] == "tmdb"
     assert updated["bannerSource"] == "tmdb"
+
+
+def test_request_art_falls_back_to_existing_anilist_images():
+    service = WeebarrService(Settings())
+    shaped = {
+        "cover": "https://anilist.example/cover.jpg",
+        "banner": "https://anilist.example/banner.jpg",
+        "request": {},
+    }
+
+    updated = service._apply_request_art(shaped)
+
+    assert updated["cover"] == "https://anilist.example/cover.jpg"
+    assert updated["banner"] == "https://anilist.example/banner.jpg"
 
 
 def test_classify_seerr_state_prefers_requested_target_season():

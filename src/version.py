@@ -3,6 +3,8 @@
 import subprocess
 from pathlib import Path
 
+GIT_DESCRIBE_TIMEOUT_SECONDS = 2
+
 
 def get_version() -> str:
     """
@@ -19,6 +21,7 @@ def get_version() -> str:
             text=True,
             check=False,
             cwd=Path(__file__).parent.parent,
+            timeout=GIT_DESCRIBE_TIMEOUT_SECONDS,
         )
 
         if result.returncode == 0:
@@ -35,6 +38,7 @@ def get_version() -> str:
                 text=True,
                 check=False,
                 cwd=Path(__file__).parent.parent,
+                timeout=GIT_DESCRIBE_TIMEOUT_SECONDS,
             )
 
             if tag_result.returncode != 0:
@@ -49,7 +53,7 @@ def get_version() -> str:
                         version = f"{base_version}-dev"
                 else:
                     # Just a commit hash, use fallback
-                    version = "0.1.62-dev"
+                    version = "0.1.63-dev"
 
             return version
 
@@ -59,7 +63,7 @@ def get_version() -> str:
 
     # Fallback version for when git is not available (e.g., in Docker)
     # This should be updated when creating a new release
-    return "0.1.62"
+    return "0.1.63"
 
 
 # Cache the version at import time

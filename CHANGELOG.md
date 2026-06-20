@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.63] - 2026-06-19
+
+### Fixed
+
+- Seasonal cards and spotlight panels now prefer backend-provided TMDB artwork first, with AniList art only as the fallback when no mapped poster or backdrop is available.
+
 ## [0.1.62] - 2026-06-19
 
 ### Fixed
