@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.82] - 2026-06-20
+
+### Fixed
+
+- Corrected the packaged app version fallback so the deployed containers report `0.1.82` consistently while keeping the shallower attached desktop Settings tab treatment from the prior patch.
+
 ## [0.1.81] - 2026-06-20
 
 ### Fixed
