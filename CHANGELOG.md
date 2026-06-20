@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.69] - 2026-06-20
+
+### Fixed
+
+- Replaced the Settings panel's continuous top border with segmented left and right top-rule spans so the selected tab no longer shows any seam underneath while inactive tabs still keep their edge definition.
+
 ## [0.1.68] - 2026-06-20
 
 ### Fixed
