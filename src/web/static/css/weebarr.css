@@ -3847,7 +3847,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
   margin: 0;
   padding: 0 18px;
   position: relative;
-  top: 8px;
+  top: 11px;
   align-items: end;
 }
 
@@ -3870,6 +3870,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
   font-weight: 1000;
   background: linear-gradient(180deg, rgba(18, 27, 40, 0.92), rgba(12, 19, 30, 0.96));
   border: 1px solid var(--line);
+  border-bottom-color: transparent;
   border-radius: 18px 18px 0 0;
   box-shadow: none;
 }
@@ -3908,7 +3909,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
 }
 
 .settings-tab.active {
-  z-index: 3;
+  z-index: 4;
   color: var(--cyan);
   background: var(--settings-surface-bg);
   border-color: var(--cyan-42);
@@ -3927,7 +3928,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
   left: -2px;
   right: -2px;
   bottom: -8px;
-  height: 10px;
+  height: 8px;
   pointer-events: none;
   content: "";
   background: var(--settings-surface-bg);

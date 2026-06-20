@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.74] - 2026-06-20
+
+### Fixed
+
+- Lowered the desktop Settings tab rail by 3 pixels while keeping the same-height inactive-behind and active-over-panel treatment, so the selected tab sits closer to the panel body without bringing back the detached seam.
+
 ## [0.1.73] - 2026-06-20
 
 ### Fixed
