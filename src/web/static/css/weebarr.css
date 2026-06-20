@@ -3811,7 +3811,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
   left: 1px;
   right: 1px;
   z-index: 1;
-  height: 16px;
+  height: 5px;
   pointer-events: none;
   content: "";
   background: var(--settings-surface-solid);
@@ -3874,7 +3874,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
   margin: 0;
   padding: 0 18px;
   position: relative;
-  top: 11px;
+  top: 0;
   align-items: end;
 }
 
@@ -3970,8 +3970,8 @@ body[data-theme-palette="monochrome"] .rank-chip {
 .settings-shell[data-settings-tab-attached="true"] .settings-tab.active::after {
   left: -1px;
   right: -1px;
-  bottom: -16px;
-  height: 16px;
+  bottom: -5px;
+  height: 5px;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }

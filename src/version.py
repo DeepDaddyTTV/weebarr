@@ -53,7 +53,7 @@ def get_version() -> str:
                         version = f"{base_version}-dev"
                 else:
                     # Just a commit hash, use fallback
-                    version = "0.1.80-dev"
+                    version = "0.1.81-dev"
 
             return version
 

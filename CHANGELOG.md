@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.81] - 2026-06-20
+
+### Fixed
+
+- Pulled the attached desktop Settings tab rail back out of the panel so the active tab stays visually connected to the body without looking sunk into it, while the mobile wrapped tab layout remains unchanged.
+
 ## [0.1.80] - 2026-06-20
 
 ### Fixed
