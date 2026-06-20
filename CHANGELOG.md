@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.71] - 2026-06-20
+
+### Fixed
+
+- Restored the attached desktop Settings tab layout so the selected tab now tucks into the panel body again instead of dropping into the detached mobile-style state on wide screens.
+
 ## [0.1.70] - 2026-06-20
 
 ### Fixed

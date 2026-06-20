@@ -1066,8 +1066,9 @@ function syncSettingsTabBridge() {
   }
 
   const activeRect = activeTab.getBoundingClientRect();
+  const tabsRect = activeTab.parentElement?.getBoundingClientRect();
   const stackRect = els.settingsStack.getBoundingClientRect();
-  const bridgeOverlap = 14;
+  const bridgeOverlap = 6;
   const previousTab = activeTab.previousElementSibling;
   const nextTab = activeTab.nextElementSibling;
   const previousRect =
@@ -1087,7 +1088,15 @@ function syncSettingsTabBridge() {
     0,
     Math.min(stackRect.width, bridgeEnd) - bridgeLeft,
   );
-  const isAttached = Math.abs(stackRect.top - activeRect.bottom) <= 12;
+  const tabsSingleRow =
+    tabsRect instanceof DOMRect
+      ? Math.abs(tabsRect.height - activeRect.height) <= 6
+      : true;
+  const tabsNearStack =
+    tabsRect instanceof DOMRect
+      ? Math.abs(stackRect.top - tabsRect.bottom) <= 12
+      : Math.abs(stackRect.top - activeRect.bottom) <= 12;
+  const isAttached = tabsSingleRow && tabsNearStack;
 
   els.settingsShell.style.setProperty(
     "--settings-active-tab-left",
