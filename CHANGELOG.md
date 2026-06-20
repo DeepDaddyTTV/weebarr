@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.72] - 2026-06-20
+
+### Fixed
+
+- Reworked the Settings tab seam treatment so the active desktop tab now covers the panel rule directly instead of carving a widened cutout through the panel top, which restores a cleaner attached-tab look across every Settings section.
+
 ## [0.1.71] - 2026-06-20
 
 ### Fixed

@@ -1060,34 +1060,12 @@ function syncSettingsTabBridge() {
   );
   if (!activeTab) {
     els.settingsShell.dataset.settingsTabAttached = "false";
-    els.settingsShell.style.removeProperty("--settings-active-tab-left");
-    els.settingsShell.style.removeProperty("--settings-active-tab-width");
     return;
   }
 
   const activeRect = activeTab.getBoundingClientRect();
   const tabsRect = activeTab.parentElement?.getBoundingClientRect();
   const stackRect = els.settingsStack.getBoundingClientRect();
-  const bridgeOverlap = 6;
-  const previousTab = activeTab.previousElementSibling;
-  const nextTab = activeTab.nextElementSibling;
-  const previousRect =
-    previousTab instanceof HTMLElement
-      ? previousTab.getBoundingClientRect()
-      : null;
-  const nextRect =
-    nextTab instanceof HTMLElement ? nextTab.getBoundingClientRect() : null;
-  const bridgeStart = previousRect
-    ? previousRect.right - stackRect.left - bridgeOverlap
-    : activeRect.left - stackRect.left - bridgeOverlap;
-  const bridgeEnd = nextRect
-    ? nextRect.left - stackRect.left + bridgeOverlap
-    : activeRect.right - stackRect.left + bridgeOverlap;
-  const bridgeLeft = Math.max(0, bridgeStart);
-  const bridgeWidth = Math.max(
-    0,
-    Math.min(stackRect.width, bridgeEnd) - bridgeLeft,
-  );
   const tabsSingleRow =
     tabsRect instanceof DOMRect
       ? Math.abs(tabsRect.height - activeRect.height) <= 6
@@ -1098,14 +1076,6 @@ function syncSettingsTabBridge() {
       : Math.abs(stackRect.top - activeRect.bottom) <= 12;
   const isAttached = tabsSingleRow && tabsNearStack;
 
-  els.settingsShell.style.setProperty(
-    "--settings-active-tab-left",
-    `${bridgeLeft}px`,
-  );
-  els.settingsShell.style.setProperty(
-    "--settings-active-tab-width",
-    `${bridgeWidth}px`,
-  );
   els.settingsShell.dataset.settingsTabAttached = isAttached ? "true" : "false";
 }
 
