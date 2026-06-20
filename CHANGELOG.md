@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.75] - 2026-06-20
+
+### Fixed
+
+- Restored the selected desktop Settings tab's connection to the main panel body by moving the tab rail and panel overlap together, so the active tab stays visually fused to the surface instead of floating above it.
+
 ## [0.1.74] - 2026-06-20
 
 ### Fixed

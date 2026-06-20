@@ -3772,7 +3772,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
   z-index: 2;
   display: grid;
   gap: 0;
-  margin-top: -8px;
+  margin-top: -5px;
   padding: 0;
   background: var(--settings-surface-bg);
   border: 1px solid var(--line);
