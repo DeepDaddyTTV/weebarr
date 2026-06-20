@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.67] - 2026-06-20
+
+### Fixed
+
+- Corrected the Docker/runtime version fallback so live health and setup surfaces now report the shipped app version accurately after deployment.
+
 ## [0.1.66] - 2026-06-20
 
 ### Fixed
