@@ -1067,8 +1067,26 @@ function syncSettingsTabBridge() {
 
   const activeRect = activeTab.getBoundingClientRect();
   const stackRect = els.settingsStack.getBoundingClientRect();
-  const bridgeLeft = Math.max(0, activeRect.left - stackRect.left - 1);
-  const bridgeWidth = Math.max(0, activeRect.width + 2);
+  const bridgeOverlap = 14;
+  const previousTab = activeTab.previousElementSibling;
+  const nextTab = activeTab.nextElementSibling;
+  const previousRect =
+    previousTab instanceof HTMLElement
+      ? previousTab.getBoundingClientRect()
+      : null;
+  const nextRect =
+    nextTab instanceof HTMLElement ? nextTab.getBoundingClientRect() : null;
+  const bridgeStart = previousRect
+    ? previousRect.right - stackRect.left - bridgeOverlap
+    : activeRect.left - stackRect.left - bridgeOverlap;
+  const bridgeEnd = nextRect
+    ? nextRect.left - stackRect.left + bridgeOverlap
+    : activeRect.right - stackRect.left + bridgeOverlap;
+  const bridgeLeft = Math.max(0, bridgeStart);
+  const bridgeWidth = Math.max(
+    0,
+    Math.min(stackRect.width, bridgeEnd) - bridgeLeft,
+  );
   const isAttached = Math.abs(stackRect.top - activeRect.bottom) <= 12;
 
   els.settingsShell.style.setProperty(

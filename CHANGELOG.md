@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.70] - 2026-06-20
+
+### Fixed
+
+- Extended the selected Settings tab top-rule cutout farther into the neighboring tab shoulders so the panel seam no longer crowds the active tab's outer curves while the mobile detached layout still keeps the bridge disabled.
+
 ## [0.1.69] - 2026-06-20
 
 ### Fixed
