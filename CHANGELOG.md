@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.73] - 2026-06-20
+
+### Fixed
+
+- Changed the Settings tab layering so inactive tabs stay tucked behind the panel while the selected tab alone rises above it, which removes the remaining detached-looking seam under the active Settings tab.
+
 ## [0.1.72] - 2026-06-20
 
 ### Fixed

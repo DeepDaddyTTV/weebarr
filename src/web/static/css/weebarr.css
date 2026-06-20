@@ -3848,7 +3848,6 @@ body[data-theme-palette="monochrome"] .rank-chip {
   padding: 0 18px;
   position: relative;
   top: 8px;
-  z-index: 1;
   align-items: end;
 }
 
@@ -3925,8 +3924,8 @@ body[data-theme-palette="monochrome"] .rank-chip {
 
 .settings-tab.active::after {
   position: absolute;
-  left: -10px;
-  right: -10px;
+  left: -2px;
+  right: -2px;
   bottom: -8px;
   height: 10px;
   pointer-events: none;
