@@ -1060,6 +1060,8 @@ function syncSettingsTabBridge() {
   );
   if (!activeTab) {
     els.settingsShell.dataset.settingsTabAttached = "false";
+    els.settingsShell.style.removeProperty("--settings-active-tab-left");
+    els.settingsShell.style.removeProperty("--settings-active-tab-width");
     return;
   }
 
@@ -1073,6 +1075,22 @@ function syncSettingsTabBridge() {
   const isAttached = tabsSingleRow && desktopAttachedViewport;
 
   els.settingsShell.dataset.settingsTabAttached = isAttached ? "true" : "false";
+  if (!isAttached) {
+    els.settingsShell.style.removeProperty("--settings-active-tab-left");
+    els.settingsShell.style.removeProperty("--settings-active-tab-width");
+    return;
+  }
+
+  const stackRect = els.settingsStack.getBoundingClientRect();
+  const activeLeft = Math.max(0, activeRect.left - stackRect.left);
+  els.settingsShell.style.setProperty(
+    "--settings-active-tab-left",
+    `${activeLeft}px`,
+  );
+  els.settingsShell.style.setProperty(
+    "--settings-active-tab-width",
+    `${activeRect.width}px`,
+  );
 }
 
 function openSettingsTab(tabId, replaceHash = true) {

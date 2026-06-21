@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.86] - 2026-06-21
+
+### Fixed
+
+- Rebuilt the attached desktop Settings tab join so the panel top line is split around the selected tab instead of being painted underneath it, removing the active-tab underline while keeping inactive tabs visually behind the panel stroke.
+
 ## [0.1.85] - 2026-06-21
 
 ### Fixed
