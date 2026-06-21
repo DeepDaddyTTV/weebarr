@@ -42,6 +42,9 @@ In plain English: Weebarr helps you answer, “What anime is airing, do I alread
 - [Features](Features.md)
   Learn what each main page in Weebarr does.
 
+- [Install as an App](Install-App.md)
+  Add Weebarr to an iPhone, iPad, or Android home screen with the PWA shell.
+
 - [Backends](Backends.md)
   Decide whether Weebarr should talk to Seerr or Sonarr Direct, and see how setup works for each path.
 
@@ -115,7 +118,7 @@ On phones, Settings uses a section dropdown instead of desktop tabs so each pane
 
 On mobile, the Seasonal page starts with the full Weebarr logo and version. The hamburger button opens a full-screen navigation drawer, and the smaller top-bar mark appears after you scroll past the main logo.
 
-Supported browsers can install Weebarr to the home screen using the included PWA manifest and app icons.
+Supported browsers can install Weebarr to the home screen using the included PWA manifest and app icons. See [Install as an App](Install-App.md) for the iOS and Android steps.
 
 ## Before You Start
 

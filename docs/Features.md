@@ -210,6 +210,8 @@ On mobile Settings, the desktop tab row becomes a single section dropdown. Pick 
 
 Supported browsers can also install Weebarr to the home screen using the included PWA manifest and app icons. It is still a self-hosted web app, so your server or tunnel must remain reachable for live data and requests.
 
+For the exact iOS Safari and Android browser steps, see [Install as an App](Install-App.md).
+
 ## Login and Access
 
 Weebarr is designed as a single-admin app.

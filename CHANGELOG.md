@@ -2,6 +2,16 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.89] - 2026-06-21
+
+### Fixed
+
+- Removed the extra active Settings tab connector strokes so selected desktop tabs sit flush with the panel body without cyan ticks or a bottom underline.
+- Polished the mobile Seasonal controls so the season navigation and refresh/scan actions form two aligned rows with consistent control sizing.
+- Cleaned up mobile interactive highlights, the inline detail close button shape, the Settings section dropdown opacity, and drawer background scaling.
+- Added docs for installing Weebarr as an iOS or Android home-screen PWA.
+- Removed an unused Sonarr state-classification variable so local lint output no longer reports dead code there.
+
 ## [0.1.88] - 2026-06-21
 
 ### Added

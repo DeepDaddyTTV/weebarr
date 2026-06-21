@@ -1944,7 +1944,7 @@ body[data-page="seasonal"] .stat-card-interactive {
 body[data-page="seasonal"] .stat-card-interactive:hover,
 body[data-page="seasonal"] .stat-card-interactive:focus-visible,
 body[data-page="seasonal"] .stat-card-interactive.is-filter-active {
-  border-color: var(--stat-edge, var(--cyan-64));
+  border-color: transparent;
   box-shadow:
     0 18px 42px var(--stat-shadow, rgba(40, 199, 255, 0.18)),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -3965,11 +3965,11 @@ body[data-theme-palette="monochrome"] .rank-chip {
 
 .settings-tab.active::after {
   position: absolute;
-  left: -1px;
-  right: -1px;
-  bottom: -2px;
+  left: 1px;
+  right: 1px;
+  bottom: -1px;
   z-index: 3;
-  height: 3px;
+  height: 2px;
   pointer-events: none;
   content: "";
   background: var(--settings-surface-solid);
@@ -3987,28 +3987,6 @@ body[data-theme-palette="monochrome"] .rank-chip {
 .settings-shell[data-settings-tab-attached="true"] .settings-tab.active {
   border-color: var(--cyan-42);
   border-bottom-color: transparent;
-}
-
-.settings-shell[data-settings-tab-attached="true"] .settings-tab.active::before,
-.settings-shell[data-settings-tab-attached="true"] .settings-tab.active:hover::before,
-.settings-shell[data-settings-tab-attached="true"] .settings-tab.active:focus-visible::before {
-  inset: auto -1px -2px;
-  z-index: 4;
-  width: auto;
-  height: 6px;
-  padding: 0;
-  background:
-    linear-gradient(
-      90deg,
-      var(--cyan-42) 0 2px,
-      transparent 2px calc(100% - 2px),
-      var(--cyan-42) calc(100% - 2px) 100%
-    );
-  border-radius: 0;
-  opacity: 1;
-  clip-path: none;
-  -webkit-mask: none;
-  mask: none;
 }
 
 .settings-subpanel {
@@ -4577,11 +4555,14 @@ body[data-theme-palette="monochrome"] .rank-chip {
   flex: 0 0 auto;
   width: 36px;
   height: 36px;
+  display: inline-grid;
+  place-items: center;
   color: #c8d3df;
-  font-size: 28px;
+  font-size: 26px;
+  line-height: 1;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   box-shadow: none;
 }
 
@@ -4833,6 +4814,104 @@ body[data-theme-palette="monochrome"] .rank-chip {
     grid-column: span 3;
     justify-self: center;
     width: min(100%, 324px);
+  }
+
+  body[data-page="seasonal"] .top-actions {
+    --mobile-season-control-height: 38px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    width: 100%;
+    max-width: 520px;
+    margin-inline: auto;
+  }
+
+  body[data-page="seasonal"] #prevSeasonBtn {
+    grid-column: 1;
+  }
+
+  body[data-page="seasonal"] .season-pill {
+    grid-column: 2 / 6;
+  }
+
+  body[data-page="seasonal"] #nextSeasonBtn {
+    grid-column: 6;
+  }
+
+  body[data-page="seasonal"] #refreshBtn {
+    grid-column: 1 / 4;
+  }
+
+  body[data-page="seasonal"] #scanBtn {
+    grid-column: 4 / 7;
+  }
+
+  body[data-page="seasonal"] .top-actions .icon-btn,
+  body[data-page="seasonal"] .top-actions .refresh-btn,
+  body[data-page="seasonal"] .top-actions .scan-btn,
+  body[data-page="seasonal"] .season-pill,
+  body[data-page="seasonal"] .season-year,
+  body[data-page="seasonal"] .season-pill .ui-select-inline .ui-select-trigger {
+    width: 100%;
+    height: var(--mobile-season-control-height);
+    min-height: var(--mobile-season-control-height);
+  }
+
+  body[data-page="seasonal"] .top-actions .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    line-height: 1;
+    font-size: 27px;
+  }
+
+  body[data-page="seasonal"] .top-actions .refresh-btn,
+  body[data-page="seasonal"] .top-actions .scan-btn {
+    justify-self: stretch;
+  }
+
+  body[data-page="seasonal"] .season-pill {
+    isolation: isolate;
+    padding: 0;
+    overflow: visible;
+  }
+
+  body[data-page="seasonal"] .season-pill::before {
+    position: absolute;
+    inset: -1px;
+    z-index: 4;
+    padding: 1px;
+    pointer-events: none;
+    content: "";
+    background: var(--hover-gradient);
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 160ms ease;
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+  }
+
+  body[data-page="seasonal"] .season-pill:hover::before,
+  body[data-page="seasonal"] .season-pill:focus-within::before {
+    opacity: 1;
+  }
+
+  body[data-page="seasonal"] .season-pill .ui-select-inline::before {
+    content: none;
+  }
+
+  body[data-page="seasonal"] .season-pill .ui-select-inline .ui-select-value {
+    align-items: center;
+    line-height: 1;
+  }
+
+  body[data-page="seasonal"] .season-pill .ui-select-chevron {
+    width: 15px;
+    height: 15px;
   }
 
   .season-pill {
@@ -5301,20 +5380,44 @@ body.compact-preview .spotlight {
     display: flex !important;
     width: 100vw;
     height: 100dvh;
+    isolation: isolate;
     grid-template-columns: none;
     flex-direction: column;
     gap: 16px;
     align-items: stretch;
-    padding: 72px 18px 18px;
+    padding: 82px 18px max(18px, env(safe-area-inset-bottom));
     overflow-y: auto;
     transform: translateX(-100%);
     transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
     background:
-      radial-gradient(circle at 0 0, var(--cyan-18), transparent 15rem),
-      radial-gradient(circle at 100% 8%, var(--pink-10), transparent 17rem),
-      linear-gradient(180deg, rgba(10, 15, 23, 0.98), rgba(7, 12, 20, 0.96));
+      radial-gradient(circle at 18% 4%, var(--page-glow-a), transparent 25rem),
+      radial-gradient(circle at 82% 0%, var(--page-glow-b), transparent 27rem),
+      radial-gradient(circle at 70% 100%, var(--page-glow-c), transparent 35rem),
+      linear-gradient(140deg, var(--bg), var(--bg-2) 58%, var(--page-tail));
     border: 0;
     box-shadow: none;
+  }
+
+  .sidebar::before,
+  body[data-page="seasonal"] .sidebar::before,
+  body[data-page="requests"] .sidebar::before {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    content: "";
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.024) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 24px 24px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.75), transparent 78%);
+  }
+
+  .sidebar > *,
+  body[data-page="seasonal"] .sidebar > *,
+  body[data-page="requests"] .sidebar > * {
+    position: relative;
+    z-index: 1;
   }
 
   body.mobile-nav-open .sidebar {
@@ -5360,7 +5463,7 @@ body.compact-preview .spotlight {
   }
 
   .sidebar .brand-wordmark-swap {
-    width: min(58vw, 206px);
+    width: min(72vw, 238px);
   }
 
   .sidebar .brand small {
@@ -5401,6 +5504,8 @@ body.compact-preview .spotlight {
   }
 
   .settings-mobile-selector {
+    position: relative;
+    z-index: 8;
     display: grid;
     gap: 8px;
     margin-bottom: 12px;
@@ -5416,6 +5521,19 @@ body.compact-preview .spotlight {
 
   .settings-mobile-selector .ui-select-menu {
     width: 100%;
+    background:
+      radial-gradient(circle at 0 0, rgba(40, 199, 255, 0.1), transparent 14rem),
+      linear-gradient(145deg, rgb(12, 19, 30), rgb(8, 13, 21));
+    backdrop-filter: none;
+  }
+
+  .settings-mobile-selector .ui-select-option:hover,
+  .settings-mobile-selector .ui-select-option:focus-visible {
+    background: rgb(13, 37, 50);
+  }
+
+  .settings-mobile-selector .ui-select-option.selected {
+    background: rgb(54, 20, 42);
   }
 
   .settings-tabs {

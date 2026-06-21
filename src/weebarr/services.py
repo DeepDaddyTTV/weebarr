@@ -1457,9 +1457,6 @@ class WeebarrService:
 
             statistics = cast(dict[str, Any], matched.get("statistics") or {})
             overall_episode_files = _coerce_int(statistics.get("episodeFileCount")) or 0
-            overall_episode_count = _coerce_int(
-                statistics.get("totalEpisodeCount")
-            ) or _coerce_int(statistics.get("episodeCount"))
             overall_available = self._sonarr_statistics_are_available(statistics)
             overall_has_files = overall_episode_files > 0
             required_season_set = set(required_seasons)
