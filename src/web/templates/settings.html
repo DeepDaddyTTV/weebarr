@@ -4,13 +4,29 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Weebarr - Settings</title>
+    <meta name="theme-color" content="#08101a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Weebarr" />
+    <link rel="manifest" href="/manifest.webmanifest?v={{ asset_version }}" />
     <link rel="icon" href="/static/img/weebarr-mark.svg?v={{ asset_version }}" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/img/weebarr-mark.png?v={{ asset_version }}" />
+    <link rel="apple-touch-icon" href="/static/img/weebarr-pwa-180.png?v={{ asset_version }}" />
     <link rel="stylesheet" href="/static/css/weebarr.css?v={{ asset_version }}" />
   </head>
   <body data-theme="dark" data-page="settings">
+    <header class="mobile-app-bar" aria-label="Mobile app navigation">
+      <button class="mobile-menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="mobileNavDrawer" data-mobile-menu-toggle>
+        <span class="mobile-menu-icon" aria-hidden="true"></span>
+      </button>
+      <a class="mobile-app-mark" href="/seasonal" aria-label="Weebarr home">
+        <img src="/static/img/weebarr-mark.svg?v={{ asset_version }}" alt="" aria-hidden="true" />
+      </a>
+    </header>
+    <div class="mobile-menu-backdrop" data-mobile-menu-close hidden></div>
     <div class="app-shell">
-      <aside class="sidebar" aria-label="Weebarr navigation">
+      <aside id="mobileNavDrawer" class="sidebar" aria-label="Weebarr navigation">
+        <button class="mobile-drawer-close" type="button" aria-label="Close navigation" data-mobile-menu-close-button>
+          <span class="mobile-drawer-close-icon" aria-hidden="true"></span>
+        </button>
         <a class="brand" href="/seasonal" aria-label="Weebarr home">
           <span class="brand-lockup">
             <span class="wordmark-swap brand-wordmark-swap" role="img" aria-label="Weebarr">
@@ -90,6 +106,23 @@
         </header>
 
         <section class="settings-shell">
+          <div class="settings-mobile-selector">
+            <span>Settings Section</span>
+            <div class="ui-select" data-ui-select="settingsSectionSelect">
+              <select id="settingsSectionSelect" aria-label="Settings section">
+                <option value="weebarr">Weebarr</option>
+                <option value="automation">Automation</option>
+                <option value="authentication">Authentication</option>
+                <option value="api">API</option>
+                <option value="connections">Connections</option>
+              </select>
+              <button id="settingsSectionSelectTrigger" class="ui-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="settingsSectionSelectMenu">
+                <span class="ui-select-value"></span>
+                <i class="ui-select-chevron" aria-hidden="true"></i>
+              </button>
+              <div id="settingsSectionSelectMenu" class="ui-select-menu" role="listbox" hidden></div>
+            </div>
+          </div>
           <nav class="settings-tabs" aria-label="Settings sections">
             <button class="settings-tab active" type="button" data-settings-tab="weebarr">Weebarr</button>
             <button class="settings-tab" type="button" data-settings-tab="automation">Automation</button>

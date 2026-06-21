@@ -26,6 +26,7 @@ It is built for people who want a simple seasonal anime dashboard that plays nic
   - one-click TV requests through Seerr using your existing anime defaults unless you override them
   - a Sonarr Direct request modal with season selection, monitor mode, search-on-add, and season-folder controls
 - **Expandable cast details** so character voice actors stay readable without overwhelming the spotlight or mobile card layout.
+- **Responsive mobile shell** with a centered first-load logo, animated full-screen navigation drawer, mobile Settings section picker, and installable PWA metadata.
 - **Optional automation** for requesting selected seasonal groups on a saved schedule.
 - **Two-stage first-run setup** so access configuration and request-backend selection stay separate and intentional.
 - **Single-admin access** with local login, Plex login, or both.

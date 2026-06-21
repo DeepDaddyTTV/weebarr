@@ -18,6 +18,8 @@ The Settings page has five tabs:
 - **API**
 - **Connections**
 
+On mobile, these tabs are replaced by a single **Settings Section** dropdown. Choose the section you want, and the matching settings panel appears below it.
+
 ## Weebarr Tab
 
 The **Weebarr** tab controls general app behavior.

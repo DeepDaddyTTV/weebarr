@@ -310,6 +310,80 @@
     });
   }
 
+  function bindMobileMenu() {
+    const toggle = document.querySelector("[data-mobile-menu-toggle]");
+    const drawer = document.querySelector("#mobileNavDrawer");
+    const backdrop = document.querySelector("[data-mobile-menu-close]");
+    const closeButton = document.querySelector("[data-mobile-menu-close-button]");
+    if (!toggle || !drawer || !backdrop) return;
+
+    const setOpen = (open) => {
+      document.body.classList.toggle("mobile-nav-open", open);
+      toggle.setAttribute("aria-expanded", String(open));
+      backdrop.hidden = !open;
+    };
+
+    toggle.addEventListener("click", () => {
+      setOpen(!document.body.classList.contains("mobile-nav-open"));
+    });
+    backdrop.addEventListener("click", () => setOpen(false));
+    closeButton?.addEventListener("click", () => setOpen(false));
+    drawer.querySelectorAll("a").forEach((link) => {
+      link.addEventListener("click", () => setOpen(false));
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    });
+    window.addEventListener("resize", () => {
+      if (window.matchMedia("(min-width: 901px)").matches) {
+        setOpen(false);
+      }
+    });
+  }
+
+  function bindMobileBrandBar() {
+    const heroLogo = document.querySelector(".mobile-brand-wordmark");
+    const appBar = document.querySelector(".mobile-app-bar");
+    if (!appBar) return;
+
+    if (!heroLogo) {
+      document.body.classList.add("mobile-brand-compact");
+      return;
+    }
+
+    let pending = false;
+    const mobileQuery = window.matchMedia("(max-width: 900px)");
+    const sync = () => {
+      pending = false;
+      if (!mobileQuery.matches) {
+        document.body.classList.remove("mobile-brand-compact");
+        return;
+      }
+      const logoRect = heroLogo.getBoundingClientRect();
+      const appBarHeight = appBar.getBoundingClientRect().height || 58;
+      document.body.classList.toggle("mobile-brand-compact", logoRect.bottom <= appBarHeight + 2);
+    };
+    const schedule = () => {
+      if (pending) return;
+      pending = true;
+      window.requestAnimationFrame(sync);
+    };
+
+    sync();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    mobileQuery.addEventListener?.("change", schedule);
+  }
+
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+    });
+  }
+
   prefersLight.addEventListener("change", () => {
     if (readThemeChoice() === "system") {
       applyThemeChoice("system");
@@ -328,10 +402,16 @@
   if (document.body) {
     applyThemeChoice(readThemeChoice(), state.context);
     bindTooltips();
+    bindMobileMenu();
+    bindMobileBrandBar();
+    registerServiceWorker();
   } else {
     document.addEventListener("DOMContentLoaded", () => {
       applyThemeChoice(readThemeChoice(), state.context);
       bindTooltips();
+      bindMobileMenu();
+      bindMobileBrandBar();
+      registerServiceWorker();
     });
   }
 })();

@@ -20,7 +20,7 @@ from zipfile import BadZipFile, ZipFile
 import httpx
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
@@ -810,8 +810,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Weebarr - Setup Locked</title>
+    <meta name="theme-color" content="#08101a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Weebarr" />
+    <link rel="manifest" href="/manifest.webmanifest?v={asset_version}" />
     <link rel="icon" href="/static/img/weebarr-mark.svg?v={asset_version}" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/img/weebarr-mark.png?v={asset_version}" />
+    <link rel="apple-touch-icon" href="/static/img/weebarr-pwa-180.png?v={asset_version}" />
     <link rel="stylesheet" href="/static/css/weebarr.css?v={asset_version}" />
   </head>
   <body data-theme="dark" data-page="setup">
@@ -937,6 +941,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if settings_now.setup_required:
                 if path.startswith("/static") or path in {
                     "/api/health",
+                    "/manifest.webmanifest",
+                    "/service-worker.js",
                 }:
                     return await call_next(request)
                 if path in {
@@ -977,6 +983,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "/api/auth/login",
                 "/auth/plex/start",
                 "/auth/plex/callback",
+                "/manifest.webmanifest",
+                "/service-worker.js",
             }:
                 return await call_next(request)
 
@@ -1024,6 +1032,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if current_settings().setup_required:
             return RedirectResponse(url="/setup")
         return RedirectResponse(url="/seasonal")
+
+    @app.api_route(
+        "/manifest.webmanifest",
+        methods=["GET", "HEAD"],
+        include_in_schema=False,
+    )
+    async def web_manifest() -> FileResponse:
+        return FileResponse(
+            WEB_ROOT / "static" / "manifest.webmanifest",
+            media_type="application/manifest+json",
+        )
+
+    @app.api_route(
+        "/service-worker.js",
+        methods=["GET", "HEAD"],
+        include_in_schema=False,
+    )
+    async def service_worker() -> FileResponse:
+        return FileResponse(
+            WEB_ROOT / "static" / "service-worker.js",
+            media_type="application/javascript",
+            headers={
+                "Cache-Control": "no-cache",
+                "Service-Worker-Allowed": "/",
+            },
+        )
 
     @app.get("/setup", response_class=HTMLResponse, include_in_schema=False)
     async def setup_page(request: Request):

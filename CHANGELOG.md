@@ -2,6 +2,16 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.88] - 2026-06-21
+
+### Added
+
+- Added mobile app-shell behavior with a centered first-load logo, scroll-aware compact top mark, full-screen drawer navigation, mobile Settings section selector, and PWA manifest/app icons.
+
+### Fixed
+
+- Refined the desktop Settings tab seam so the active tab connects to the main panel without a bottom underline while preserving the tab corner strokes.
+
 ## [0.1.87] - 2026-06-21
 
 ### Fixed

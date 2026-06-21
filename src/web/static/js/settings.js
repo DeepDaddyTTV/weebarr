@@ -67,6 +67,7 @@ const els = {
   connectionForm: document.querySelector("#connectionForm"),
   accessForm: document.querySelector("#localAccountForm"),
   settingsTabs: document.querySelectorAll("[data-settings-tab]"),
+  settingsSectionSelect: document.querySelector("#settingsSectionSelect"),
   settingsPanels: document.querySelectorAll("[data-settings-panel]"),
   settingsShell: document.querySelector(".settings-shell"),
   settingsStack: document.querySelector(".settings-stack"),
@@ -1099,6 +1100,10 @@ function openSettingsTab(tabId, replaceHash = true) {
   els.settingsTabs.forEach((button) => {
     button.classList.toggle("active", button.dataset.settingsTab === nextTab);
   });
+  if (els.settingsSectionSelect && els.settingsSectionSelect.value !== nextTab) {
+    els.settingsSectionSelect.value = nextTab;
+    syncCustomSelect("settingsSectionSelect");
+  }
   els.settingsPanels.forEach((panel) => {
     panel.hidden = panel.dataset.settingsPanel !== nextTab;
   });
@@ -1718,6 +1723,12 @@ els.settingsTabs.forEach((button) => {
   });
 });
 
+if (els.settingsSectionSelect) {
+  els.settingsSectionSelect.addEventListener("change", () => {
+    openSettingsTab(els.settingsSectionSelect.value || "weebarr");
+  });
+}
+
 document.addEventListener("click", (event) => {
   if (!event.target.closest(".ui-select")) {
     setCustomSelectOpen(null);
@@ -1740,6 +1751,14 @@ window.addEventListener("hashchange", () => {
 window.addEventListener("resize", () => {
   syncSettingsTabBridge();
 });
+
+window.addEventListener("load", () => {
+  syncSettingsTabBridge();
+});
+
+if (document.fonts?.ready) {
+  document.fonts.ready.then(syncSettingsTabBridge).catch(() => {});
+}
 
 initializeCustomSelects();
 resetSonarrValidation({ resetTestMetrics: false });

@@ -200,6 +200,16 @@ It can also import community themes, but only as validated theme token packs.
 
 Theme imports are not raw CSS or JavaScript. That keeps themes safer and easier to maintain.
 
+## Mobile and PWA
+
+Weebarr is responsive on phones and tablets.
+
+On the mobile Seasonal page, the large centered Weebarr logo and version appear first. The hamburger button opens a full-screen navigation drawer with the main sections, theme controls, connection status, and sign-out action. Once you scroll past the logo, the smaller top-bar mark appears so navigation still feels anchored without taking over the page.
+
+On mobile Settings, the desktop tab row becomes a single section dropdown. Pick a section such as `Authentication`, `API`, or `Connections`, and Weebarr shows that panel using the full screen width.
+
+Supported browsers can also install Weebarr to the home screen using the included PWA manifest and app icons. It is still a self-hosted web app, so your server or tunnel must remain reachable for live data and requests.
+
 ## Login and Access
 
 Weebarr is designed as a single-admin app.

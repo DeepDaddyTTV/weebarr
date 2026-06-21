@@ -1,0 +1,37 @@
+{
+  "name": "Weebarr",
+  "short_name": "Weebarr",
+  "description": "Seasonal anime discovery and request dashboard for Seerr and Sonarr Direct.",
+  "start_url": "/seasonal",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#08101a",
+  "theme_color": "#08101a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/img/weebarr-pwa-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/img/weebarr-pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/img/weebarr-pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/img/weebarr-pwa-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

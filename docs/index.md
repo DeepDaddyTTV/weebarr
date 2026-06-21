@@ -27,6 +27,7 @@ Weebarr brings together:
 - optional Plex auth login
 - themes
 - optional automation for requesting seasonal anime by bucket
+- a responsive mobile layout with an installable app-style PWA shell
 
 In plain English: Weebarr helps you answer, “What anime is airing, do I already have it, and should I request it?”
 
@@ -106,7 +107,15 @@ Automation can request shows for you based on the buckets you choose. It intenti
 
 Settings control themes, content filtering, automation, login options, API-key access, and how Weebarr talks to the active request backend.
 
+On phones, Settings uses a section dropdown instead of desktop tabs so each panel can use the full screen width.
+
 ![Weebarr settings overview](assets/img/settings-weebarr.jpeg)
+
+### Mobile and PWA
+
+On mobile, the Seasonal page starts with the full Weebarr logo and version. The hamburger button opens a full-screen navigation drawer, and the smaller top-bar mark appears after you scroll past the main logo.
+
+Supported browsers can install Weebarr to the home screen using the included PWA manifest and app icons.
 
 ## Before You Start
 

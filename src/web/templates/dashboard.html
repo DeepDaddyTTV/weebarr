@@ -4,13 +4,38 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Weebarr - {{ page_title }}</title>
+    <meta name="theme-color" content="#08101a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Weebarr" />
+    <link rel="manifest" href="/manifest.webmanifest?v={{ asset_version }}" />
     <link rel="icon" href="/static/img/weebarr-mark.svg?v={{ asset_version }}" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/img/weebarr-mark.png?v={{ asset_version }}" />
+    <link rel="apple-touch-icon" href="/static/img/weebarr-pwa-180.png?v={{ asset_version }}" />
     <link rel="stylesheet" href="/static/css/weebarr.css?v={{ asset_version }}" />
   </head>
   <body data-theme="dark" data-page="{{ page_name }}">
+    {% if page_name == "seasonal" %}
+    <section class="mobile-brand-hero" aria-label="Weebarr">
+      <span class="wordmark-swap mobile-brand-wordmark" role="img" aria-label="Weebarr">
+        <img class="brand-wordmark wordmark-dark" src="/static/img/weebarr-wordmark.svg?v={{ asset_version }}" alt="" aria-hidden="true" />
+        <img class="brand-wordmark wordmark-light" src="/static/img/weebarr-wordmark-light.png?v={{ asset_version }}" alt="" aria-hidden="true" />
+      </span>
+      <small>v{{ version }}</small>
+    </section>
+    {% endif %}
+    <header class="mobile-app-bar" aria-label="Mobile app navigation">
+      <button class="mobile-menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="mobileNavDrawer" data-mobile-menu-toggle>
+        <span class="mobile-menu-icon" aria-hidden="true"></span>
+      </button>
+      <a class="mobile-app-mark" href="/seasonal" aria-label="Weebarr home">
+        <img src="/static/img/weebarr-mark.svg?v={{ asset_version }}" alt="" aria-hidden="true" />
+      </a>
+    </header>
+    <div class="mobile-menu-backdrop" data-mobile-menu-close hidden></div>
     <div class="app-shell">
-      <aside class="sidebar" aria-label="Weebarr navigation">
+      <aside id="mobileNavDrawer" class="sidebar" aria-label="Weebarr navigation">
+        <button class="mobile-drawer-close" type="button" aria-label="Close navigation" data-mobile-menu-close-button>
+          <span class="mobile-drawer-close-icon" aria-hidden="true"></span>
+        </button>
         <a class="brand" href="/seasonal" aria-label="Weebarr home">
           <span class="brand-lockup">
             <span class="wordmark-swap brand-wordmark-swap" role="img" aria-label="Weebarr">
