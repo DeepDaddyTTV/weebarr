@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.84] - 2026-06-20
+
+### Fixed
+
+- Lifted the attached desktop Settings tab seam by one more pixel so the selected tab’s lower-right join lines up cleanly with the main panel edge while keeping the restored corner stroke and inactive-behind-panel layout.
+
 ## [0.1.83] - 2026-06-20
 
 ### Fixed
