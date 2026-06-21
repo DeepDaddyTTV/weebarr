@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.90] - 2026-06-21
+
+### Fixed
+
+- Corrected the Settings content-filter dropdown alignment so the selected label now sits vertically centered inside the custom select trigger on mobile.
+- Narrowed the Settings form label heading selector so it no longer leaks muted label styling into nested custom-select content.
+
 ## [0.1.89] - 2026-06-21
 
 ### Fixed

@@ -1476,15 +1476,22 @@ h1 {
   color: var(--text);
   font-size: 14px;
   font-weight: 900;
+  line-height: 1;
   text-align: left;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }
 
 .ui-select-value {
   flex: 1 1 auto;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4072,7 +4079,7 @@ body[data-theme-palette="monochrome"] .rank-chip {
   align-content: start;
 }
 
-.form-grid label span {
+.form-grid label > span {
   display: flex;
   align-items: flex-end;
   color: var(--muted);
