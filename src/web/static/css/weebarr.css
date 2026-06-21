@@ -3947,8 +3947,8 @@ body[data-theme-palette="monochrome"] .rank-chip {
 .settings-tab.active {
   z-index: 4;
   color: var(--cyan);
-  background: linear-gradient(180deg, rgba(17, 29, 44, 0.98) 0%, rgba(13, 21, 32, 0.98) 78%, rgba(10, 16, 25, 0.98) 100%);
-  border-color: var(--cyan-42);
+  background: linear-gradient(180deg, rgba(17, 29, 44, 0.98) 0%, rgba(13, 21, 32, 0.98) 64%, rgba(12, 19, 30, 0.98) 100%);
+  border-color: transparent;
   border-bottom-color: transparent;
   box-shadow: none;
 }
@@ -3956,7 +3956,9 @@ body[data-theme-palette="monochrome"] .rank-chip {
 .settings-tab.active::before,
 .settings-tab.active:hover::before,
 .settings-tab.active:focus-visible::before {
-  opacity: 0;
+  background: linear-gradient(90deg, rgba(44, 207, 255, 0.82), rgba(44, 207, 255, 0.58));
+  opacity: 1;
+  clip-path: inset(0 0 7px 0 round 18px 18px 0 0);
 }
 
 .settings-tab.active::after {
@@ -3978,6 +3980,19 @@ body[data-theme-palette="monochrome"] .rank-chip {
 
 .settings-shell[data-settings-tab-attached="true"] .settings-tab.active::after {
   content: none;
+}
+
+.settings-shell[data-settings-tab-attached="true"] .settings-tab.active {
+  border-color: transparent;
+}
+
+.settings-shell[data-settings-tab-attached="true"] .settings-tab.active::before,
+.settings-shell[data-settings-tab-attached="true"] .settings-tab.active:hover::before,
+.settings-shell[data-settings-tab-attached="true"] .settings-tab.active:focus-visible::before {
+  background: linear-gradient(90deg, rgba(44, 207, 255, 0.82), rgba(44, 207, 255, 0.58));
+  opacity: 1;
+  transition: none;
+  clip-path: inset(0 0 7px 0 round 18px 18px 0 0);
 }
 
 .settings-subpanel {

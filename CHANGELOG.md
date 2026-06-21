@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.87] - 2026-06-21
+
+### Fixed
+
+- Replaced the selected desktop Settings tab’s normal border with a clipped custom cyan outline so the side strokes stop above the panel edge and the active tab no longer shows a bottom underline.
+
 ## [0.1.86] - 2026-06-21
 
 ### Fixed
