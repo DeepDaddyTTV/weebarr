@@ -2,6 +2,12 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.85] - 2026-06-21
+
+### Fixed
+
+- Shortened the attached desktop Settings active-tab body-line cover by six pixels and restored it as a neutral panel blend so the selected tab no longer shows an underline while staying visually connected to the main body.
+
 ## [0.1.84] - 2026-06-20
 
 ### Fixed
