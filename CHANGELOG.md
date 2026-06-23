@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.91] - 2026-06-23
+
+### Fixed
+
+- Unified the mobile drawer close button frame with the seasonal hamburger control so both use the same box size, inset, and rounded shell.
+- Realigned the mobile drawer close button to the same top-left anchor as the hamburger control when the full-screen navigation drawer opens.
+
 ## [0.1.90] - 2026-06-21
 
 ### Fixed

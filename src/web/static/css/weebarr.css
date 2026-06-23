@@ -5255,33 +5255,39 @@ body.compact-preview .spotlight {
     backdrop-filter: blur(20px);
   }
 
-  .mobile-menu-toggle {
+  .mobile-menu-toggle,
+  .mobile-drawer-close {
     position: absolute;
+    top: 8px;
     left: 14px;
+    z-index: 2;
     display: inline-grid;
     width: 42px;
     height: 42px;
-    place-content: center;
-    gap: 5px;
+    place-items: center;
     padding: 0;
     background: rgba(255, 255, 255, 0.045);
     border: 1px solid var(--line);
     border-radius: 14px;
   }
 
-  .mobile-menu-icon {
+  .mobile-menu-icon,
+  .mobile-drawer-close-icon {
     display: block;
     width: 24px;
     height: 24px;
     background-color: currentColor;
-    mask-image: var(--icon-hamburger);
     mask-repeat: no-repeat;
     mask-position: center;
     mask-size: contain;
-    -webkit-mask-image: var(--icon-hamburger);
     -webkit-mask-repeat: no-repeat;
     -webkit-mask-position: center;
     -webkit-mask-size: contain;
+  }
+
+  .mobile-menu-icon {
+    mask-image: var(--icon-hamburger);
+    -webkit-mask-image: var(--icon-hamburger);
   }
 
   .mobile-app-mark {
@@ -5432,35 +5438,12 @@ body.compact-preview .spotlight {
   }
 
   .mobile-drawer-close {
-    position: absolute;
-    top: 14px;
-    left: 14px;
-    z-index: 2;
-    display: inline-grid;
-    width: 42px;
-    height: 42px;
-    place-content: center;
-    padding: 0;
     color: var(--cyan);
-    background: rgba(255, 255, 255, 0.045);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24);
   }
 
   .mobile-drawer-close-icon {
-    display: block;
-    width: 22px;
-    height: 22px;
-    background-color: currentColor;
     mask-image: var(--icon-back);
-    mask-repeat: no-repeat;
-    mask-position: center;
-    mask-size: contain;
     -webkit-mask-image: var(--icon-back);
-    -webkit-mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    -webkit-mask-size: contain;
   }
 
   .sidebar .brand {
