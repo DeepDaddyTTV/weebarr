@@ -139,6 +139,20 @@ This can include:
 - Weebarr summary
 - access summary
 
+### `GET /api/update-status`
+
+Returns the published-container update status used by the sidebar warning card.
+
+This can include:
+
+- the running app version
+- the latest published Docker Hub version
+- whether the running container is outdated
+- the GitHub Pages upgrade guide URL
+- the source used for the version lookup
+
+If `outdated` is `true`, the sidebar can show a warning card that links users straight to the container update instructions.
+
 ### `GET /api/settings/weebarr`
 
 Returns the current Weebarr settings summary.

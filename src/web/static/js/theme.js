@@ -377,6 +377,33 @@
     mobileQuery.addEventListener?.("change", schedule);
   }
 
+  async function bindVersionUpdateCard() {
+    const card = document.querySelector("[data-version-update-card]");
+    if (!card) return;
+
+    const versionText = card.querySelector("[data-version-update-text]");
+    try {
+      const response = await fetch("/api/update-status", {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      });
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      if (!payload?.outdated || !payload?.latest_version) return;
+
+      if (payload.upgrade_url) {
+        card.href = payload.upgrade_url;
+      }
+      if (versionText) {
+        versionText.textContent = `v${payload.latest_version}`;
+      }
+      card.hidden = false;
+    } catch (_error) {
+      // Ignore transient update-check issues and keep the sidebar quiet.
+    }
+  }
+
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
     window.addEventListener("load", () => {
@@ -404,6 +431,7 @@
     bindTooltips();
     bindMobileMenu();
     bindMobileBrandBar();
+    bindVersionUpdateCard();
     registerServiceWorker();
   } else {
     document.addEventListener("DOMContentLoaded", () => {
@@ -411,6 +439,7 @@
       bindTooltips();
       bindMobileMenu();
       bindMobileBrandBar();
+      bindVersionUpdateCard();
       registerServiceWorker();
     });
   }

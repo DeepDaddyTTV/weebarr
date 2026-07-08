@@ -107,6 +107,7 @@ The full documentation site is published from the repo `docs/` folder to GitHub 
 - [Docker Desktop on Windows](https://deepdaddyttv.github.io/weebarr/Deployment-Docker-Desktop-Windows)
 - [Docker Desktop on Linux](https://deepdaddyttv.github.io/weebarr/Deployment-Docker-Desktop-Linux)
 - [Other Deployment Options](https://deepdaddyttv.github.io/weebarr/Deployment-Other-Options)
+- [Update Container](https://deepdaddyttv.github.io/weebarr/Update-Container)
 - [Backends](https://deepdaddyttv.github.io/weebarr/Backends)
 - [Features](https://deepdaddyttv.github.io/weebarr/Features)
 - [Install as an App](https://deepdaddyttv.github.io/weebarr/Install-App)
@@ -128,6 +129,12 @@ Recommended basics:
 - Use rate limiting and any extra auth protections provided by your proxy or tunnel.
 
 Plex login also depends on `WEEBARR_PUBLIC_URL`, so set it before using Plex auth on a public hostname.
+
+## Update Notices
+
+Weebarr checks Docker Hub for the latest published container version and can surface a yellow sidebar warning card when your running container is behind. That card links directly to the GitHub Pages update guide:
+
+- [Update Container](https://deepdaddyttv.github.io/weebarr/Update-Container)
 
 ## How Requests Work
 

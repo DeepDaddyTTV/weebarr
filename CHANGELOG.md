@@ -2,6 +2,16 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.1.92] - 2026-07-08
+
+### Added
+
+- Added a sidebar update-warning card that checks Docker Hub for the latest published Weebarr image and links directly to the GitHub Pages container update guide when a newer release is available.
+
+### Docs
+
+- Added a dedicated Update Container guide to the docs site and repo wiki, and documented the new `/api/update-status` route plus the sidebar upgrade notice in the README and deployment references.
+
 ## [0.1.91] - 2026-06-23
 
 ### Fixed

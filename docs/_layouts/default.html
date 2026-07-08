@@ -35,13 +35,14 @@
             </div>
           </details>
 
-          <details class="docs-group" {% if page.url contains '/Deployment-Docker-Desktop-Windows/' or page.url contains '/Deployment-Docker-Desktop-Linux/' or page.url contains '/Deployment-Docker-Hub/' or page.url contains '/Deployment-Other-Options/' %}open{% endif %}>
-            <summary class="docs-group-summary {% if page.url contains '/Deployment-Docker-Desktop-Windows/' or page.url contains '/Deployment-Docker-Desktop-Linux/' or page.url contains '/Deployment-Docker-Hub/' or page.url contains '/Deployment-Other-Options/' %}active{% endif %}">Installation</summary>
+          <details class="docs-group" {% if page.url contains '/Deployment-Docker-Desktop-Windows/' or page.url contains '/Deployment-Docker-Desktop-Linux/' or page.url contains '/Deployment-Docker-Hub/' or page.url contains '/Deployment-Other-Options/' or page.url contains '/Update-Container/' %}open{% endif %}>
+            <summary class="docs-group-summary {% if page.url contains '/Deployment-Docker-Desktop-Windows/' or page.url contains '/Deployment-Docker-Desktop-Linux/' or page.url contains '/Deployment-Docker-Hub/' or page.url contains '/Deployment-Other-Options/' or page.url contains '/Update-Container/' %}active{% endif %}">Installation</summary>
             <div class="docs-group-links">
               <a href="{{ '/Deployment-Docker-Desktop-Windows/' | relative_url }}" class="nested {% if page.url contains '/Deployment-Docker-Desktop-Windows/' %}active{% endif %}">Windows</a>
               <a href="{{ '/Deployment-Docker-Desktop-Linux/' | relative_url }}" class="nested {% if page.url contains '/Deployment-Docker-Desktop-Linux/' %}active{% endif %}">Linux</a>
               <a href="{{ '/Deployment-Docker-Hub/' | relative_url }}" class="nested {% if page.url contains '/Deployment-Docker-Hub/' %}active{% endif %}">Docker Hub</a>
               <a href="{{ '/Deployment-Other-Options/' | relative_url }}" class="nested {% if page.url contains '/Deployment-Other-Options/' %}active{% endif %}">Other Deployments</a>
+              <a href="{{ '/Update-Container/' | relative_url }}" class="nested {% if page.url contains '/Update-Container/' %}active{% endif %}">Update Container</a>
             </div>
           </details>
 

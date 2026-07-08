@@ -90,3 +90,5 @@ Regardless of platform:
 3. recreate the container
 4. verify `/api/health`
 5. confirm the UI and Seerr integration still work
+
+For a dedicated update walkthrough, use [Update Container](Update-Container.md). The sidebar warning card opens that page automatically when a newer Docker Hub image is available.

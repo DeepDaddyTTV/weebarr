@@ -18,6 +18,7 @@ from src.weebarr.services import (
     tmdb_image_url,
 )
 from src.weebarr.settings import Settings, SettingsStore
+from src.weebarr.update_check import VersionUpdateStatus
 
 
 def authenticated_client(
@@ -100,6 +101,7 @@ def test_seasonal_page_renders(tmp_path):
     assert 'data-ui-select="season"' in response.text
     assert "ui-select-trigger" in response.text
     assert 'class="access-card"' not in response.text
+    assert "data-version-update-card" in response.text
     assert "Sign Out" in response.text
 
 
@@ -140,6 +142,37 @@ def test_settings_page_renders(tmp_path):
     assert 'data-ui-select="settingsContentFilterMode"' in response.text
     assert 'data-ui-select="settingsSeriesType"' in response.text
     assert 'data-ui-select="settingsActiveThemeId"' in response.text
+    assert "data-version-update-card" in response.text
+
+
+def test_update_status_endpoint_returns_sidebar_payload(tmp_path):
+    client = authenticated_client(
+        tmp_path,
+        seerr_base_url="https://seerr.example.test",
+        seerr_api_key="secret-value",
+    )
+
+    class StubVersionChecker:
+        async def status(self):
+            return VersionUpdateStatus(
+                current_version="0.1.92",
+                latest_version="0.1.93",
+                outdated=True,
+                checked_at=1_752_000_000,
+                upgrade_url="https://deepdaddyttv.github.io/weebarr/Update-Container/",
+            )
+
+    client.app.state.version_checker = StubVersionChecker()
+
+    response = client.get("/api/update-status")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["current_version"] == "0.1.92"
+    assert payload["latest_version"] == "0.1.93"
+    assert payload["outdated"] is True
+    assert payload["upgrade_url"].endswith("/Update-Container/")
+    assert payload["source"] == "dockerhub"
 
 
 def test_public_config_exposes_request_backend_metadata(tmp_path):

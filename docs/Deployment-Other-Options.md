@@ -176,3 +176,5 @@ Health check:
 ```
 
 If the app starts but requests fail, check the **Connections** tab, confirm the intended backend is selected, and run the backend connection test.
+
+If you want a dedicated click-through guide for container refreshes, use the [Update Container]({{ '/Update-Container/' | relative_url }}) page. The sidebar warning card links there automatically whenever Docker Hub has a newer published image than the one your container is running.

@@ -77,6 +77,8 @@ Typical output:
 
 - app status
 - version
+- active request backend
+- whether the active request backend is configured
 - whether Seerr is configured
 
 ### `GET /api/config`
@@ -88,9 +90,21 @@ Includes:
 - current version
 - default season/year
 - season options
-- Seerr summary
+- request backend summary
 - Weebarr summary
 - access summary
+
+### `GET /api/update-status`
+
+Returns the published-container update status used by the sidebar warning card.
+
+Includes:
+
+- current running version
+- latest published Docker Hub version
+- whether the running container is outdated
+- the update guide URL
+- the version source
 
 ### `GET /api/settings/weebarr`
 
@@ -187,4 +201,3 @@ Common status codes:
 - `409` for already-requested cases
 - `502` when an upstream metadata source fails
 - `503` when Seerr is not configured
-

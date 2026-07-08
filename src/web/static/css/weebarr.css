@@ -608,6 +608,7 @@ body[data-theme="light"] .wordmark-light {
 .theme-card,
 .access-card,
 .connection-card,
+.version-update-card,
 .filter-panel,
 .filter-menu,
 .stat-card,
@@ -626,7 +627,8 @@ body[data-theme="light"] .wordmark-light {
 
 .theme-card,
 .access-card,
-.connection-card {
+.connection-card,
+.version-update-card {
   padding: 16px;
   border-radius: var(--radius-md);
 }
@@ -716,6 +718,52 @@ body[data-theme="light"] .wordmark-light {
 .connection-card {
   margin-top: 18px;
   border-color: var(--green);
+}
+
+.version-update-card {
+  display: grid;
+  gap: 6px;
+  margin-top: 18px;
+  color: var(--text);
+  text-decoration: none;
+  background:
+    linear-gradient(145deg, var(--warning-12), rgba(255, 255, 255, 0.03) 32%, var(--panel) 72%, var(--panel-3)),
+    linear-gradient(145deg, var(--panel), var(--panel-3));
+  border-color: rgba(255, 209, 102, 0.48);
+  box-shadow:
+    0 0 0 1px rgba(255, 209, 102, 0.08),
+    0 18px 34px rgba(255, 209, 102, 0.08),
+    var(--shadow);
+}
+
+.version-update-card:hover,
+.version-update-card:focus-visible {
+  border-color: rgba(255, 209, 102, 0.72);
+  box-shadow:
+    0 0 0 1px rgba(255, 209, 102, 0.14),
+    0 20px 38px rgba(255, 209, 102, 0.12),
+    var(--shadow);
+}
+
+.version-update-kicker {
+  color: var(--warning);
+  font-size: 12px;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.version-update-version {
+  color: #fff4c2;
+  font-size: 24px;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.version-update-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .connection-head {
@@ -5476,7 +5524,8 @@ body.compact-preview .spotlight {
 
   .theme-card,
   .access-card,
-  .connection-card {
+  .connection-card,
+  .version-update-card {
     display: grid;
     margin-top: 0;
   }

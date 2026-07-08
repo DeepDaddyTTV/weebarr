@@ -56,6 +56,7 @@ from src.weebarr.settings import (
     Settings,
     SettingsStore,
 )
+from src.weebarr.update_check import DockerHubVersionChecker
 
 logging.basicConfig(
     level=logging.INFO,
@@ -289,6 +290,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "WEEBARR_PUBLIC_URL is required when Plex authentication is enabled."
         )
     service = WeebarrService(settings_store.get)
+    version_checker = DockerHubVersionChecker(current_version=__version__)
     asset_version = str(int(time()))
     session_secret = initial_settings.session_secret or generate_session_secret()
     login_rate_limiter = RateLimiter(
@@ -332,6 +334,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.automation_lock = asyncio.Lock()
     app.state.automation_task = None
+    app.state.version_checker = version_checker
 
     app.mount(
         "/static",
@@ -1377,6 +1380,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "requestBackendConfigured": settings_now.request_backend_configured,
             "seerr_configured": settings_now.seerr_configured,
         }
+
+    @app.get("/api/update-status")
+    async def update_status() -> dict[str, Any]:
+        status = await app.state.version_checker.status()
+        return status.as_payload()
 
     @app.get("/api/config")
     async def public_config() -> dict[str, Any]:
