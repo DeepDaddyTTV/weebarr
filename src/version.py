@@ -1,69 +1,92 @@
-"""Dynamic version management for Weebarr using git tags."""
+"""Version helpers for source, Docker, and native desktop Weebarr builds."""
 
+from __future__ import annotations
+
+import os
 import subprocess
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 from pathlib import Path
 
 GIT_DESCRIBE_TIMEOUT_SECONDS = 2
+RELEASE_VERSION = "0.2.0"
+VERSION_OVERRIDE_ENV = "WEEBARR_VERSION_OVERRIDE"
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def _strip_tag_prefix(value: str) -> str:
+    return value[1:] if value.startswith("v") else value
+
+
+def _run_git(*args: str) -> subprocess.CompletedProcess[str] | None:
+    try:
+        return subprocess.run(
+            ["git", *args],
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=ROOT,
+            timeout=GIT_DESCRIBE_TIMEOUT_SECONDS,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError):
+        return None
+
+
+def _git_exact_tag() -> str | None:
+    result = _run_git("describe", "--exact-match", "--tags")
+    if result is None or result.returncode != 0:
+        return None
+    value = result.stdout.strip()
+    if not value:
+        return None
+    return _strip_tag_prefix(value)
+
+
+def _git_dirty() -> bool | None:
+    result = _run_git("status", "--porcelain")
+    if result is None or result.returncode != 0:
+        return None
+    return bool(result.stdout.strip())
+
+
+def _package_version() -> str | None:
+    try:
+        return package_version("weebarr")
+    except PackageNotFoundError:
+        return None
 
 
 def get_version() -> str:
     """
-    Get the current version from git tags or fallback to a default.
+    Resolve the current app version across source, packaged, and container runs.
 
-    Returns:
-        Version string in format 'x.y.z' or 'x.y.z-dev' if not on a tag
+    Resolution order:
+    1. explicit environment override for native launcher/server parity
+    2. exact git tag when running from a tagged checkout
+    3. current release line with `-dev` or `-dev-dirty` when in a source repo
+    4. installed package metadata
+    5. static release fallback for container and bundled runs
     """
-    try:
-        # Try to get version from git describe
-        result = subprocess.run(
-            ["git", "describe", "--tags", "--always", "--dirty"],
-            capture_output=True,
-            text=True,
-            check=False,
-            cwd=Path(__file__).parent.parent,
-            timeout=GIT_DESCRIBE_TIMEOUT_SECONDS,
-        )
 
-        if result.returncode == 0:
-            version = result.stdout.strip()
+    override = os.getenv(VERSION_OVERRIDE_ENV, "").strip()
+    if override:
+        return override
 
-            # Clean up version string
-            if version.startswith("v"):
-                version = version[1:]
+    dirty = _git_dirty()
+    if dirty is True:
+        return f"{RELEASE_VERSION}-dev-dirty"
 
-            # Check if we're on a tagged commit
-            tag_result = subprocess.run(
-                ["git", "describe", "--exact-match", "--tags"],
-                capture_output=True,
-                text=True,
-                check=False,
-                cwd=Path(__file__).parent.parent,
-                timeout=GIT_DESCRIBE_TIMEOUT_SECONDS,
-            )
+    exact_tag = _git_exact_tag()
+    if exact_tag:
+        return exact_tag
+    if dirty is False:
+        return f"{RELEASE_VERSION}-dev"
 
-            if tag_result.returncode != 0:
-                # Not on a tag, add -dev suffix if not already present
-                if "-" in version:
-                    # Format: v0.4.1-2-g1234567 -> 0.4.1-dev
-                    parts = version.split("-")
-                    base_version = parts[0]
-                    if "dirty" in version:
-                        version = f"{base_version}-dev-dirty"
-                    else:
-                        version = f"{base_version}-dev"
-                else:
-                    # Just a commit hash, use fallback
-                    version = "0.1.92-dev"
+    packaged = _package_version()
+    if packaged:
+        return packaged
 
-            return version
-
-    except (subprocess.SubprocessError, FileNotFoundError):
-        # Git not available or not in a git repo
-        pass
-
-    # Fallback version for when git is not available (e.g., in Docker)
-    # This should be updated when creating a new release
-    return "0.1.92"
+    return RELEASE_VERSION
 
 
 # Cache the version at import time

@@ -13,7 +13,7 @@ from io import BytesIO
 from pathlib import Path
 from threading import RLock
 from time import time
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, cast
 from urllib.parse import quote
 from zipfile import BadZipFile, ZipFile
 
@@ -46,6 +46,7 @@ from src.weebarr.auth import (
     verify_bootstrap_token,
     verify_local_credentials,
 )
+from src.weebarr.runtime import web_root
 from src.weebarr.services import WeebarrService
 from src.weebarr.settings import (
     AUTOMATION_BUCKET_KEYS,
@@ -65,7 +66,7 @@ logging.basicConfig(
 logger = logging.getLogger("weebarr")
 
 ROOT = Path(__file__).resolve().parent
-WEB_ROOT = ROOT / "web"
+WEB_ROOT = web_root()
 templates = Jinja2Templates(directory=str(WEB_ROOT / "templates"))
 
 SETUP_PROXY_INDICATOR_HEADERS = (
@@ -1384,7 +1385,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/update-status")
     async def update_status() -> dict[str, Any]:
         status = await app.state.version_checker.status()
-        return status.as_payload()
+        return cast(dict[str, Any], status.as_payload())
 
     @app.get("/api/config")
     async def public_config() -> dict[str, Any]:

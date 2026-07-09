@@ -28,12 +28,14 @@ Weebarr brings together:
 - themes
 - optional automation for requesting seasonal anime by bucket
 - a responsive mobile layout with an installable app-style PWA shell
+- native desktop launcher builds for Windows, macOS, and Linux that open the local web UI in your browser
 
 In plain English: Weebarr helps you answer, “What anime is airing, do I already have it, and should I request it?”
 
 ## Downloads and Links
 
 - [GitHub Repository](https://github.com/DeepDaddyTTV/weebarr)
+- [GitHub Releases](https://github.com/DeepDaddyTTV/weebarr/releases)
 - [GitHub Pages Docs](https://deepdaddyttv.github.io/weebarr/)
 - [Docker Hub Image](https://hub.docker.com/repository/docker/deepdaddyttv/weebarr/general)
 
@@ -44,6 +46,9 @@ In plain English: Weebarr helps you answer, “What anime is airing, do I alread
 
 - [Install as an App](Install-App.md)
   Add Weebarr to an iPhone, iPad, or Android home screen with the PWA shell.
+
+- [Native Desktop Installers](Deployment-Native-Installers.md)
+  Install Weebarr natively on Windows, macOS, or Linux when you want a local launcher instead of a container.
 
 - [Backends](Backends.md)
   Decide whether Weebarr should talk to Seerr or Sonarr Direct, and see how setup works for each path.
@@ -79,6 +84,7 @@ If this is your first time setting up Weebarr, use this order:
 1. Pick one deployment guide:
    - [Docker Desktop on Windows](Deployment-Docker-Desktop-Windows.md)
    - [Docker Desktop on Linux](Deployment-Docker-Desktop-Linux.md)
+   - [Native Desktop Installers](Deployment-Native-Installers.md)
    - [Docker Hub](Deployment-Docker-Hub.md)
    - [Other Deployment Options](Deployment-Other-Options.md)
 2. Start Weebarr and complete the first-run access setup.
@@ -118,7 +124,7 @@ On phones, Settings uses a section dropdown instead of desktop tabs so each pane
 
 On mobile, the Seasonal page starts with the full Weebarr logo and version. The hamburger button opens a full-screen navigation drawer, and the smaller top-bar mark appears after you scroll past the main logo.
 
-Supported browsers can install Weebarr to the home screen using the included PWA manifest and app icons. See [Install as an App](Install-App.md) for the iOS and Android steps.
+Supported browsers can install Weebarr to the home screen using the included PWA manifest and app icons. See [Install as an App](Install-App.md) for the iOS and Android steps. If you want a real desktop install that launches the same web UI locally and keeps Weebarr running in the background, use [Native Desktop Installers](Deployment-Native-Installers.md) instead.
 
 ## Before You Start
 

@@ -8,6 +8,8 @@ Weebarr includes PWA support, which means supported mobile browsers can add it t
 
 It is still your self-hosted Weebarr site underneath. Your phone needs to be able to reach the same URL you use in the browser, and live data still depends on your Weebarr container, Seerr, Sonarr, and network being available.
 
+If you want a true desktop install with an `.exe`, `.dmg`, or Linux package that starts a local background Weebarr service and opens the browser for you, use the [Native Desktop Installers](Deployment-Native-Installers.md) guide instead. This page is only for the mobile/browser-powered PWA path.
+
 ## Before You Start
 
 Use the public or local URL that you normally open on your phone.

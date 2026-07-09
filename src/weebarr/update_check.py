@@ -91,7 +91,9 @@ class DockerHubVersionChecker:
                     current_version=self.current_version,
                     latest_version=latest_version,
                     outdated=bool(
-                        current_semver and latest_semver and current_semver < latest_semver
+                        current_semver
+                        and latest_semver
+                        and current_semver < latest_semver
                     ),
                     checked_at=int(now),
                     upgrade_url=self.upgrade_url,

@@ -10,6 +10,7 @@ This wiki is the repo-side reference set for Weebarr. It is meant to explain wha
 - [API Reference](API-Reference.md)
 - [Docker Desktop on Windows](Deployment-Docker-Desktop-Windows.md)
 - [Docker Desktop on Linux](Deployment-Docker-Desktop-Linux.md)
+- [Native Desktop Installers](Deployment-Native-Installers.md)
 - [Other Deployment Options](Deployment-Other-Options.md)
 - [Update Container](Update-Container.md)
 - [Troubleshooting](Troubleshooting.md)
@@ -41,6 +42,7 @@ Weebarr is a seasonal anime dashboard for self-hosted libraries. It combines:
 4. One deployment guide:
    - [Docker Desktop on Windows](Deployment-Docker-Desktop-Windows.md)
    - [Docker Desktop on Linux](Deployment-Docker-Desktop-Linux.md)
+   - [Native Desktop Installers](Deployment-Native-Installers.md)
    - [Other Deployment Options](Deployment-Other-Options.md)
    - [Update Container](Update-Container.md)
 5. [Troubleshooting](Troubleshooting.md)

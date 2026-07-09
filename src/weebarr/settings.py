@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -12,11 +13,15 @@ from threading import RLock
 from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
 
+from src.weebarr.runtime import desktop_config_path, desktop_mode_enabled
+
 
 def _default_config_path() -> str:
     config_dir = Path("/config")
     if config_dir.exists() and os.access(config_dir, os.W_OK):
         return str(config_dir / "weebarr.json")
+    if desktop_mode_enabled(frozen=bool(getattr(sys, "frozen", False))):
+        return str(desktop_config_path())
     return str((Path.cwd() / "config" / "weebarr.json").resolve())
 
 

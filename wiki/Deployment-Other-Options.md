@@ -1,5 +1,7 @@
 # Other Deployment Options
 
+If you want to skip Docker entirely and install Weebarr like a local desktop app, use [Native Desktop Installers](Deployment-Native-Installers.md). That path covers the Windows `.exe`, macOS `.dmg`, and Linux package releases that start Weebarr locally and open the browser for you.
+
 ## 1. Native Docker Compose on Linux
 
 If you do not use Docker Desktop, Weebarr works the same way with standard Docker Engine plus Compose.

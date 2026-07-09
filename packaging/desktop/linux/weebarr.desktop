@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Weebarr
+Comment=Seasonal anime discovery and request dashboard for Seerr or Sonarr Direct
+Exec=@INSTALL_PATH@
+Terminal=false
+Categories=Network;Utility;
+Icon=weebarr
+StartupNotify=true

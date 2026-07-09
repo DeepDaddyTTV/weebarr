@@ -14,7 +14,7 @@
 
 Weebarr is a small self-hosted companion app for anime libraries that use Seerr, Sonarr, or both. It helps you browse the current anime season, see what is already available or tracked, and send new TV anime requests through either Seerr or the new Sonarr Direct flow without bouncing between tabs.
 
-It is built for people who want a simple seasonal anime dashboard that plays nicely with their existing anime stack while keeping the request backend choice flexible.
+It is built for people who want a simple seasonal anime dashboard that plays nicely with their existing anime stack while keeping the request backend choice flexible. You can run it in Docker like before, or install a native desktop build on Windows, macOS, or Linux that launches the local web UI and keeps the background Weebarr service running like a Sonarr-style app.
 
 ## Current Features
 
@@ -97,15 +97,32 @@ The first time you open the app, Weebarr walks you through setup in two stages:
 1. Create the local admin login, use Plex login, or enable both.
 2. Choose the request backend after auth. If you pick Sonarr Direct, choose `http` or `https`, enter the Sonarr host and port (default `8989`), then validate the API key so Weebarr can load the live root-folder and quality-profile dropdowns before you save. You can still use `Skip Setup` and finish it later in Settings.
 
+## Native Desktop Installers
+
+If you prefer a native install instead of Docker, Weebarr also supports desktop-style releases that behave like a local launcher around the same FastAPI app.
+
+- `Windows`: `Weebarr-<version>-Windows-x64-Setup.exe`
+- `macOS`: `Weebarr-<version>-macOS.dmg`
+- `Linux`: `Weebarr-<version>-Linux-amd64.deb`, `Weebarr-<version>-Linux-x86_64.rpm`, and a portable `Weebarr-<version>-Linux-amd64.tar.gz`
+
+When launched, the desktop build starts a local Weebarr server on `127.0.0.1`, opens your browser to the local UI, and leaves the background service running for later launches.
+
+Downloads and setup notes live here:
+
+- [GitHub Releases](https://github.com/DeepDaddyTTV/weebarr/releases)
+- [Native Desktop Installers](https://deepdaddyttv.github.io/weebarr/Deployment-Native-Installers)
+
 ## Documentation
 
 The full documentation site is published from the repo `docs/` folder to GitHub Pages:
 
 - [Docker Hub](https://hub.docker.com/repository/docker/deepdaddyttv/weebarr/general)
 - [GitHub Repository](https://github.com/DeepDaddyTTV/weebarr)
+- [GitHub Releases](https://github.com/DeepDaddyTTV/weebarr/releases)
 - [Documentation Home](https://deepdaddyttv.github.io/weebarr/)
 - [Docker Desktop on Windows](https://deepdaddyttv.github.io/weebarr/Deployment-Docker-Desktop-Windows)
 - [Docker Desktop on Linux](https://deepdaddyttv.github.io/weebarr/Deployment-Docker-Desktop-Linux)
+- [Native Desktop Installers](https://deepdaddyttv.github.io/weebarr/Deployment-Native-Installers)
 - [Other Deployment Options](https://deepdaddyttv.github.io/weebarr/Deployment-Other-Options)
 - [Update Container](https://deepdaddyttv.github.io/weebarr/Update-Container)
 - [Backends](https://deepdaddyttv.github.io/weebarr/Backends)

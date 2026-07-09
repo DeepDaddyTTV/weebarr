@@ -11,6 +11,7 @@ Start here: [Home](index.md)
 Useful next pages:
 
 - [Backends](Backends.md)
+- [Native Desktop Installers](Deployment-Native-Installers.md)
 - [Features](Features.md)
 - [Install as an App](Install-App.md)
 - [Settings](Settings.md)

@@ -20,6 +20,16 @@ Weebarr is intended to be available from both:
 
 Use whichever registry fits your environment better.
 
+## Native Desktop Installers
+
+If you do not want Docker at all, Weebarr also supports native desktop installers that launch the browser to a local Weebarr server and keep the app running in the background.
+
+Use this guide for that path:
+
+- [Native Desktop Installers](Deployment-Native-Installers.md)
+
+That path is ideal when you want a Sonarr-style local install on Windows, macOS, or Linux instead of a container.
+
 ## Native Docker Compose on Linux
 
 If you use Docker Engine directly, Weebarr runs normally with Docker Compose.

@@ -2,6 +2,18 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.2.0] - 2026-07-09
+
+### Added
+
+- Added a native desktop launcher that starts a local Weebarr server on `127.0.0.1`, opens the web UI in the default browser, and keeps the background service running for later launches.
+- Added cross-platform native packaging support for Windows installer builds (`.exe`), macOS disk images (`.dmg`), and Linux desktop packages (`.deb`, `.rpm`, plus a portable tarball).
+- Added GitHub Actions release automation for native desktop artifacts so tagged releases can publish installers alongside the existing container images.
+
+### Docs
+
+- Added a dedicated native desktop installer guide and updated the README, docs site, and wiki to explain the difference between Docker, native desktop installs, and the mobile PWA path.
+
 ## [0.1.92] - 2026-07-08
 
 ### Added
