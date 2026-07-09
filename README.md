@@ -197,6 +197,8 @@ Before opening an issue, check the [Troubleshooting](https://deepdaddyttv.github
 
 Bug reports and feature requests can be submitted through GitHub Issues.
 
+<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="DeepDaddyTTV" data-color="#BD5FFF" data-emoji=""  data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#ffffff" data-coffee-color="#FFDD00" ></script>
+
 ## License
 
 GPL-3.0. See [LICENSE](LICENSE).
