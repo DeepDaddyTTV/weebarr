@@ -9,6 +9,7 @@
 [![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)](https://www.docker.com/)
 [![GHCR](https://img.shields.io/badge/image-ghcr.io%2Fdeepdaddyttv%2Fweebarr-blue)](https://github.com/DeepDaddyTTV/weebarr/pkgs/container/weebarr)
 [![Docker Hub](https://img.shields.io/badge/image-docker.io%2Fdeepdaddyttv%2Fweebarr-2496ED)](https://hub.docker.com/repository/docker/deepdaddyttv/weebarr/general)
+[![Wiki](https://img.shields.io/badge/wiki-GitHub%20Pages-00C8FF)](https://deepdaddyttv.github.io/weebarr/)
 
 </div>
 
