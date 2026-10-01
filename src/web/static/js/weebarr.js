@@ -19,6 +19,9 @@ const state = {
   statFilter: "all",
   spotlightDismissed: false,
   requestModalItemId: null,
+  matchModalItemId: null,
+  matchModalBackend: null,
+  matchBusy: false,
 };
 
 const els = {
@@ -48,6 +51,15 @@ const els = {
   requestModalSearchOnAdd: document.querySelector("#requestModalSearchOnAdd"),
   requestModalSeasonFolder: document.querySelector("#requestModalSeasonFolder"),
   requestModalSubmit: document.querySelector("#requestModalSubmit"),
+  matchModal: document.querySelector("#matchModal"),
+  matchModalTitle: document.querySelector("#matchModalTitle"),
+  matchModalCopy: document.querySelector("#matchModalCopy"),
+  matchSearchForm: document.querySelector("#matchSearchForm"),
+  matchSearchInput: document.querySelector("#matchSearchInput"),
+  matchSearchSubmit: document.querySelector("#matchSearchSubmit"),
+  matchStatus: document.querySelector("#matchStatus"),
+  matchResults: document.querySelector("#matchResults"),
+  matchReset: document.querySelector("#matchReset"),
   themeButtons: document.querySelectorAll("[data-theme-choice]"),
   stats: {
     total: document.querySelector("#statTotal"),
@@ -607,6 +619,14 @@ function statusLabel(item) {
   return seerr.label || "Unknown";
 }
 
+function matchSummary(item) {
+  const request = requestState(item);
+  if (request.manualMatchStale) return "Saved match unavailable";
+  if (!request.title) return "None";
+  const source = request.manualMatch ? "Manual match" : `Score ${request.matchScore || 0}`;
+  return `${escapeHtml(request.title)} <span class="match-source">${source}</span>`;
+}
+
 function requestActionTemplate(item, inline = false) {
   const seerr = requestState(item);
   if (!seerr || seerr.state === "disabled") {
@@ -627,12 +647,38 @@ function requestActionTemplate(item, inline = false) {
   return `<button class="request-btn" type="button" data-request="${item.id}" title="${buttonTitle}">${buttonText}</button>`;
 }
 
+function safeExternalUrl(value) {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function backendLinkTemplate(item) {
+  const request = requestState(item);
+  const href = safeExternalUrl(request.externalUrl);
+  if (!href) return "";
+  const name = request.backend === "sonarr" ? "Sonarr" : "Seerr";
+  return `<a class="anilist-btn external-link backend-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" title="Open ${escapeHtml(request.title || item.title)} in ${name}">Open in ${name}</a>`;
+}
+
+function matchActionTemplate(item, details = false) {
+  const request = requestState(item);
+  if (request.state === "disabled" || !request.state) return "";
+  if (!details && request.state !== "missing_mapping") return "";
+  const label = request.state === "missing_mapping" ? "Find match" : "Change match";
+  return `<button class="anilist-btn match-btn" type="button" data-match="${item.id}" title="Search ${activeRequestBackendName()} for a matching series">${label}</button>`;
+}
+
 function actionButtonTemplate(item, inline = false) {
   const requestAction = requestActionTemplate(item, inline);
-  if (requestAction) {
-    return requestAction;
+  const actions = [requestAction, backendLinkTemplate(item), matchActionTemplate(item)].filter(Boolean);
+  if (!actions.length) {
+    actions.push(externalLinkTemplate(item, "AniList", "anilist-btn external-link"));
   }
-  return `<a class="anilist-btn external-link" href="${item.siteUrl}" target="_blank" rel="noreferrer" title="Open this anime on AniList">AniList</a>`;
+  return `<div class="card-actions">${actions.join("")}</div>`;
 }
 
 function externalLinkTemplate(item, label = "View on AniList", className = "anilist-btn external-link") {
@@ -856,6 +902,8 @@ async function loadCharacters(item, force = false) {
 function inlineActionsTemplate(item) {
   const actions = [
     externalLinkTemplate(item, "AniList", "anilist-btn external-link inline-link"),
+    backendLinkTemplate(item),
+    matchActionTemplate(item, true),
   ];
   const requestAction = requestActionTemplate(item, true);
   if (requestAction) {
@@ -893,6 +941,7 @@ function requestListTemplate(item) {
           <span><strong>Air Date</strong>${formatDate(item.startDate)}</span>
           <span><strong>Status</strong>${escapeHtml(statusLabel(item))}</span>
         </div>
+        ${inlineActionsTemplate(item)}
       </div>
     </article>
   `;
@@ -924,7 +973,7 @@ function inlineDetailTemplate(item) {
         <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span></strong></div>
         <div><span>Overview</span><strong>${plainDescription(item.description, 520)}</strong></div>
         <div><span>Start Date</span><strong>${formatDate(item.startDate)}</strong></div>
-        <div><span>${requestMatchLabel()}</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
+        <div><span>${requestMatchLabel()}</span><strong>${matchSummary(item)}</strong></div>
         <div><span>Status</span><strong><span class="dot-status ${seerr.state}" title="${escapeHtml(availabilityTooltip(item))}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
       </div>
       ${inlineActionsTemplate(item)}
@@ -957,11 +1006,11 @@ function cardTemplate(item) {
           <div class="meta">${escapeHtml(cardMeta(item))}</div>
       ${statsRowTemplate(item)}
       <div class="next-line"><strong>Next Episode</strong>${formatAiring(item.nextAiring)}</div>
+        </div>
       <div class="card-foot">
         <span class="dot-status ${seerr.state}" title="${escapeHtml(availabilityTooltip(item))}"><i></i>${escapeHtml(statusLabel(item))}</span>
         ${actionButtonTemplate(item)}
       </div>
-        </div>
       </div>
       ${compact && isSelected ? inlineDetailTemplate(item) : ""}
     </article>
@@ -1056,6 +1105,7 @@ function renderSections(allItems) {
     });
     button.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
+      if (shouldIgnoreCardToggle(event.target)) return;
       event.preventDefault();
       event.stopPropagation();
       toggleSelectedItem(String(button.dataset.select));
@@ -1122,11 +1172,13 @@ function renderSpotlight(item) {
       <div><span>Audio</span><strong><span class="audio-chip ${escapeHtml(audio.state)}" title="${escapeHtml(audioTooltip(item))}">${escapeHtml(audio.label)}</span></strong></div>
       <div><span>Overview</span><strong>${plainDescription(item.description)}</strong></div>
       <div><span>Start Date</span><strong>${formatDate(item.startDate)}</strong></div>
-      <div><span>${requestMatchLabel()}</span><strong>${seerr.title ? `${escapeHtml(seerr.title)} (${seerr.matchScore})` : "None"}</strong></div>
+      <div><span>${requestMatchLabel()}</span><strong>${matchSummary(item)}</strong></div>
       <div><span>Status</span><strong><span class="dot-status ${seerr.state}" title="${escapeHtml(availabilityTooltip(item))}"><i></i>${escapeHtml(statusLabel(item))}</span></strong></div>
     </div>
     <div class="spotlight-actions">
       ${requestActionTemplate(item, true)}
+      ${backendLinkTemplate(item)}
+      ${matchActionTemplate(item, true)}
       ${externalLinkTemplate(item, "View on AniList", "anilist-btn external-link")}
     </div>
     ${charactersTemplate(item)}
@@ -1220,6 +1272,141 @@ function closeRequestModal() {
     els.requestModal.hidden = true;
   }
   document.body.classList.remove("modal-open");
+}
+
+let matchSearchController = null;
+let matchReturnFocus = null;
+
+function closeMatchModal() {
+  if (!els.matchModal || state.matchBusy) return;
+  matchSearchController?.abort();
+  matchSearchController = null;
+  state.matchModalItemId = null;
+  state.matchModalBackend = null;
+  els.matchModal.hidden = true;
+  document.body.classList.remove("modal-open");
+  if (matchReturnFocus?.isConnected) {
+    matchReturnFocus.focus();
+  } else {
+    document.querySelector(`[data-match="${state.selectedId}"]`)?.focus();
+  }
+}
+
+function openMatchModal(id, trigger) {
+  const item = state.items.find((anime) => String(anime.id) === String(id));
+  if (!item || !els.matchModal || state.matchBusy) return;
+  closeRequestModal();
+  state.matchModalItemId = String(item.id);
+  state.matchModalBackend = activeRequestBackend();
+  matchReturnFocus = trigger;
+  els.matchModalTitle.textContent = `Find a ${activeRequestBackend() === "sonarr" ? "Sonarr" : "Seerr"} match`;
+  els.matchModalCopy.textContent = `Choose the series that matches ${item.title}. Saving a match updates its status; use the request button when you are ready to request it.`;
+  els.matchSearchInput.value = item.englishTitle || item.title || item.romajiTitle || "";
+  els.matchReset.hidden = !requestState(item).manualMatch;
+  els.matchResults.innerHTML = "";
+  els.matchModal.hidden = false;
+  document.body.classList.add("modal-open");
+  els.matchSearchInput.focus();
+  els.matchSearchInput.select();
+  void searchMatches();
+}
+
+async function searchMatches() {
+  if (state.matchBusy || !state.matchModalItemId) return;
+  matchSearchController?.abort();
+  const controller = new AbortController();
+  matchSearchController = controller;
+  const query = els.matchSearchInput.value.trim();
+  els.matchResults.innerHTML = "";
+  if (!query) {
+    els.matchStatus.textContent = "Enter a series title to search.";
+    els.matchSearchSubmit.disabled = false;
+    return;
+  }
+  els.matchStatus.textContent = "Searching for series…";
+  els.matchSearchSubmit.disabled = true;
+  try {
+    const params = new URLSearchParams({ query, backend: state.matchModalBackend });
+    const response = await fetch(`/api/matches/search?${params}`, { signal: controller.signal });
+    if (!response.ok) throw new Error(await readError(response));
+    const payload = await response.json();
+    if (controller !== matchSearchController || !state.matchModalItemId) return;
+    if (payload.backend !== state.matchModalBackend) throw new Error("The request backend changed. Close this dialog and reload the page.");
+    const results = Array.isArray(payload.results) ? payload.results : [];
+    els.matchStatus.textContent = results.length
+      ? `${results.length} result${results.length === 1 ? "" : "s"}. Check the title, year, and overview before choosing.`
+      : "No series found. Try an English title, alternate title, or the series name without a season number.";
+    els.matchResults.innerHTML = results.map((result) => {
+      const poster = safeExternalUrl(result.posterUrl);
+      const external = safeExternalUrl(result.externalUrl);
+      const name = payload.backend === "sonarr" ? "Sonarr" : "Seerr";
+      return `<article class="match-result">
+        ${poster ? `<img src="${escapeHtml(poster)}" alt="" loading="lazy" />` : '<div class="match-poster-placeholder" aria-hidden="true">?</div>'}
+        <div class="match-result-copy">
+          <h3>${escapeHtml(result.title || "Untitled series")}</h3>
+          <span class="meta">${escapeHtml(result.year || "Year unknown")} · ${name === "Sonarr" ? "TVDB" : "TMDB"} ${escapeHtml(result.mediaId)}${result.inLibrary ? " · In library" : ""}</span>
+          <p>${escapeHtml(result.overview || "No overview available.")}</p>
+          <div class="match-result-actions">
+            <button class="request-btn" type="button" data-use-match="${escapeHtml(result.mediaId)}">Use match</button>
+            ${external ? `<a class="anilist-btn external-link" href="${escapeHtml(external)}" target="_blank" rel="noopener noreferrer">Open in ${name}</a>` : ""}
+          </div>
+        </div>
+      </article>`;
+    }).join("");
+  } catch (error) {
+    if (error.name !== "AbortError" && controller === matchSearchController) {
+      els.matchStatus.textContent = `Search failed: ${error.message}`;
+    }
+  } finally {
+    if (controller === matchSearchController) els.matchSearchSubmit.disabled = false;
+  }
+}
+
+async function saveMatch(mediaId = null) {
+  const itemId = state.matchModalItemId;
+  const item = state.items.find((anime) => String(anime.id) === String(itemId));
+  if (!item || state.matchBusy) return;
+  matchSearchController?.abort();
+  matchSearchController = null;
+  state.matchBusy = true;
+  els.matchModal.querySelectorAll("button, input").forEach((control) => { control.disabled = true; });
+  els.matchStatus.textContent = mediaId ? "Saving match…" : "Restoring automatic matching…";
+  els.matchStatus.focus();
+  try {
+    const backend = state.matchModalBackend;
+    const response = await fetch(`/api/anime/${encodeURIComponent(itemId)}/match${mediaId ? "" : `?backend=${encodeURIComponent(backend)}`}`, {
+      method: mediaId ? "PUT" : "DELETE",
+      headers: { "Content-Type": "application/json" },
+      ...(mediaId ? { body: JSON.stringify({ backend, mediaId: Number(mediaId) }) } : {}),
+    });
+    if (!response.ok) throw new Error(await readError(response));
+    const payload = await response.json();
+    const currentItem = state.items.find((anime) => String(anime.id) === String(itemId));
+    if (currentItem) {
+      currentItem.request = payload.requestState;
+      currentItem.seerr = currentItem.request;
+      currentItem.cover = currentItem.request.posterUrl || currentItem.anilistCover || currentItem.cover;
+      currentItem.banner = currentItem.request.backdropUrl || currentItem.anilistBanner || currentItem.banner;
+      state.selectedId = String(currentItem.id);
+    }
+    // Refresh the counters and cards after the mapping changes requestability.
+    const counts = state.items.reduce((stats, anime) => {
+      const request = requestState(anime);
+      stats.requestable += Number(Boolean(request.requestable));
+      stats.requested += Number(handledRequestStates().has(request.state));
+      return stats;
+    }, { total: state.items.length, requestable: 0, requested: 0 });
+    renderStats(counts);
+    renderAll();
+    state.matchBusy = false;
+    closeMatchModal();
+    toast(mediaId ? `Match saved for ${item.title}.` : `Automatic matching restored for ${item.title}.`);
+  } catch (error) {
+    els.matchStatus.textContent = `Unable to ${mediaId ? "save" : "reset"} match: ${error.message}`;
+  } finally {
+    state.matchBusy = false;
+    els.matchModal.querySelectorAll("button, input").forEach((control) => { control.disabled = false; });
+  }
 }
 
 function renderRequestModal(item) {
@@ -1500,6 +1687,28 @@ document.querySelectorAll("[data-close-request-modal]").forEach((button) => {
   });
 });
 
+els.matchSearchForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void searchMatches();
+});
+
+els.matchResults?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-use-match]");
+  if (button) void saveMatch(button.dataset.useMatch);
+});
+
+els.matchReset?.addEventListener("click", () => { void saveMatch(); });
+document.querySelectorAll("[data-close-match-modal]").forEach((button) => {
+  button.addEventListener("click", closeMatchModal);
+});
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-match]");
+  if (!button) return;
+  event.preventDefault();
+  openMatchModal(button.dataset.match, button);
+});
+
 els.filterButton.addEventListener("click", (event) => {
   event.stopPropagation();
   setFilterOpen(!state.filterOpen);
@@ -1625,6 +1834,22 @@ compactDetailsMedia.addEventListener("change", () => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (els.matchModal && !els.matchModal.hidden) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeMatchModal();
+      return;
+    }
+    if (event.key === "Tab") {
+      const controls = [...els.matchModal.querySelectorAll('button:not(:disabled), input:not(:disabled), a[href]')].filter((control) => control.getClientRects().length);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!first) { event.preventDefault(); return; }
+      if (!controls.includes(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first).focus(); }
+      else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  }
   if (event.key === "Escape") {
     setCustomSelectOpen(null);
     setFilterOpen(false);

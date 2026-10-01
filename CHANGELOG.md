@@ -2,6 +2,24 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.3.0] - 2026-09-30
+
+### Added
+
+- Matched entries now offer Open in Seerr or Open in Sonarr links on seasonal cards, detail views, and Weebarr request history. Sonarr links open the existing series or its add-series page when it is not yet in the library.
+- Added Find match and Change match dialogs with editable series search, title/year/overview previews, and explicit selection. Saved matches persist across refreshes and restarts for the selected AniList entry, backend, and server.
+- Added Reset match to restore automatic matching. Saving a match updates availability without sending a request.
+- Added authenticated match search, save, and reset API routes.
+
+### Fixed
+
+- Sonarr Direct requests now honor the selected TVDB identity without falling back to a different title or confusing it with a Sonarr series ID.
+- Seasonal card footers accommodate multiple actions without overlapping metadata on small screens.
+
+### Docs
+
+- Updated the README, GitHub Pages documentation, and wiki with service links, manual matching, and the new API routes.
+
 ## [0.2.0] - 2026-07-09
 
 ### Added

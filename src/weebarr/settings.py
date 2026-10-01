@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -36,6 +37,48 @@ DEFAULT_AUTOMATION_BUCKETS = {
 DEFAULT_AUTOMATION_SCAN_INTERVAL_DAYS = 30
 DEFAULT_AUTOMATION_SCAN_INTERVAL_HOURS = 0
 REQUEST_BACKENDS = {"seerr", "sonarr"}
+
+
+def match_server_key(base_url: str) -> str:
+    """Identify a server without storing connection credentials in mapping keys."""
+
+    parsed = urlsplit(base_url.strip())
+    hostname = (parsed.hostname or "").lower()
+    port = parsed.port
+    if port in (80 if parsed.scheme.lower() == "http" else 443, None):
+        port = None
+    identity = (
+        f"{parsed.scheme.lower()}://{hostname}:{port or ''}{parsed.path.rstrip('/')}"
+    )
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
+
+def _normalize_manual_matches(value: Any) -> dict[str, dict[str, dict[str, int]]]:
+    matches: dict[str, dict[str, dict[str, int]]] = {}
+    if not isinstance(value, dict):
+        return matches
+    for backend in REQUEST_BACKENDS:
+        servers = value.get(backend)
+        if not isinstance(servers, dict):
+            continue
+        for server, entries in servers.items():
+            if not isinstance(server, str) or not isinstance(entries, dict):
+                continue
+            for anime_id, media_id in entries.items():
+                if (
+                    isinstance(anime_id, str)
+                    and anime_id.isdigit()
+                    and int(anime_id) > 0
+                    and isinstance(media_id, int)
+                    and not isinstance(media_id, bool)
+                    and media_id > 0
+                ):
+                    matches.setdefault(backend, {}).setdefault(server, {})[
+                        str(int(anime_id))
+                    ] = media_id
+    return matches
+
+
 SONARR_MONITOR_TYPES = {
     "all",
     "future",
@@ -506,6 +549,7 @@ class Settings:
     sonarr_default_season_folder: bool = True
     sonarr_language_profile_id: int | None = None
     sonarr_tags: list[int] | None = None
+    manual_matches: dict[str, dict[str, dict[str, int]]] | None = None
     request_timeout_seconds: float = 20.0
     audio_lookup_enabled: bool = True
     audio_cache_ttl_seconds: int = 86400
@@ -856,6 +900,37 @@ class SettingsStore:
             self._current = self._build_settings(payload)
             return self._current
 
+    def save_manual_match(
+        self,
+        backend: str,
+        base_url: str,
+        anime_id: int,
+        media_id: int | None,
+    ) -> Settings:
+        """Save or remove one server-specific AniList mapping."""
+
+        if backend not in REQUEST_BACKENDS or anime_id <= 0:
+            raise ValueError("invalid manual match")
+        if media_id is not None and (isinstance(media_id, bool) or media_id <= 0):
+            raise ValueError("invalid manual match media ID")
+        with self._lock:
+            payload = self._load_payload()
+            matches = _normalize_manual_matches(payload.get("manual_matches"))
+            server_key = match_server_key(base_url)
+            entries = matches.setdefault(backend, {}).setdefault(server_key, {})
+            if media_id is None:
+                entries.pop(str(anime_id), None)
+                if not entries:
+                    matches[backend].pop(server_key, None)
+                if not matches[backend]:
+                    matches.pop(backend, None)
+            else:
+                entries[str(anime_id)] = media_id
+            payload["manual_matches"] = matches
+            self._write_payload(payload)
+            self._current = self._build_settings(payload)
+            return self._current
+
     def request_history(
         self,
         *,
@@ -1087,6 +1162,9 @@ class SettingsStore:
         )
         return replace(
             self._base,
+            manual_matches=_normalize_manual_matches(
+                payload.get("manual_matches", self._base.manual_matches)
+            ),
             request_backend=request_backend,
             request_backend_setup_complete=(
                 stored_request_backend_setup_complete

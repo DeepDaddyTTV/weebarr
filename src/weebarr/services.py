@@ -10,12 +10,12 @@ from collections import Counter
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any, cast
-from urllib.parse import quote
+from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
 import httpx
 from fastapi import HTTPException
 
-from src.weebarr.settings import SONARR_MONITOR_TYPES, Settings
+from src.weebarr.settings import SONARR_MONITOR_TYPES, Settings, match_server_key
 
 ANILIST_URL = "https://graphql.anilist.co"
 JIKAN_CHARACTERS_URL = "https://api.jikan.moe/v4/anime/{mal_id}/characters"
@@ -127,6 +127,20 @@ query AnimeCharacters($id: Int!, $perPage: Int!) {
         }
       }
     }
+  }
+}
+"""
+ANILIST_ANIME_QUERY = """
+query AnimeMatchContext($id: Int!) {
+  Media(id: $id, type: ANIME) {
+    id
+    idMal
+    isAdult
+    format
+    season
+    seasonYear
+    title { romaji english native }
+    startDate { year month day }
   }
 }
 """
@@ -465,6 +479,266 @@ class WeebarrService:
         if self.request_backend == "sonarr":
             return await self._resolve_sonarr(anime)
         return await self._resolve_seerr(anime)
+
+    def match_target(self, backend: str) -> str:
+        """Reject a search or selection from a stale backend view."""
+
+        if backend not in {"seerr", "sonarr"}:
+            raise HTTPException(status_code=400, detail="Invalid match backend.")
+        settings = self.settings
+        if backend != settings.active_request_backend:
+            raise HTTPException(
+                status_code=409,
+                detail="The request backend changed. Refresh before matching.",
+            )
+        if not settings.request_backend_configured:
+            raise HTTPException(
+                status_code=503, detail="Request backend is not configured."
+            )
+        return (
+            settings.sonarr_base_url if backend == "sonarr" else settings.seerr_base_url
+        )
+
+    def ensure_match_target(self, backend: str, base_url: str) -> None:
+        current_url = self.match_target(backend)
+        if match_server_key(current_url) != match_server_key(base_url):
+            raise HTTPException(
+                status_code=409,
+                detail="The request server changed. Refresh before matching.",
+            )
+
+    def _manual_match_id(self, anime: dict[str, Any], backend: str) -> int | None:
+        settings = self.settings
+        base_url = (
+            settings.sonarr_base_url if backend == "sonarr" else settings.seerr_base_url
+        )
+        entries = (
+            (settings.manual_matches or {})
+            .get(backend, {})
+            .get(match_server_key(base_url), {})
+        )
+        return entries.get(str(anime.get("id")))
+
+    def _external_url(
+        self,
+        backend: str,
+        media_id: Any,
+        *,
+        title_slug: Any = None,
+        in_library: bool = False,
+    ) -> str | None:
+        settings = self.settings
+        base_url = (
+            settings.sonarr_base_url if backend == "sonarr" else settings.seerr_base_url
+        )
+        parsed = urlsplit(base_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            return None
+        numeric_id = _coerce_int(media_id)
+        if numeric_id is None or numeric_id <= 0:
+            return None
+        query = ""
+        if backend == "seerr":
+            suffix = f"/tv/{numeric_id}"
+        elif (
+            in_library
+            and isinstance(title_slug, str)
+            and title_slug.strip()
+            and title_slug.strip() not in {".", ".."}
+        ):
+            suffix = f"/series/{quote(title_slug.strip(), safe='')}"
+        else:
+            suffix = "/add/new"
+            query = urlencode({"term": f"tvdb:{numeric_id}"})
+        hostname = parsed.hostname or ""
+        if ":" in hostname:
+            hostname = f"[{hostname}]"
+        netloc = f"{hostname}:{parsed.port}" if parsed.port else hostname
+        return urlunsplit(
+            (parsed.scheme, netloc, parsed.path.rstrip("/") + suffix, query, "")
+        )
+
+    async def anime_match_context(self, anime_id: int) -> dict[str, Any]:
+        """Fetch canonical installment metadata rather than trusting browser titles."""
+
+        cache_key = f"anilist-match-context:{anime_id}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cast(dict[str, Any], cached)
+        async with httpx.AsyncClient(
+            timeout=self.settings.request_timeout_seconds
+        ) as client:
+            response = await client.post(
+                ANILIST_URL,
+                json={"query": ANILIST_ANIME_QUERY, "variables": {"id": anime_id}},
+            )
+            response.raise_for_status()
+            body = response.json()
+        item = (body.get("data") or {}).get("Media")
+        if not isinstance(item, dict) or _coerce_int(item.get("id")) != anime_id:
+            raise HTTPException(status_code=404, detail="AniList anime not found.")
+        anime = self._shape_anime(item, 1)
+        self.cache.set(cache_key, anime, self.settings.anilist_cache_ttl_seconds)
+        return anime
+
+    async def search_matches(self, backend: str, query: str) -> dict[str, Any]:
+        base_url = self.match_target(backend)
+        results: list[dict[str, Any]] = []
+        seen: set[int] = set()
+        if backend == "seerr":
+            for candidate in await self._seerr_search(query):
+                if (candidate.get("mediaType") or candidate.get("media_type")) != "tv":
+                    continue
+                media_id = _coerce_int(candidate.get("id"))
+                if media_id is None or media_id <= 0 or media_id in seen:
+                    continue
+                seen.add(media_id)
+                media_info = candidate.get("mediaInfo") or {}
+                air_date = candidate.get("firstAirDate") or candidate.get(
+                    "first_air_date"
+                )
+                results.append(
+                    {
+                        "mediaId": media_id,
+                        "title": candidate.get("name")
+                        or candidate.get("originalName")
+                        or "Untitled",
+                        "year": _coerce_int(str(air_date or "")[:4]),
+                        "overview": strip_description(candidate.get("overview")),
+                        "posterUrl": tmdb_image_url(
+                            candidate.get("posterPath"), "w500"
+                        ),
+                        "externalUrl": self._external_url("seerr", media_id),
+                        "inLibrary": media_info.get("status") in {4, 5},
+                    }
+                )
+        else:
+            lookup = await self._sonarr_lookup(query)
+            library = {
+                _coerce_int(series.get("tvdbId")): series
+                for series in await self._sonarr_series()
+            }
+            for candidate in lookup:
+                media_id = _coerce_int(candidate.get("tvdbId"))
+                if media_id is None or media_id <= 0 or media_id in seen:
+                    continue
+                seen.add(media_id)
+                existing = library.get(media_id)
+                matched = existing or candidate
+                poster = next(
+                    (
+                        image.get("remoteUrl")
+                        for image in matched.get("images") or []
+                        if image.get("coverType") == "poster" and image.get("remoteUrl")
+                    ),
+                    None,
+                )
+                results.append(
+                    {
+                        "mediaId": media_id,
+                        "title": matched.get("title")
+                        or matched.get("sortTitle")
+                        or "Untitled",
+                        "year": _coerce_int(matched.get("year")),
+                        "overview": strip_description(matched.get("overview")),
+                        "posterUrl": poster,
+                        "externalUrl": self._external_url(
+                            "sonarr",
+                            media_id,
+                            title_slug=matched.get("titleSlug"),
+                            in_library=existing is not None,
+                        ),
+                        "inLibrary": existing is not None,
+                    }
+                )
+        self.ensure_match_target(backend, base_url)
+        return {"backend": backend, "results": results[:30]}
+
+    async def match_candidate_state(
+        self,
+        anime: dict[str, Any],
+        backend: str,
+        media_id: int,
+    ) -> dict[str, Any]:
+        """Resolve an exact backend identifier without loose title fallbacks."""
+
+        base_url = self.match_target(backend)
+        if backend == "seerr":
+            details = await self._seerr_tv_details(media_id)
+            if (
+                not isinstance(details, dict)
+                or _coerce_int(details.get("id")) != media_id
+            ):
+                raise HTTPException(status_code=404, detail="Seerr TV match not found.")
+            state = self._classify_seerr_state(anime, details, details, 130)
+        else:
+            existing = next(
+                (
+                    series
+                    for series in await self._sonarr_series()
+                    if _coerce_int(series.get("tvdbId")) == media_id
+                ),
+                None,
+            )
+            if existing is not None:
+                series_id = _coerce_int(existing.get("id"))
+                if series_id is None:
+                    raise HTTPException(
+                        status_code=404, detail="Sonarr series not found."
+                    )
+                details = await self._sonarr_series_details(series_id)
+                if (
+                    not isinstance(details, dict)
+                    or _coerce_int(details.get("tvdbId")) != media_id
+                ):
+                    raise HTTPException(
+                        status_code=404, detail="Sonarr series not found."
+                    )
+                state = self._classify_sonarr_state(
+                    anime, details, 130, in_library=True
+                )
+            else:
+                candidate = next(
+                    (
+                        series
+                        for series in await self._sonarr_lookup(f"tvdb:{media_id}")
+                        if _coerce_int(series.get("tvdbId")) == media_id
+                    ),
+                    None,
+                )
+                if candidate is None:
+                    raise HTTPException(
+                        status_code=404, detail="Sonarr TV match not found."
+                    )
+                state = self._classify_sonarr_state(
+                    anime,
+                    candidate,
+                    130,
+                    in_library=False,
+                    lookup_match=candidate,
+                )
+        self.ensure_match_target(backend, base_url)
+        state["manualMatch"] = True
+        return state
+
+    async def _resolve_manual_match(
+        self,
+        anime: dict[str, Any],
+        backend: str,
+        media_id: int,
+    ) -> dict[str, Any]:
+        try:
+            return await self.match_candidate_state(anime, backend, media_id)
+        except (httpx.HTTPError, HTTPException, TypeError, AttributeError, ValueError):
+            # A missing or unreachable selected ID must never choose another show.
+            return {
+                "backend": backend,
+                "state": "missing_mapping",
+                "label": "Manual match unavailable",
+                "requestable": False,
+                "manualMatch": True,
+                "manualMatchStale": True,
+            }
 
     async def request_title(
         self,
@@ -1083,6 +1357,7 @@ class WeebarrService:
             "label": label,
             "requestable": requestable,
             "tmdbId": best.get("id"),
+            "externalUrl": self._external_url("seerr", best.get("id")),
             "tvdbId": (best.get("externalIds") or {}).get("tvdbId")
             or media_info.get("tvdbId"),
             "title": (
@@ -1115,6 +1390,10 @@ class WeebarrService:
                 "label": "Seerr not configured",
                 "requestable": False,
             }
+
+        manual_id = self._manual_match_id(anime, "seerr")
+        if manual_id is not None:
+            return await self._resolve_manual_match(anime, "seerr", manual_id)
 
         mal_id = _coerce_int(anime.get("malId"))
         if mal_id is not None:
@@ -1512,6 +1791,12 @@ class WeebarrService:
             "tmdbId": None,
             "tvdbId": _coerce_int(matched.get("tvdbId"))
             or _coerce_int((lookup_match or {}).get("tvdbId")),
+            "externalUrl": self._external_url(
+                "sonarr",
+                matched.get("tvdbId") or (lookup_match or {}).get("tvdbId"),
+                title_slug=matched.get("titleSlug"),
+                in_library=in_library,
+            ),
             "title": matched.get("title")
             or matched.get("sortTitle")
             or anime.get("title"),
@@ -1536,6 +1821,10 @@ class WeebarrService:
                 "label": "Sonarr Direct not configured",
                 "requestable": False,
             }
+
+        manual_id = self._manual_match_id(anime, "sonarr")
+        if manual_id is not None:
+            return await self._resolve_manual_match(anime, "sonarr", manual_id)
 
         titles = self._anime_titles(anime)
         raw_start_year = anime.get("startYear")
@@ -1889,6 +2178,7 @@ class WeebarrService:
                 series
                 for series in series_list
                 if _coerce_int(series.get("id")) == media_id
+                and (tvdb_id is None or _coerce_int(series.get("tvdbId")) == tvdb_id)
             ),
             None,
         )
@@ -1910,22 +2200,21 @@ class WeebarrService:
         title: str,
         tvdb_id: int | None,
     ) -> tuple[dict[str, Any] | None, int]:
+        if tvdb_id is not None:
+            exact = next(
+                (
+                    candidate
+                    for candidate in await self._sonarr_lookup(f"tvdb:{tvdb_id}")
+                    if _coerce_int(candidate.get("tvdbId")) == tvdb_id
+                ),
+                None,
+            )
+            return exact, 120 if exact is not None else 0
         lookup_best: dict[str, Any] | None = None
         lookup_score = 0
         titles = [title]
         for query in title_search_variants(title):
             results = await self._sonarr_lookup(query)
-            if tvdb_id is not None:
-                exact = next(
-                    (
-                        candidate
-                        for candidate in results
-                        if _coerce_int(candidate.get("tvdbId")) == tvdb_id
-                    ),
-                    None,
-                )
-                if exact is not None:
-                    return exact, 120
             candidate, score = self._best_scored_candidate(titles, results, None)
             if score > lookup_score:
                 lookup_best = candidate

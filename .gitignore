@@ -259,6 +259,8 @@ temp/
 *.sqlite3
 
 # CI/CD artifacts
+.playwright-cli/
+output/playwright/
 bandit-report.json
 safety-report.json
 trivy-results.sarif

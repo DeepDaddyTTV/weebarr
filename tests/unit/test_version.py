@@ -22,7 +22,7 @@ def test_dirty_source_tree_stays_on_current_release_line(monkeypatch):
     monkeypatch.setattr(version, "_git_dirty", lambda: True)
     monkeypatch.setattr(version, "_package_version", lambda: None)
 
-    assert version.get_version() == "0.2.0-dev-dirty"
+    assert version.get_version() == f"{version.RELEASE_VERSION}-dev-dirty"
 
 
 def test_packaged_fallback_uses_installed_version(monkeypatch):

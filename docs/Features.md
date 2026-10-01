@@ -55,6 +55,7 @@ Depending on the available data, a card may show:
 - availability state
 - request button
 - AniList link
+- backend link and match actions
 
 The card is meant to answer the quick question: “What is this, and do I need to do anything with it?”
 
@@ -80,6 +81,23 @@ The detail view can include:
 - cast and expandable per-character voice actor information from AniList
 
 Use this view when you are deciding whether a show is worth requesting.
+
+## Backend Links and Manual Matches
+
+Matched titles offer `Open in Seerr` or `Open in Sonarr` for the active backend. A Sonarr title already in your library opens its series page. A Sonarr catalog match that has not been added opens the add-series page.
+
+If a title shows `No Seerr match` or `No Sonarr match`, use `Find match`:
+
+1. Review or edit the search title. An alternate title can help when the backend uses a different name.
+2. Search the active backend's catalog.
+3. Compare each result's title, year, poster, overview, and library status when available.
+4. Choose `Use match` on the correct series.
+
+`Use match` saves the association and refreshes the title's backend status. It does not create a request or add a series. Use the separate request action when you are ready.
+
+Use `Change match` if an automatic or saved match points to the wrong series. For a saved manual choice, `Reset match` clears the override and returns the title to automatic matching.
+
+Manual choices survive restarts and updates in `/config/weebarr.json`. Each choice belongs to one AniList ID, backend, and server, so a choice for Seerr is separate from a choice for Sonarr or a different server.
 
 ## Requests Page
 

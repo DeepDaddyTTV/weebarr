@@ -33,6 +33,7 @@ Each anime card can show:
 - Next episode timing
 - Availability state
 - Request action or AniList link
+- Backend link and match actions
 
 ## Expanded Detail View
 
@@ -53,15 +54,32 @@ The detail view can show:
 - Audio state
 - Overview
 - Start date
-- Seerr match details
+- Active backend match details
 - Availability state
 - Full cast and voice actor information from AniList
+
+## Backend Links and Manual Matches
+
+Matched titles offer `Open in Seerr` or `Open in Sonarr` for the active backend. A Sonarr title already in your library opens its series page. A Sonarr catalog match that has not been added opens the add-series page.
+
+If a title shows `No Seerr match` or `No Sonarr match`, use `Find match`:
+
+1. Review or edit the search title. An alternate title can help when the backend uses a different name.
+2. Search the active backend's catalog.
+3. Compare each result's title, year, poster, overview, and library status when available.
+4. Choose `Use match` on the correct series.
+
+`Use match` saves the association and refreshes the title's backend status. It does not create a request or add a series. Use the separate request action when you are ready.
+
+Use `Change match` if an automatic or saved match points to the wrong series. For a saved manual choice, `Reset match` clears the override and returns the title to automatic matching.
+
+Manual choices survive restarts and updates in `/config/weebarr.json`. Each choice belongs to one AniList ID, backend, and server, so a choice for Seerr is separate from a choice for Sonarr or a different server.
 
 ## Requests Page
 
 The Requests page only shows requests made through Weebarr.
 
-It is not a full Seerr request history mirror.
+It is not a full copy of your Seerr request history or Sonarr library history.
 
 Each row shows:
 
@@ -70,11 +88,11 @@ Each row shows:
 - Short description
 - Request date
 - Air date
-- Current Weebarr/Seerr status
+- Current Weebarr or backend status
 
 ## Availability States
 
-Weebarr uses these states:
+Seerr uses these states:
 
 - `Available`
   - All required seasons are available in Seerr.
@@ -88,6 +106,14 @@ Weebarr uses these states:
   - Used when strict monitoring is enabled and a later season is not explicitly covered.
 - `No Seerr match`
   - Weebarr could not confidently map the title to Seerr/TMDb.
+
+Sonarr Direct uses:
+
+- `Available`: target season coverage is sufficiently available.
+- `Partially Available`: some target coverage exists.
+- `In Library`: the series is tracked, but target coverage is not sufficiently available.
+- `Missing`: the matched series is not in Sonarr yet and can be added.
+- `No Sonarr match`: lookup did not produce a confident usable candidate.
 
 ## Audio Badges
 
@@ -107,21 +133,12 @@ If English voice actor data is not found, Weebarr falls back to `EN Sub`.
 
 ## Request Behavior
 
-Weebarr sends TV requests through Seerr.
+Weebarr sends TV requests through the active backend.
 
-Important behavior:
+- `Seerr` uses the one-click request flow and Seerr's anime/default settings unless overridden in Weebarr. Seerr controls downstream requests, approvals, and user rules.
+- `Sonarr Direct` opens a request modal with season selection, monitor mode, search-on-add, and season-folder controls. It uses the Sonarr defaults saved in Weebarr.
 
-- Weebarr does not request directly into Sonarr.
-- Seerr remains the request gatekeeper.
-- By default, Weebarr uses Seerr's anime/default request settings.
-- Optional overrides in Settings can force:
-  - Sonarr server selection
-  - quality profile
-  - series type
-  - root folder
-  - language profile
-  - request user
-  - tags
+Saving a manual match does not submit a request. The normal request action uses the saved association when you choose to request the title.
 
 ## Automation
 

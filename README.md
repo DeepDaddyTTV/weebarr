@@ -22,6 +22,7 @@ It is built for people who want a simple seasonal anime dashboard that plays nic
 - **Seasonal anime discovery** powered by AniList.
 - **Simple popularity groups** for easier triage: `S-Tier`, `Canon`, `Bingeable`, and `Filler`.
 - **Backend-aware availability** so you can see whether a title is missing, requested, in library, partially available, fully available, or missing a confident backend match.
+- **Backend links and manual matching** to open matched titles in Seerr or Sonarr, search for unmatched series, and save or reset a match choice.
 - **At-a-glance seasonal metadata** including AniList score, popularity, and total episode count directly on cards and detail views.
 - **Two request paths**:
   - one-click TV requests through Seerr using your existing anime defaults unless you override them
@@ -164,6 +165,10 @@ Weebarr now supports two request backends:
 If you stay on Seerr, your normal Seerr request flow stays in charge, including your anime defaults, Sonarr server, quality profile, root folder, approval behavior, and user rules.
 
 If you switch to Sonarr Direct, Weebarr uses the saved Sonarr defaults you choose in setup or Settings, then tracks Sonarr-native states such as `In Library`, `Partially Available`, `Available`, and `No Sonarr match`.
+
+Matched titles offer `Open in Seerr` or `Open in Sonarr`. Sonarr links open the existing series when it is in your library, or its add-series page when it is only a catalog match.
+
+For a title with no confident match, use `Find match`, edit the search title if needed, review the results, and choose `Use match`. Saving a match updates the title's backend status; use the separate request action when you want to request it. `Change match` replaces a match, and `Reset match` clears a saved manual choice so automatic matching can run again. Choices persist in `/config/weebarr.json` for each AniList ID, backend, and server.
 
 ## API
 

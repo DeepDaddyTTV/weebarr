@@ -13,7 +13,7 @@ from io import BytesIO
 from pathlib import Path
 from threading import RLock
 from time import time
-from typing import Any, Optional, Union, cast
+from typing import Any, Literal, Optional, Union, cast
 from urllib.parse import quote
 from zipfile import BadZipFile, ZipFile
 
@@ -112,6 +112,15 @@ class SonarrRequestOptionsPayload(BaseModel):
     monitor_mode: Optional[str] = Field(default=None, alias="monitorMode")
     search_on_add: Optional[bool] = Field(default=None, alias="searchOnAdd")
     season_folder: Optional[bool] = Field(default=None, alias="seasonFolder")
+
+
+class AnimeMatchPayload(BaseModel):
+    """An exact service selection; backend supplies all title metadata."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    backend: Literal["seerr", "sonarr"]
+    media_id: int = Field(..., alias="mediaId", gt=0, strict=True)
 
 
 class ConnectionPayload(BaseModel):
@@ -1953,6 +1962,89 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             logger.exception("AniList character lookup failed")
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
+    @app.get("/api/matches/search")
+    async def search_matches(
+        query: str = Query(..., min_length=1, max_length=200),
+        backend: str = Query(..., pattern="^(seerr|sonarr)$"),
+    ) -> dict[str, Any]:
+        query = query.strip()
+        if not query:
+            raise HTTPException(
+                status_code=400, detail="Enter a series title to search."
+            )
+        try:
+            return await service.search_matches(backend, query)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception("Series match search failed")
+            raise HTTPException(
+                status_code=502,
+                detail="Match search failed. Check the backend connection and retry.",
+            ) from exc
+
+    @app.put("/api/anime/{anime_id}/match")
+    async def save_anime_match(
+        anime_id: int, payload: AnimeMatchPayload
+    ) -> dict[str, Any]:
+        if anime_id <= 0:
+            raise HTTPException(status_code=400, detail="AniList ID must be positive.")
+        base_url = service.match_target(payload.backend)
+        try:
+            anime = await service.anime_match_context(anime_id)
+            # Revalidate the selection against the server rather than a cached search.
+            service.clear_cache()
+            state = await service.match_candidate_state(
+                anime, payload.backend, payload.media_id
+            )
+            service.ensure_match_target(payload.backend, base_url)
+            settings_store.save_manual_match(
+                payload.backend, base_url, anime_id, payload.media_id
+            )
+            service.clear_cache()
+            return {
+                "success": True,
+                "backend": payload.backend,
+                "requestState": state,
+            }
+        except HTTPException:
+            raise
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                raise HTTPException(
+                    status_code=404, detail="TV match not found."
+                ) from exc
+            raise HTTPException(
+                status_code=502, detail="Match validation failed."
+            ) from exc
+        except Exception as exc:
+            logger.exception("Series match save failed")
+            raise HTTPException(
+                status_code=502, detail="Match validation failed."
+            ) from exc
+
+    @app.delete("/api/anime/{anime_id}/match")
+    async def reset_anime_match(
+        anime_id: int,
+        backend: str = Query(..., pattern="^(seerr|sonarr)$"),
+    ) -> dict[str, Any]:
+        if anime_id <= 0:
+            raise HTTPException(status_code=400, detail="AniList ID must be positive.")
+        base_url = service.match_target(backend)
+        try:
+            anime = await service.anime_match_context(anime_id)
+            service.ensure_match_target(backend, base_url)
+            settings_store.save_manual_match(backend, base_url, anime_id, None)
+            service.clear_cache()
+            state = await service.resolve_request_state(anime)
+            service.ensure_match_target(backend, base_url)
+            return {"success": True, "backend": backend, "requestState": state}
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception("Series match reset failed")
+            raise HTTPException(status_code=502, detail="Match reset failed.") from exc
+
     @app.post("/api/request")
     async def request_in_backend(payload: RequestPayload) -> dict[str, Any]:
         settings_now = current_settings()
@@ -1968,6 +2060,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
 
         try:
+            manual_state: dict[str, Any] | None = None
+            if payload.anime_id is not None:
+                manual_id = service._manual_match_id(
+                    {"id": payload.anime_id}, settings_now.active_request_backend
+                )
+                if manual_id is not None:
+                    selected_id = (
+                        payload.tvdb_id
+                        if settings_now.active_request_backend == "sonarr"
+                        else payload.media_id
+                    )
+                    if selected_id != manual_id:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="The selected match changed. Refresh before requesting.",
+                        )
+                    anime = await service.anime_match_context(payload.anime_id)
+                    try:
+                        manual_state = await service.match_candidate_state(
+                            anime, settings_now.active_request_backend, manual_id
+                        )
+                    except (httpx.HTTPError, HTTPException) as exc:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="The manual match is unavailable. Choose a new match before requesting.",
+                        ) from exc
             request_options = (
                 payload.options.model_dump(by_alias=True, exclude_none=True)
                 if payload.options is not None
@@ -1986,11 +2104,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 options=request_options,
             )
             request_state = result.get("requestState") or {
-                "backend": "seerr",
+                "backend": settings_now.active_request_backend,
                 "state": "requested",
                 "label": "Requested",
                 "requestable": False,
             }
+            if manual_state is not None:
+                request_state["manualMatch"] = True
+                request_state.setdefault("externalUrl", manual_state.get("externalUrl"))
+                request_state.setdefault("tmdbId", manual_state.get("tmdbId"))
+                request_state.setdefault("tvdbId", manual_state.get("tvdbId"))
             if (
                 payload.anime_id is not None
                 and payload.season

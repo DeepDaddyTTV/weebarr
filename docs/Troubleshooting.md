@@ -67,7 +67,25 @@ Common reasons:
 - an external ID is missing or wrong
 - the show exists under a different name
 
-This does not always mean Weebarr is broken. Sometimes anime metadata is just a maze with wallpaper.
+Use `Find match` to search for the correct series:
+
+1. Edit the search title if the backend uses an alternate or localized name.
+2. Review the result's title, year, poster, overview, and library status when available.
+3. Choose `Use match` for the correct series.
+
+This saves the association and refreshes availability. It does not request the show; use the separate request action afterward if needed.
+
+If the current match is wrong, use `Change match`. If a saved manual choice should return to automatic matching, use `Reset match`.
+
+Search requires a configured, reachable active backend. If search fails, test that backend under **Settings** → **Connections**. If no results appear, try an alternate title and check the backend's own catalog.
+
+Manual choices belong to the AniList ID, backend, and server that were active when saved. After switching backends or changing servers, search and save a choice for that connection if needed. Keep `/config` mounted to preserve choices through updates.
+
+## `Open in Seerr` Or `Open in Sonarr` Does Not Load
+
+The link uses the configured backend address. Check that the saved base URL is reachable from the device running your browser as well as from Weebarr. A Docker-only service hostname may work for API calls inside the container while failing to resolve on your phone or computer.
+
+For Sonarr, a matched title that is not in your library opens the add-series page. That is expected; saving a Weebarr match alone does not add the series to Sonarr.
 
 ## Requests Use The Wrong Profile, Root Folder, Or Series Type
 

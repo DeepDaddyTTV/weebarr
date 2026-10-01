@@ -128,6 +128,33 @@ Query params:
 
 Returns AniList character and voice actor information for one anime.
 
+### `GET /api/matches/search`
+
+Searches the active backend's TV catalog for manual match candidates.
+
+Query parameters:
+
+- `query`: the title to search
+- `backend`: `seerr` or `sonarr`; it must match the current configured backend
+
+Example:
+
+```text
+/api/matches/search?query=Blue%20Exorcist&backend=sonarr
+```
+
+Returns `backend` and a `results` array. Each result includes:
+
+- `mediaId`: the backend catalog ID used when saving the match
+- `title`
+- `year`
+- `overview`
+- `posterUrl`
+- `externalUrl`: a link to the backend's detail or add-series page
+- `inLibrary`: whether the candidate is already in the backend's library
+
+This route requires an authenticated admin session. Search does not save a choice or create a request.
+
 ## Mutation APIs
 
 ### `PUT /api/settings/access/local`
@@ -169,6 +196,35 @@ Tests the supplied Seerr connection info without saving it.
 
 Saves effective Seerr request settings and overrides.
 
+### `PUT /api/anime/{anime_id}/match`
+
+Saves a manual association for an AniList anime ID in the active backend.
+
+Payload:
+
+```json
+{
+  "backend": "sonarr",
+  "mediaId": 12345
+}
+```
+
+Use a `mediaId` returned by match search. `backend` accepts `seerr` or `sonarr` and must match the current configured backend.
+
+Returns `success`, `backend`, and the refreshed `requestState`. The association is persisted in `/config/weebarr.json` for the AniList ID, backend, and server. Saving does not request the title or add it to Sonarr.
+
+### `DELETE /api/anime/{anime_id}/match`
+
+Clears the saved manual association for the current backend and server, then returns to automatic matching.
+
+Supply `backend=seerr` or `backend=sonarr` in the query string. The backend must be current and configured.
+
+Returns `success`, `backend`, and the refreshed `requestState`.
+
+Both match mutation routes require an authenticated admin session. The automation API key cannot save or reset manual choices.
+
+Match routes return `409` if the chosen backend is inactive or the configured server changes during lookup, `503` if the active backend is unconfigured, `404` if the anime or backend catalog entry cannot be found, and `502` if the upstream lookup fails. A whitespace-only search query returns `400`; invalid backend values or media IDs return `422`. Missing authentication returns `401`, and automation-API-key-only access returns `403`.
+
 ### `POST /api/request`
 
 Creates a Seerr TV request and records a Weebarr request entry when applicable.
@@ -190,6 +246,7 @@ Do not assume the API key can manage:
 - setup
 - auth state
 - settings writes
+- manual match search, save, or reset
 
 ## Error Behavior
 
@@ -198,6 +255,9 @@ Common status codes:
 - `200` or `201` for success
 - `400` for invalid inputs
 - `401` for missing or invalid auth
-- `409` for already-requested cases
+- `403` for credentials without access to the route
+- `404` for an anime or backend catalog entry not found
+- `409` for already-requested cases or backend/server conflicts
+- `422` for input validation failures
 - `502` when an upstream metadata source fails
-- `503` when Seerr is not configured
+- `503` when the active request backend is not configured

@@ -39,6 +39,16 @@ When `Sonarr Direct` is selected:
 
 This is the better fit if you want Weebarr to work more like a direct Sonarr companion instead of a Seerr front end.
 
+## Opening and Correcting Backend Matches
+
+Matched entries offer `Open in Seerr` or `Open in Sonarr` for the active backend. For Sonarr, existing library entries open the exact series page; catalog matches that are not in the library open the add-series page.
+
+Use `Find match` on an unmatched title to search the active backend by title. You can edit the query and compare the returned title, year, poster, overview, and library status before choosing `Use match`. Use `Change match` to correct an existing association.
+
+Saving a choice refreshes availability and request state, but does not submit a request or add anything to Sonarr. The request action remains a separate step.
+
+Manual associations are stored in `/config/weebarr.json` by AniList ID, backend, and server. Switching backends or servers does not apply a choice from another backend or server. `Reset match` removes the active saved choice and returns to automatic matching.
+
 ## First-Run Setup
 
 Weebarr setup now happens in two stages:
