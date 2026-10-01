@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to rebuild and attach installers to
+        required: false
+        type: string
 
 jobs:
   build-native:
@@ -21,7 +26,7 @@ jobs:
             runner: windows-latest
           - label: macOS
             platform: macos
-            runner: macos-13
+            runner: macos-15-intel
           - label: Linux
             platform: linux
             runner: ubuntu-latest
@@ -29,6 +34,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -66,7 +73,7 @@ jobs:
     name: Attach Native Installers To Release
     runs-on: ubuntu-latest
     needs: build-native
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.release_tag, 'v')
     permissions:
       contents: write
 
@@ -80,5 +87,5 @@ jobs:
       - name: Publish release assets
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
           files: release-assets/*
