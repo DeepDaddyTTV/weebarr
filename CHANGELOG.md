@@ -2,6 +2,13 @@
 
 All notable changes to Weebarr will be documented in this file.
 
+## [0.3.1] - 2026-10-01
+
+### Fixed
+
+- Compact seasonal cards now apply their poster/content columns to the inner card surface, keeping titles, metadata, and actions within the full card width.
+- Request, service-link, and matching buttons stay left-aligned and wrap together in the Seerr and Sonarr Direct variants.
+
 ## [0.3.0] - 2026-09-30
 
 ### Added

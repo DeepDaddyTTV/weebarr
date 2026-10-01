@@ -9,7 +9,7 @@ from importlib.metadata import version as package_version
 from pathlib import Path
 
 GIT_DESCRIBE_TIMEOUT_SECONDS = 2
-RELEASE_VERSION = "0.3.0"
+RELEASE_VERSION = "0.3.1"
 VERSION_OVERRIDE_ENV = "WEEBARR_VERSION_OVERRIDE"
 ROOT = Path(__file__).resolve().parent.parent
 
